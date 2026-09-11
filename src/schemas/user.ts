@@ -29,6 +29,12 @@ export const updateMeSchema = z
 export const changePasswordSchema = z.object({
   currentPassword: z.string().max(200),
   newPassword: passwordSchema,
+  /**
+   * Refresh текущей сессии. Смена пароля гасит все прочие цепочки,
+   * и без этого поля пользователь выкидывал бы сам себя из
+   * приложения ровно в момент успешной смены.
+   */
+  refreshToken: z.string().optional(),
 });
 
 export type User = z.infer<typeof userSchema>;
