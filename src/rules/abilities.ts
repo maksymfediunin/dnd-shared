@@ -1,6 +1,9 @@
-import { ABILITY_CODES, type AbilityCode, type AbilityScores, type ClassCode } from '../enums/character.js';
-
-export { ABILITY_CODES, type AbilityCode, type AbilityScores };
+import {
+  ABILITY_CODES,
+  type AbilityCode,
+  type AbilityScores,
+  type ClassCode,
+} from '../enums/character.js';
 
 export const POINT_BUY_BUDGET = 27;
 
