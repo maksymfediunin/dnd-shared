@@ -52,3 +52,8 @@ export const CHARACTER_RESOURCE_CODES = [
 ] as const;
 
 export type CharacterResourceCode = (typeof CHARACTER_RESOURCE_CODES)[number];
+
+/** Уровень владения навыком. Отсутствие владения строкой не хранится. */
+export const PROFICIENCY_LEVELS = ['PROFICIENT', 'EXPERTISE'] as const;
+
+export type ProficiencyLevel = (typeof PROFICIENCY_LEVELS)[number];
