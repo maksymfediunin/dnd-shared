@@ -101,6 +101,15 @@ export const characterCreateSchema = z
     name: z.string().trim().min(1).max(60),
     raceCode: codeSchema,
     classCode: classCodeSchema,
+    /**
+     * Подкласс при создании нужен трём классам, у которых он
+     * открывается на первом уровне: жрецу, чародею и колдуну. Без
+     * этого поля их домен, происхождение и покровитель недостижимы
+     * вовсе — повышение уровня спрашивает только про следующий
+     * уровень, а первый уже позади. Остальным девяти поле не нужно:
+     * им подкласс достанется на втором или третьем.
+     */
+    subclassCode: codeSchema.optional(),
     backgroundCode: codeSchema,
     gender: genderSchema,
     alignment: alignmentSchema,

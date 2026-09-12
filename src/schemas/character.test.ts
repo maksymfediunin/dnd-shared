@@ -69,6 +69,13 @@ describe('characterCreateSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('принимает подкласс при создании и обходится без него', () => {
+    expect(
+      characterCreateSchema.safeParse({ ...VALID_CHARACTER, subclassCode: 'life-domain' }).success,
+    ).toBe(true);
+    expect(characterCreateSchema.parse(VALID_CHARACTER).subclassCode).toBeUndefined();
+  });
+
   it('принимает выбранные прибавки полуэльфа и выборы внутри умений', () => {
     const result = characterCreateSchema.safeParse({
       ...VALID_CHARACTER,
