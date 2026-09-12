@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   ABILITY_CODES,
+  abilityCodeSchema,
   alignmentSchema,
   classCodeSchema,
   genderSchema,
@@ -108,6 +109,22 @@ export const characterCreateSchema = z
     languageCodes: z.array(codeSchema).max(20).default([]),
     equipmentChoices: z.array(equipmentChoiceSchema).max(20).default([]),
     spellCodes: z.array(codeSchema).max(50).default([]),
+    /**
+     * Характеристики, которые игрок выбрал сам, когда раса даёт выбор
+     * вместо жёсткой прибавки: у полуэльфа это «+1 к двум на выбор».
+     * Без этого поля полуэльф молча получал только +2 к Харизме, а
+     * две трети его расовой прибавки терялись.
+     */
+    chosenAbilityBonuses: z.array(abilityCodeSchema).max(6).default([]),
+    /**
+     * Выборы внутри классовых умений первого уровня: боевой стиль
+     * воина, экспертиза плута, избранный враг следопыта. Умение
+     * называется кодом, значение — кодом выбранного варианта.
+     */
+    featureChoices: z
+      .array(z.object({ featureCode: codeSchema, value: codeSchema }))
+      .max(20)
+      .default([]),
     publicDescription: z.string().max(5000).optional(),
     biography: z.string().max(20000).optional(),
   })

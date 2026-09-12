@@ -69,6 +69,30 @@ describe('characterCreateSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('принимает выбранные прибавки полуэльфа и выборы внутри умений', () => {
+    const result = characterCreateSchema.safeParse({
+      ...VALID_CHARACTER,
+      chosenAbilityBonuses: ['dexterity', 'constitution'],
+      featureChoices: [{ featureCode: 'fighter-fighting-style', value: 'defense' }],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('по умолчанию выборов нет, а не undefined', () => {
+    const result = characterCreateSchema.safeParse(VALID_CHARACTER);
+
+    expect(result.success && result.data.chosenAbilityBonuses).toEqual([]);
+    expect(result.success && result.data.featureChoices).toEqual([]);
+  });
+
+  it('отклоняет выдуманную характеристику в прибавках', () => {
+    expect(
+      characterCreateSchema.safeParse({ ...VALID_CHARACTER, chosenAbilityBonuses: ['удача'] })
+        .success,
+    ).toBe(false);
+  });
+
   it('отклоняет неизвестный пол и неизвестное мировоззрение', () => {
     expect(characterCreateSchema.safeParse({ ...VALID_CHARACTER, gender: 'ЖЕНЩИНА' }).success).toBe(
       false,
