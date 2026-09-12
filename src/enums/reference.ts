@@ -6,6 +6,7 @@ export const REFERENCE_ENTITIES = [
   'class-features',
   'backgrounds',
   'skills',
+  'languages',
   'items',
   'weapon-profiles',
   'armor-profiles',

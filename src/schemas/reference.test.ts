@@ -18,6 +18,6 @@ describe('схемы справочника', () => {
   });
 
   it('знает пятнадцать сущностей', () => {
-    expect(REFERENCE_ENTITIES).toHaveLength(15);
+    expect(REFERENCE_ENTITIES).toHaveLength(16);
   });
 });
