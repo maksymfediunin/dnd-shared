@@ -33,3 +33,22 @@ export const CLASS_CODES = [
 ] as const;
 
 export type ClassCode = (typeof CLASS_CODES)[number];
+
+/**
+ * Расходуемые ресурсы классов. Хранится только израсходованное:
+ * максимум считает движок по классу и уровню, иначе повышение уровня
+ * пришлось бы переписывать максимумы во всех строках.
+ */
+export const CHARACTER_RESOURCE_CODES = [
+  'RAGE',
+  'KI',
+  'SORCERY_POINT',
+  'SECOND_WIND',
+  'ACTION_SURGE',
+  'CHANNEL_DIVINITY',
+  'BARDIC_INSPIRATION',
+  'LAY_ON_HANDS',
+  'WILD_SHAPE',
+] as const;
+
+export type CharacterResourceCode = (typeof CHARACTER_RESOURCE_CODES)[number];
