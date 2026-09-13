@@ -8,4 +8,6 @@ export * from './enums/reference.js';
 export * from './schemas/reference.js';
 export * from './enums/character.js';
 export * from './schemas/character.js';
+export * from './enums/room.js';
+export * from './schemas/room.js';
 export * from './rules/index.js';
