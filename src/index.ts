@@ -10,4 +10,7 @@ export * from './enums/character.js';
 export * from './schemas/character.js';
 export * from './enums/room.js';
 export * from './schemas/room.js';
+export * from './enums/dice.js';
+export * from './schemas/dice.js';
+export * from './schemas/message.js';
 export * from './rules/index.js';
