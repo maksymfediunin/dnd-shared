@@ -115,6 +115,13 @@ export const roomRejectSchema = z.object({
   reason: z.string().trim().max(500).optional(),
 });
 
+/** Пусто — значит «играю без листа»: выбор персонажа необязателен. */
+export const roomCharacterChoiceSchema = z.object({
+  characterId: z.uuid().nullable(),
+});
+
+export type RoomCharacterChoiceInput = z.infer<typeof roomCharacterChoiceSchema>;
+
 export type RoomCreateInput = z.infer<typeof roomCreateSchema>;
 export type RoomUpdateInput = z.infer<typeof roomUpdateSchema>;
 export type RoomListQuery = z.infer<typeof roomListQuerySchema>;
