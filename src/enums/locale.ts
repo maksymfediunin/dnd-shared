@@ -6,4 +6,4 @@ export const localeSchema = z.enum(LOCALES);
 
 export type Locale = z.infer<typeof localeSchema>;
 
-export const DEFAULT_LOCALE: Locale = 'ru';
+export const DEFAULT_LOCALE: Locale = 'uk';
