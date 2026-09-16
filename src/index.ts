@@ -14,3 +14,5 @@ export * from './enums/dice.js';
 export * from './schemas/dice.js';
 export * from './schemas/message.js';
 export * from './rules/index.js';
+export * from './enums/map.js';
+export * from './schemas/map.js';
