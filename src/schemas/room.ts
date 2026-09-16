@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { emailSchema } from './auth.js';
 import { paginationSchema } from './common.js';
 import { roomStatusSchema, roomVisibilitySchema } from '../enums/room.js';
 import { MAX_LEVEL } from '../rules/progression.js';
@@ -103,7 +104,23 @@ export const roomListQuerySchema = paginationSchema.extend({
   mine: z.enum(['gm', 'player', 'any']).optional(),
 });
 
-export const roomJoinByCodeSchema = z.object({ code: roomCodeSchema });
+/**
+ * Персонаж обязателен: за стол садятся кем-то, а не «просто так».
+ * Исключение одно — ведущий, но он в комнате по роли и заявку не подаёт.
+ */
+export const roomJoinSchema = z.object({ characterId: z.uuid() });
+
+export const roomJoinByCodeSchema = z.object({
+  code: roomCodeSchema,
+  characterId: z.uuid(),
+});
+
+/**
+ * Приглашение по почте. `emailSchema` та же, что у регистрации, —
+ * она приводит адрес к нижнему регистру, и зов на «Ivan@Mail.ru»
+ * найдёт того, кто регистрировался как «ivan@mail.ru».
+ */
+export const roomInviteSchema = z.object({ email: emailSchema });
 
 /**
  * Отказ с галочкой «в чёрный список» — то самое место из ТЗ. Причина
@@ -115,9 +132,9 @@ export const roomRejectSchema = z.object({
   reason: z.string().trim().max(500).optional(),
 });
 
-/** Пусто — значит «играю без листа»: выбор персонажа необязателен. */
+/** Больше не nullable: «играю без листа» из правил комнаты убрано. */
 export const roomCharacterChoiceSchema = z.object({
-  characterId: z.uuid().nullable(),
+  characterId: z.uuid(),
 });
 
 export type RoomCharacterChoiceInput = z.infer<typeof roomCharacterChoiceSchema>;
@@ -125,5 +142,7 @@ export type RoomCharacterChoiceInput = z.infer<typeof roomCharacterChoiceSchema>
 export type RoomCreateInput = z.infer<typeof roomCreateSchema>;
 export type RoomUpdateInput = z.infer<typeof roomUpdateSchema>;
 export type RoomListQuery = z.infer<typeof roomListQuerySchema>;
+export type RoomJoinInput = z.infer<typeof roomJoinSchema>;
 export type RoomJoinByCodeInput = z.infer<typeof roomJoinByCodeSchema>;
+export type RoomInviteInput = z.infer<typeof roomInviteSchema>;
 export type RoomRejectInput = z.infer<typeof roomRejectSchema>;

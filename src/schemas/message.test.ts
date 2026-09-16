@@ -67,8 +67,8 @@ describe('шаблон сообщения', () => {
 });
 
 describe('выбор персонажа в комнате', () => {
-  it('принимает null — играть без листа', () => {
-    expect(roomCharacterChoiceSchema.safeParse({ characterId: null }).success).toBe(true);
+  it('не принимает null: «играю без листа» из правил комнаты убрано', () => {
+    expect(roomCharacterChoiceSchema.safeParse({ characterId: null }).success).toBe(false);
   });
 
   it('отвергает не-uuid', () => {

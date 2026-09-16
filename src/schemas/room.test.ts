@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   ROOM_CODE_ALPHABET,
+  roomCharacterChoiceSchema,
   roomCodeSchema,
   roomCreateSchema,
+  roomInviteSchema,
   roomJoinByCodeSchema,
+  roomJoinSchema,
   roomListQuerySchema,
   roomRejectSchema,
   roomUpdateSchema,
@@ -34,7 +37,44 @@ describe('код комнаты', () => {
   });
 
   it('в теле заявки лежит тот же код', () => {
-    expect(roomJoinByCodeSchema.parse({ code: 'a2b3c4' })).toEqual({ code: 'A2B3C4' });
+    const characterId = '7f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b';
+    expect(roomJoinByCodeSchema.parse({ code: 'a2b3c4', characterId })).toEqual({
+      code: 'A2B3C4',
+      characterId,
+    });
+  });
+});
+
+describe('вступление с персонажем', () => {
+  const characterId = '7f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b';
+
+  it('без персонажа за стол не садятся', () => {
+    expect(roomJoinSchema.safeParse({}).success).toBe(false);
+    expect(roomJoinByCodeSchema.safeParse({ code: 'A2B3C4' }).success).toBe(false);
+  });
+
+  it('«играю без листа» больше не проходит ни в одной из трёх схем', () => {
+    expect(roomJoinSchema.safeParse({ characterId: null }).success).toBe(false);
+    expect(roomJoinByCodeSchema.safeParse({ code: 'A2B3C4', characterId: null }).success).toBe(
+      false,
+    );
+    expect(roomCharacterChoiceSchema.safeParse({ characterId: null }).success).toBe(false);
+  });
+
+  it('принимает настоящий id персонажа', () => {
+    expect(roomCharacterChoiceSchema.parse({ characterId })).toEqual({ characterId });
+  });
+});
+
+describe('приглашение по почте', () => {
+  it('приводит адрес к нижнему регистру: зовут того же, кто регистрировался', () => {
+    expect(roomInviteSchema.parse({ email: '  Ivan@Mail.RU ' })).toEqual({
+      email: 'ivan@mail.ru',
+    });
+  });
+
+  it('не пускает то, что почтой не является', () => {
+    expect(roomInviteSchema.safeParse({ email: 'не почта' }).success).toBe(false);
   });
 });
 
