@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { abilityCodeSchema } from '../enums/character.js';
 import {
+  advantageModeSchema,
   DICE_MAX_COUNT,
   DICE_MIN_COUNT,
   DICE_MODIFIER_LIMIT,
   DICE_SIDES,
-  advantageModeSchema,
   diceVisibilitySchema,
 } from '../enums/dice.js';
 
@@ -28,9 +28,9 @@ export const diceRollInputSchema = z
     advantageMode: advantageModeSchema.default('NONE'),
     visibility: diceVisibilitySchema.default('PUBLIC'),
   })
-  .refine(
-    (v) => v.advantageMode === 'NONE' || (v.diceCount === 1 && v.diceSides === 20),
-    { path: ['advantageMode'], message: 'Преимущество и помеха бывают только у одного d20' },
-  );
+  .refine((v) => v.advantageMode === 'NONE' || (v.diceCount === 1 && v.diceSides === 20), {
+    path: ['advantageMode'],
+    message: 'Преимущество и помеха бывают только у одного d20',
+  });
 
 export type DiceRollInput = z.infer<typeof diceRollInputSchema>;

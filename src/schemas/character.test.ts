@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   abilityScoresSchema,
   characterCreateSchema,
@@ -58,7 +58,9 @@ describe('characterCreateSchema', () => {
 
   it('обрезает пробелы в имени и отклоняет пустое', () => {
     expect(characterCreateSchema.parse({ ...VALID_CHARACTER, name: '  Бром  ' }).name).toBe('Бром');
-    expect(characterCreateSchema.safeParse({ ...VALID_CHARACTER, name: '   ' }).success).toBe(false);
+    expect(characterCreateSchema.safeParse({ ...VALID_CHARACTER, name: '   ' }).success).toBe(
+      false,
+    );
   });
 
   it('отклоняет характеристику 16', () => {
@@ -110,14 +112,19 @@ describe('characterCreateSchema', () => {
   });
 
   it('отклоняет неизвестный класс', () => {
-    expect(characterCreateSchema.safeParse({ ...VALID_CHARACTER, classCode: 'ведьмак' }).success).toBe(
-      false,
-    );
+    expect(
+      characterCreateSchema.safeParse({ ...VALID_CHARACTER, classCode: 'ведьмак' }).success,
+    ).toBe(false);
   });
 
   it('подставляет пустые списки выборов', () => {
-    const { skillCodes: _s, languageCodes: _l, equipmentChoices: _e, spellCodes: _p, ...bare } =
-      VALID_CHARACTER;
+    const {
+      skillCodes: _s,
+      languageCodes: _l,
+      equipmentChoices: _e,
+      spellCodes: _p,
+      ...bare
+    } = VALID_CHARACTER;
     const parsed = characterCreateSchema.parse(bare);
     expect(parsed.skillCodes).toEqual([]);
     expect(parsed.languageCodes).toEqual([]);
@@ -126,7 +133,11 @@ describe('characterCreateSchema', () => {
   });
 
   it('не даёт задать уровень и владельца в обход сервера', () => {
-    const result = characterCreateSchema.safeParse({ ...VALID_CHARACTER, level: 5, ownerId: 'чужой' });
+    const result = characterCreateSchema.safeParse({
+      ...VALID_CHARACTER,
+      level: 5,
+      ownerId: 'чужой',
+    });
     expect(result.success).toBe(false);
   });
 });
@@ -186,9 +197,9 @@ describe('levelUpSchema', () => {
   });
 
   it('отклоняет неизвестный вид выбора', () => {
-    expect(levelUpSchema.safeParse({ choices: [{ choiceType: 'ЧЕРТА', choiceValue: 'x' }] }).success).toBe(
-      false,
-    );
+    expect(
+      levelUpSchema.safeParse({ choices: [{ choiceType: 'ЧЕРТА', choiceValue: 'x' }] }).success,
+    ).toBe(false);
   });
 });
 

@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { emailSchema } from './auth.js';
-import { paginationSchema } from './common.js';
 import { roomStatusSchema, roomVisibilitySchema } from '../enums/room.js';
 import { MAX_LEVEL } from '../rules/progression.js';
+import { emailSchema } from './auth.js';
+import { paginationSchema } from './common.js';
 
 /**
  * Код приглашения: шесть знаков из алфавита без пар, неразличимых на

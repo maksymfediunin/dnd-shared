@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { ABILITY_CODES } from '../enums/character.js';
 import {
-  POINT_BUY_BUDGET,
   abilityModifier,
   autoAssign,
+  POINT_BUY_BUDGET,
   pointBuyCost,
   pointBuyTotal,
 } from './abilities.js';

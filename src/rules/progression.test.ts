@@ -1,8 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { CLASS_CODES, type ClassCode } from '../enums/character.js';
 import {
-  LEVELS,
-  MAX_LEVEL,
   bardicInspirationDie,
   cantripsKnown,
   casterKind,
@@ -11,13 +9,15 @@ import {
   hasExtraAttack,
   hitDie,
   invocationsKnown,
+  LEVELS,
+  MAX_LEVEL,
   martialArtsDie,
   pactMagic,
   proficiencyBonus,
   rageDamageBonus,
   sneakAttackDice,
-  spellSlots,
   spellbookSize,
+  spellSlots,
   spellsKnown,
   subclassUnlockLevel,
 } from './progression.js';

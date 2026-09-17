@@ -16,7 +16,11 @@ import {
  * схема поля не знает. Соответствие настоящим размерам проверяется
  * ниже, в superRefine, и это не дублирование, а две разные проверки.
  */
-const coordinateSchema = z.number().int().min(0).max(MAP_MAX_GRID - 1);
+const coordinateSchema = z
+  .number()
+  .int()
+  .min(0)
+  .max(MAP_MAX_GRID - 1);
 const gridSideSchema = z.number().int().min(MAP_MIN_GRID).max(MAP_MAX_GRID);
 const monsterCodeSchema = z.string().trim().min(1).max(64);
 

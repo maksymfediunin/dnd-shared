@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { diceRollInputSchema } from './dice.js';
 
 const baseRoll = { diceCount: 2, diceSides: 6, modifier: 3 };

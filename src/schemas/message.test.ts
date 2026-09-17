@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { roomMessageCreateSchema, roomMessageTemplateSchema } from './message.js';
 import { roomCharacterChoiceSchema } from './room.js';
 
@@ -38,9 +38,9 @@ describe('создание сообщения комнаты', () => {
   });
 
   it('отвергает пустое тело и тело длиннее 4000 знаков', () => {
-    expect(
-      roomMessageCreateSchema.safeParse({ kind: 'GM_BROADCAST', body: '   ' }).success,
-    ).toBe(false);
+    expect(roomMessageCreateSchema.safeParse({ kind: 'GM_BROADCAST', body: '   ' }).success).toBe(
+      false,
+    );
     expect(
       roomMessageCreateSchema.safeParse({ kind: 'GM_BROADCAST', body: 'а'.repeat(4001) }).success,
     ).toBe(false);

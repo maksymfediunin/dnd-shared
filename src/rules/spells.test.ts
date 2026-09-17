@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { LEVELS } from './progression.js';
 import {
   maxSpellLevel,
   spellAttackBonus,
-  spellSaveDc,
   spellcastingAbility,
+  spellSaveDc,
   spellsPrepared,
 } from './spells.js';
 

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { referenceListQuerySchema, spellFilterSchema, REFERENCE_ENTITIES } from './reference.js';
+import { describe, expect, it } from 'vitest';
+import { REFERENCE_ENTITIES, referenceListQuerySchema, spellFilterSchema } from './reference.js';
 
 describe('схемы справочника', () => {
   it('подставляет страницу и размер по умолчанию', () => {

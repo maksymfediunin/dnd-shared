@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { diceNotation, rollDice, type RandomSource, type RollRequest } from './dice.js';
+import { describe, expect, it, vi } from 'vitest';
+import { diceNotation, type RandomSource, type RollRequest, rollDice } from './dice.js';
 
 /**
  * Подставной источник — очередь заранее заданных значений. Настоящая

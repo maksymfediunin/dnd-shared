@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   armorClass,
   initiative,
@@ -70,8 +70,12 @@ describe('спасброски и навыки', () => {
   });
 
   it('владение навыком добавляет мастерство, экспертиза — удвоенное', () => {
-    expect(skillBonus({ abilityModifier: 3, proficiencyBonus: 3, proficiency: 'PROFICIENT' })).toBe(6);
-    expect(skillBonus({ abilityModifier: 3, proficiencyBonus: 3, proficiency: 'EXPERTISE' })).toBe(9);
+    expect(skillBonus({ abilityModifier: 3, proficiencyBonus: 3, proficiency: 'PROFICIENT' })).toBe(
+      6,
+    );
+    expect(skillBonus({ abilityModifier: 3, proficiencyBonus: 3, proficiency: 'EXPERTISE' })).toBe(
+      9,
+    );
   });
 });
 

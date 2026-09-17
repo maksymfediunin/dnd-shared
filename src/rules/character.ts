@@ -25,7 +25,8 @@ export function armorClass({ armor, hasShield, dexterityModifier }: ArmorClassIn
   if (!armor) return 10 + dexterityModifier + shield;
 
   const cap = armor.dexBonusCap;
-  const dexterity = cap === null ? dexterityModifier : cap === 0 ? 0 : Math.min(dexterityModifier, cap);
+  const dexterity =
+    cap === null ? dexterityModifier : cap === 0 ? 0 : Math.min(dexterityModifier, cap);
   return armor.baseAc + dexterity + shield;
 }
 
