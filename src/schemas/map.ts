@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import {
   MAP_DEFAULT_CELL_SIZE_FEET,
+  MAP_MAX_CELL_SIZE_FEET,
   MAP_MAX_GRID,
   MAP_MAX_MONSTER_PRESETS,
   MAP_MAX_MONSTER_QUANTITY,
   MAP_MAX_OBSTACLES,
+  MAP_MIN_CELL_SIZE_FEET,
   MAP_MIN_GRID,
   MAP_ROTATION_STEP,
   mapBackgroundSchema,
@@ -59,7 +61,12 @@ export const battleMapSaveSchema = z
     background: mapBackgroundSchema.default('DUNGEON'),
     gridWidth: gridSideSchema,
     gridHeight: gridSideSchema,
-    cellSizeFeet: z.number().int().min(1).max(20).default(MAP_DEFAULT_CELL_SIZE_FEET),
+    cellSizeFeet: z
+      .number()
+      .int()
+      .min(MAP_MIN_CELL_SIZE_FEET)
+      .max(MAP_MAX_CELL_SIZE_FEET)
+      .default(MAP_DEFAULT_CELL_SIZE_FEET),
     obstacles: z.array(mapObstacleInputSchema).max(MAP_MAX_OBSTACLES).default([]),
     monsters: z.array(mapMonsterPresetInputSchema).max(MAP_MAX_MONSTER_PRESETS).default([]),
   })

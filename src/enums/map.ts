@@ -28,6 +28,13 @@ export type EncounterStatus = (typeof ENCOUNTER_STATUSES)[number];
 export const MAP_MIN_GRID = 5;
 export const MAP_MAX_GRID = 30;
 export const MAP_DEFAULT_CELL_SIZE_FEET = 5;
+/**
+ * Сторона клетки в футах. Пять — правило D&D, но карта таверны бывает
+ * и мельче, а карта осады крепости — крупнее; предел сверху держит
+ * подпись расстояний в разумных числах.
+ */
+export const MAP_MIN_CELL_SIZE_FEET = 1;
+export const MAP_MAX_CELL_SIZE_FEET = 20;
 
 /** Восемь положений иконки: свободный угол задавать на телефоне нечем. */
 export const MAP_ROTATION_STEP = 45;
