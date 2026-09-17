@@ -61,6 +61,19 @@ describe('findFreeCell', () => {
     expect(Math.max(Math.abs(found!.x - 5), Math.abs(found!.y - 5))).toBe(1);
   });
 
+  // C20: кольцевой обход дальше первого кольца. Пресет из десятка
+  // гоблинов упирается в него сразу же: восемь соседних клеток
+  // кончаются, и девятому нужен радиус 2.
+  it('когда занято и первое кольцо, уходит на второе', () => {
+    const blocked = blockedCells([{ origin: { x: 4, y: 4 }, span: 3 }]);
+    const found = findFreeCell({ x: 5, y: 5 }, 1, grid, blocked);
+
+    expect(found).not.toBeNull();
+    // Ровно второе кольцо, а не любая свободная клетка: кучка вокруг
+    // заданной клетки — это и есть смысл обхода.
+    expect(Math.max(Math.abs(found!.x - 5), Math.abs(found!.y - 5))).toBe(2);
+  });
+
   it('на забитой сетке отдаёт null', () => {
     const all = blockedCells([{ origin: { x: 0, y: 0 }, span: 10 }]);
     expect(findFreeCell({ x: 0, y: 0 }, 1, grid, all)).toBeNull();
@@ -76,5 +89,23 @@ describe('bottomEdgeStart', () => {
 
   it('крупный игрок встаёт так, чтобы влезть целиком', () => {
     expect(bottomEdgeStart(0, 2, grid, blockedCells([]))).toEqual({ x: 0, y: 8 });
+  });
+
+  // C20: запасной путь — нижний край занят целиком (бой в коридоре,
+  // партия входит в дверь). Игрок обязан встать выше края, а не
+  // остаться без клетки.
+  it('при занятом нижнем крае уходит выше, а не отказывает', () => {
+    const wall = blockedCells([{ origin: { x: 0, y: 9 }, span: 1 }]);
+    for (let x = 1; x < 10; x += 1) wall.add(`${x}:9`);
+
+    const found = bottomEdgeStart(0, 1, grid, wall);
+
+    expect(found).not.toBeNull();
+    expect(found!.y).toBeLessThan(9);
+  });
+
+  it('когда занята вся сетка, места нет и у нижнего края', () => {
+    const all = blockedCells([{ origin: { x: 0, y: 0 }, span: 10 }]);
+    expect(bottomEdgeStart(0, 1, grid, all)).toBeNull();
   });
 });

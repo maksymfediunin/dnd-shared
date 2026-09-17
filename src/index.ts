@@ -5,6 +5,7 @@ export * from './enums/map.js';
 export * from './enums/reference.js';
 export * from './enums/role.js';
 export * from './enums/room.js';
+export * from './enums/size.js';
 export * from './errors/codes.js';
 export * from './rules/index.js';
 export * from './schemas/auth.js';
