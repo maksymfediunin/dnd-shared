@@ -149,5 +149,17 @@ describe('participantUpdateSchema', () => {
   // стоит в клетке, а не на оси.
   it('отвергает одинокую координату', () => {
     expect(participantUpdateSchema.safeParse({ x: 1 }).success).toBe(false);
+    expect(participantUpdateSchema.safeParse({ y: 1 }).success).toBe(false);
+  });
+
+  // C29: путь ошибки указывает на недостающую координату — по нему
+  // форма подсвечивает поле, и на одиноком `y` подсветка уходила на
+  // пустое соседнее.
+  it('в отказе указана та координата, которой не хватает', () => {
+    const withoutY = participantUpdateSchema.safeParse({ x: 1 });
+    expect(withoutY.error?.issues.at(-1)?.path).toEqual(['y']);
+
+    const withoutX = participantUpdateSchema.safeParse({ y: 1 });
+    expect(withoutX.error?.issues.at(-1)?.path).toEqual(['x']);
   });
 });

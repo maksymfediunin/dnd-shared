@@ -104,9 +104,17 @@ export const participantUpdateSchema = z
     displayName: z.string().trim().min(1).max(60).optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'Нечего менять' })
-  .refine((v) => (v.x === undefined) === (v.y === undefined), {
-    path: ['x'],
-    message: 'Координаты меняются парой',
+  .superRefine((v, ctx) => {
+    if ((v.x === undefined) === (v.y === undefined)) return;
+
+    // Путь указывает на ту координату, которой не хватает, а не всегда
+    // на `x`: форма подсвечивает поле по пути ошибки, и на одиноком
+    // `y` подсвечивалось бы пустое соседнее поле.
+    ctx.addIssue({
+      code: 'custom',
+      path: [v.x === undefined ? 'x' : 'y'],
+      message: 'Координаты меняются парой',
+    });
   });
 export type ParticipantUpdateInput = z.infer<typeof participantUpdateSchema>;
 
