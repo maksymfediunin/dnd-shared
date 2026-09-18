@@ -43,7 +43,12 @@ export const attackInputSchema = z
   });
 export type AttackInput = z.infer<typeof attackInputSchema>;
 
-/** Бросок урона. `amount` — ручная поправка ведущего вместо броска. */
+/**
+ * Бросок урона. `amount` — ручная поправка вместо броска, право
+ * одного только ведущего: схема ролей не знает, а поле, пришедшее не
+ * от ведущего, служба отклоняет `FORBIDDEN` — не бросает кости вместо
+ * присланного числа и не молчит.
+ */
 export const damageInputSchema = z.object({
   amount: z.number().int().min(0).max(999).optional(),
 });
