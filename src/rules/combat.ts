@@ -89,10 +89,15 @@ export interface DamageRollResult {
   notation: string;
 }
 
-/** Разбирает запись вида `2d6` из справочника оружия и бестиария. */
+/**
+ * Разбирает запись вида `2d6` из справочника оружия и бестиария.
+ * Бросает при неразобранной записи: опечатка в данных справочника
+ * превратится в молчаливо неверный урон, который игрок примет за
+ * настоящий. Падение здесь правильнее, чем молчаливая подмена.
+ */
 function parseDice(dice: string): { count: number; sides: number } {
   const match = /^(\d+)d(\d+)$/i.exec(dice.trim());
-  if (!match) return { count: 1, sides: 4 };
+  if (!match) throw new Error(`Неразобранная нотация кости: "${dice}"`);
   return { count: Number(match[1]), sides: Number(match[2]) };
 }
 

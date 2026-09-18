@@ -114,6 +114,12 @@ describe('damageRoll', () => {
 
     expect(roll.amount).toBe(7);
   });
+
+  it('бросает при неразобранной записи с сообщением о нарушении', () => {
+    expect(() =>
+      damageRoll({ dice: 'не кость', modifier: 0, isCritical: false }, scripted([3])),
+    ).toThrow('не кость');
+  });
 });
 
 describe('applyDamage', () => {
