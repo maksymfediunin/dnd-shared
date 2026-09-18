@@ -103,7 +103,16 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
   }),
   z.object({
     kind: z.literal('DAMAGE'),
-    ...rollShape,
+    notation: rollShape.notation,
+    /**
+     * Пусто у ручного урона ведущего: числа не бросали, а вписали, и
+     * `notation` в этом случае — не запись костей, а пометка «вручную».
+     * Настоящий бросок кладёт сюда те же кости, что и везде
+     * (`rollShape` вне этой ветки), с тем же потолком в сто на кость —
+     * `amount`, итог, ограничен отдельно и до девятисот девяноста
+     * девяти: это уже не кость, а сумма.
+     */
+    results: z.array(z.number().int().min(1).max(100)).max(20),
     amount: z.number().int().min(0),
     damageType: z.string().min(1).max(40),
     temporaryAbsorbed: z.number().int().min(0),

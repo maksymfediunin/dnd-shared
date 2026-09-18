@@ -127,4 +127,22 @@ describe('encounterEventPayloadSchema', () => {
 
     expect(res.success).toBe(false);
   });
+
+  // Ручной урон ведущего — не бросок: костей не было, и притворяться
+  // ими нечем. `amount` при этом может быть больше ста — потолка на
+  // кость, — и без пустого `results` эта же запись не читалась бы
+  // обратно.
+  it('разбирает ручной урон без костей и больше ста', () => {
+    const parsed = encounterEventPayloadSchema.parse({
+      kind: 'DAMAGE',
+      notation: 'вручную',
+      results: [],
+      amount: 150,
+      damageType: 'slashing',
+      temporaryAbsorbed: 0,
+      hitPointsLeft: 0,
+    });
+
+    expect(parsed).toMatchObject({ kind: 'DAMAGE', amount: 150, results: [] });
+  });
 });
