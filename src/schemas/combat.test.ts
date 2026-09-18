@@ -132,10 +132,13 @@ describe('encounterEventPayloadSchema', () => {
   // ими нечем. `amount` при этом может быть больше ста — потолка на
   // кость, — и без пустого `results` эта же запись не читалась бы
   // обратно.
-  it('разбирает ручной урон без костей и больше ста', () => {
+  // `notation` нет вовсе, а не русская подпись вроде «вручную»:
+  // приложение трёхъязычное, а переводить строку, уже лежащую в базе,
+  // нечем — подпись для ручного урона подбирает фронт по признаку
+  // пустого `results`.
+  it('разбирает ручной урон без записи броска и больше ста', () => {
     const parsed = encounterEventPayloadSchema.parse({
       kind: 'DAMAGE',
-      notation: 'вручную',
       results: [],
       amount: 150,
       damageType: 'slashing',
@@ -144,5 +147,6 @@ describe('encounterEventPayloadSchema', () => {
     });
 
     expect(parsed).toMatchObject({ kind: 'DAMAGE', amount: 150, results: [] });
+    expect(parsed).not.toHaveProperty('notation');
   });
 });
