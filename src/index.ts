@@ -1,4 +1,5 @@
 export * from './enums/character.js';
+export * from './enums/combat.js';
 export * from './enums/dice.js';
 export * from './enums/locale.js';
 export * from './enums/map.js';
@@ -10,6 +11,7 @@ export * from './errors/codes.js';
 export * from './rules/index.js';
 export * from './schemas/auth.js';
 export * from './schemas/character.js';
+export * from './schemas/combat.js';
 export * from './schemas/common.js';
 export * from './schemas/dice.js';
 export * from './schemas/map.js';
