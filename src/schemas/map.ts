@@ -102,6 +102,16 @@ export const participantUpdateSchema = z
     currentHitPoints: z.number().int().min(0).optional(),
     temporaryHitPoints: z.number().int().min(0).optional(),
     displayName: z.string().trim().min(1).max(60).optional(),
+    /**
+     * Ход властью ведущего, вне правил очереди и бюджета футов. Раньше
+     * ведущий был вне правил всегда — и за столом это выходило боком:
+     * монстрам футы не списывались никогда, а случайный клик в чужой ход
+     * двигал фишку игрока (отчёт 19 сентября). Теперь по умолчанию
+     * ведущий играет по тем же правилам, а обход — осознанный шаг,
+     * видимый в журнале. Игроку поле не помогает: служба отвечает
+     * FORBIDDEN.
+     */
+    override: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'Нечего менять' })
   .superRefine((v, ctx) => {

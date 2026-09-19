@@ -36,6 +36,16 @@ export const attackInputSchema = z
     weaponItemId: z.string().trim().min(1).max(64).optional(),
     monsterActionCode: z.string().trim().min(1).max(64).optional(),
     advantageMode: advantageModeSchema.default('NONE'),
+    /**
+     * Ход властью ведущего, вне правил очереди и бюджета футов. Раньше
+     * ведущий был вне правил всегда — и за столом это выходило боком:
+     * монстрам футы не списывались никогда, а случайный клик в чужой ход
+     * двигал фишку игрока (отчёт 19 сентября). Теперь по умолчанию
+     * ведущий играет по тем же правилам, а обход — осознанный шаг,
+     * видимый в журнале. Игроку поле не помогает: служба отвечает
+     * FORBIDDEN.
+     */
+    override: z.boolean().optional(),
   })
   .refine((v) => (v.weaponItemId === undefined) !== (v.monsterActionCode === undefined), {
     path: ['weaponItemId'],
