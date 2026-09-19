@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   blockedCells,
   bottomEdgeStart,
+  cellKey,
   cellsOf,
   findFreeCell,
   fitsInGrid,
@@ -178,5 +179,21 @@ describe('reachableCells', () => {
 
     expect(reach.has('0:2')).toBe(false);
     expect(reach.get('1:0')).toBe(1);
+  });
+  // Формат ключа — часть ответа, а не соглашение, повторённое у каждого
+  // потребителя: сервер ищет в этой карте клетку назначения, фронт
+  // сверяет с ней подсветку, и разойтись им нечем только пока ключ
+  // складывает одна функция.
+  it('ключи ответа складывает cellKey', () => {
+    const reach = reachableCells({
+      from: { x: 0, y: 0 },
+      span: 1,
+      grid,
+      walls: empty,
+      tokens: empty,
+      maxSteps: 1,
+    });
+
+    expect(reach.get(cellKey({ x: 1, y: 0 }))).toBe(1);
   });
 });

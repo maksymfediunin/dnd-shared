@@ -72,7 +72,13 @@ export function fitsInGrid(origin: Cell, span: number, grid: Grid): boolean {
   );
 }
 
-const key = (cell: Cell): string => `${cell.x}:${cell.y}`;
+/**
+ * Ключ клетки для множеств и карт этого файла. Экспортируется, потому
+ * что `reachableCells` возвращает карту с такими ключами: сервер ищет
+ * в ней клетку назначения, фронт сверяет подсветку, и пока ключ
+ * складывает одна функция, разойтись им нечем.
+ */
+export const cellKey = (cell: Cell): string => `${cell.x}:${cell.y}`;
 
 /**
  * Занятое одним множеством. Препятствие и чужая фишка для укладки
@@ -83,14 +89,16 @@ export function blockedCells(placements: Placement[]): Set<string> {
   const set = new Set<string>();
 
   for (const placement of placements) {
-    for (const cell of cellsOf(placement.origin, placement.span)) set.add(key(cell));
+    for (const cell of cellsOf(placement.origin, placement.span)) set.add(cellKey(cell));
   }
 
   return set;
 }
 
 export function isFree(origin: Cell, span: number, grid: Grid, blocked: Set<string>): boolean {
-  return fitsInGrid(origin, span, grid) && cellsOf(origin, span).every((c) => !blocked.has(key(c)));
+  return (
+    fitsInGrid(origin, span, grid) && cellsOf(origin, span).every((c) => !blocked.has(cellKey(c)))
+  );
 }
 
 /**
@@ -179,7 +187,7 @@ export interface ReachInput {
  */
 export function reachableCells(input: ReachInput): Map<string, number> {
   const reached = new Map<string, number>();
-  const seen = new Set([key(input.from)]);
+  const seen = new Set([cellKey(input.from)]);
   let frontier: Cell[] = [input.from];
 
   for (let step = 1; step <= input.maxSteps && frontier.length > 0; step += 1) {
@@ -191,16 +199,16 @@ export function reachableCells(input: ReachInput): Map<string, number> {
           if (dx === 0 && dy === 0) continue;
 
           const cell = { x: from.x + dx, y: from.y + dy };
-          const cellKey = key(cell);
-          if (seen.has(cellKey)) continue;
+          const key = cellKey(cell);
+          if (seen.has(key)) continue;
           if (!isFree(cell, input.span, input.grid, input.walls)) continue;
 
-          seen.add(cellKey);
+          seen.add(key);
           next.push(cell);
           // Дорога и остановка — разные вопросы: сквозь союзника
           // проходят, а встать на него нельзя. Поэтому занятая клетка
           // остаётся во фронтире, но в ответ не попадает.
-          if (isFree(cell, input.span, input.grid, input.tokens)) reached.set(cellKey, step);
+          if (isFree(cell, input.span, input.grid, input.tokens)) reached.set(key, step);
         }
       }
     }
