@@ -136,8 +136,16 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     hitPointsLeft: z.number().int().min(0),
   }),
   z.object({
-    kind: z.literal('HEAL'),
-    amount: z.number().int().min(0),
+    kind: z.literal('HP_ADJUST'),
+    /**
+     * Со знаком: подъём и снижение — одна строка, а не две разные.
+     * Ноль отвергается — правка, ничего не изменившая, в разборе
+     * спорного момента не значит ничего, а строку журнала занимает.
+     */
+    delta: z
+      .number()
+      .int()
+      .refine((v) => v !== 0, 'Правка хитов обязана что-то менять'),
     hitPointsLeft: z.number().int().min(0),
   }),
   z.object({
