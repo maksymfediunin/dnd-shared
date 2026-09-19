@@ -149,4 +149,41 @@ describe('encounterEventPayloadSchema', () => {
     expect(parsed).toMatchObject({ kind: 'DAMAGE', amount: 150, results: [] });
     expect(parsed).not.toHaveProperty('notation');
   });
+  // Ручная правка хитов ведущим — не урон и не лечение, а поправка, и
+  // читается она как поправка. До хвоста 22 подъём писался строкой
+  // `HEAL`, а снижение не писалось вовсе: у `DAMAGE` обязателен тип
+  // урона, которого у правки нет.
+  it('разбирает ручное снижение хитов ведущим', () => {
+    const parsed = encounterEventPayloadSchema.parse({
+      kind: 'HP_ADJUST',
+      delta: -7,
+      hitPointsLeft: 5,
+    });
+
+    expect(parsed).toMatchObject({ kind: 'HP_ADJUST', delta: -7 });
+  });
+  // Правка, ничего не изменившая, — это не строка журнала, а шум: по
+  // журналу разбирают спорный момент, и «ведущий поправил хиты на
+  // ноль» в таком разборе не значит ничего.
+  it('отвергает правку хитов без изменения', () => {
+    const res = encounterEventPayloadSchema.safeParse({
+      kind: 'HP_ADJUST',
+      delta: 0,
+      hitPointsLeft: 5,
+    });
+
+    expect(res.success).toBe(false);
+  });
+
+  // `HEAL` ушёл из контракта вместе с хвостом 22: писать им подъём
+  // хитов значило оставить снижение без строки вовсе.
+  it('вида HEAL в журнале больше нет', () => {
+    const res = encounterEventPayloadSchema.safeParse({
+      kind: 'HEAL',
+      amount: 4,
+      hitPointsLeft: 9,
+    });
+
+    expect(res.success).toBe(false);
+  });
 });

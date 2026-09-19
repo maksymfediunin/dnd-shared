@@ -72,7 +72,13 @@ export function fitsInGrid(origin: Cell, span: number, grid: Grid): boolean {
   );
 }
 
-const key = (cell: Cell): string => `${cell.x}:${cell.y}`;
+/**
+ * Ключ клетки для множеств и карт этого файла. Экспортируется, потому
+ * что `reachableCells` возвращает карту с такими ключами: сервер ищет
+ * в ней клетку назначения, фронт сверяет подсветку, и пока ключ
+ * складывает одна функция, разойтись им нечем.
+ */
+export const cellKey = (cell: Cell): string => `${cell.x}:${cell.y}`;
 
 /**
  * Занятое одним множеством. Препятствие и чужая фишка для укладки
@@ -83,14 +89,16 @@ export function blockedCells(placements: Placement[]): Set<string> {
   const set = new Set<string>();
 
   for (const placement of placements) {
-    for (const cell of cellsOf(placement.origin, placement.span)) set.add(key(cell));
+    for (const cell of cellsOf(placement.origin, placement.span)) set.add(cellKey(cell));
   }
 
   return set;
 }
 
 export function isFree(origin: Cell, span: number, grid: Grid, blocked: Set<string>): boolean {
-  return fitsInGrid(origin, span, grid) && cellsOf(origin, span).every((c) => !blocked.has(key(c)));
+  return (
+    fitsInGrid(origin, span, grid) && cellsOf(origin, span).every((c) => !blocked.has(cellKey(c)))
+  );
 }
 
 /**
@@ -153,4 +161,60 @@ export function bottomEdgeStart(
   }
 
   return findFreeCell({ x: 0, y }, span, grid, blocked);
+}
+
+export interface ReachInput {
+  from: Cell;
+  span: number;
+  grid: Grid;
+  /** Непроходимое: стена, колонна, любое препятствие с `blocksMovement`. */
+  walls: Set<string>;
+  /** Проходимое, но не для остановки: чужие живые фишки. */
+  tokens: Set<string>;
+  maxSteps: number;
+}
+
+/**
+ * Куда фишка дойдёт и во сколько шагов. Обход в ширину, а не круг по
+ * расстоянию Чебышёва: круг считает клетку за стеной соседней, и до
+ * этой функции сервер списывал за такой шаг цену прямой, а подсветка
+ * на фронте уже вела фишку в обход — два правила на одно движение
+ * (хвост 21 волны «а»).
+ *
+ * Шаг стоит одну клетку в любую из восьми сторон: диагональ на сетке
+ * D&D не дороже прямой. Футы здесь не считаются — цена клетки в футах
+ * зависит от сцены, а не от сетки, и живёт в правилах боя.
+ */
+export function reachableCells(input: ReachInput): Map<string, number> {
+  const reached = new Map<string, number>();
+  const seen = new Set([cellKey(input.from)]);
+  let frontier: Cell[] = [input.from];
+
+  for (let step = 1; step <= input.maxSteps && frontier.length > 0; step += 1) {
+    const next: Cell[] = [];
+
+    for (const from of frontier) {
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          if (dx === 0 && dy === 0) continue;
+
+          const cell = { x: from.x + dx, y: from.y + dy };
+          const key = cellKey(cell);
+          if (seen.has(key)) continue;
+          if (!isFree(cell, input.span, input.grid, input.walls)) continue;
+
+          seen.add(key);
+          next.push(cell);
+          // Дорога и остановка — разные вопросы: сквозь союзника
+          // проходят, а встать на него нельзя. Поэтому занятая клетка
+          // остаётся во фронтире, но в ответ не попадает.
+          if (isFree(cell, input.span, input.grid, input.tokens)) reached.set(key, step);
+        }
+      }
+    }
+
+    frontier = next;
+  }
+
+  return reached;
 }
