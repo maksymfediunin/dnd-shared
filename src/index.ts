@@ -1,5 +1,6 @@
 export * from './enums/character.js';
 export * from './enums/combat.js';
+export * from './enums/conditions.js';
 export * from './enums/dice.js';
 export * from './enums/locale.js';
 export * from './enums/map.js';

@@ -5,7 +5,7 @@ import {
   MAP_MAX_OBSTACLES,
   MAP_ROTATION_STEP,
 } from '../enums/map.js';
-import { battleMapSaveSchema, participantUpdateSchema } from './map.js';
+import { battleMapSaveSchema, conditionApplySchema, participantUpdateSchema } from './map.js';
 
 const validMap = {
   name: 'Лесное святилище',
@@ -161,5 +161,32 @@ describe('participantUpdateSchema', () => {
 
     const withoutX = participantUpdateSchema.safeParse({ y: 1 });
     expect(withoutX.error?.issues.at(-1)?.path).toEqual(['x']);
+  });
+});
+
+describe('conditionApplySchema', () => {
+  it('принимает состояние без срока — держится до снятия рукой', () => {
+    const parsed = conditionApplySchema.parse({ code: 'prone' });
+    expect(parsed.code).toBe('prone');
+    expect(parsed.roundsRemaining).toBeUndefined();
+  });
+
+  // Уровень есть только у истощения: присланный у лежачего означает,
+  // что отправитель считает иначе, чем сервер, и молчать об этом хуже,
+  // чем отказать.
+  it('уровень у всех, кроме истощения, отвергается', () => {
+    expect(conditionApplySchema.safeParse({ code: 'prone', level: 2 }).success).toBe(false);
+    expect(conditionApplySchema.safeParse({ code: 'exhaustion', level: 2 }).success).toBe(true);
+  });
+
+  it('уровень истощения не выходит за 1–6', () => {
+    expect(conditionApplySchema.safeParse({ code: 'exhaustion', level: 0 }).success).toBe(false);
+    expect(conditionApplySchema.safeParse({ code: 'exhaustion', level: 7 }).success).toBe(false);
+  });
+
+  it('срок меньше одного раунда бессмыслен', () => {
+    expect(conditionApplySchema.safeParse({ code: 'poisoned', roundsRemaining: 0 }).success).toBe(
+      false,
+    );
   });
 });

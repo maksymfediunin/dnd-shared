@@ -57,6 +57,16 @@ export const ERROR_CODES = {
   PARTICIPANT_IS_DOWN: 'PARTICIPANT_IS_DOWN',
   INITIATIVE_ALREADY_ROLLED: 'INITIATIVE_ALREADY_ROLLED',
   DEATH_SAVE_NOT_APPLICABLE: 'DEATH_SAVE_NOT_APPLICABLE',
+  /** Бьёт тот, кому состояние не даёт действовать. */
+  PARTICIPANT_CANNOT_ACT: 'PARTICIPANT_CANNOT_ACT',
+  /** Скорость в ноль: схвачен, скован, парализован. */
+  PARTICIPANT_CANNOT_MOVE: 'PARTICIPANT_CANNOT_MOVE',
+  /**
+   * Шаг приближает к источнику испуга. Свой код, а не общий отказ:
+   * игрок должен прочитать причину, а не гадать, почему клетка не
+   * зелёная.
+   */
+  MOVE_TOWARDS_FEAR_SOURCE: 'MOVE_TOWARDS_FEAR_SOURCE',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
