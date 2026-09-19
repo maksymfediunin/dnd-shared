@@ -6,6 +6,7 @@ import {
   classCodeSchema,
   genderSchema,
   levelChoiceTypeSchema,
+  WEAPON_PROPERTIES,
 } from '../enums/character.js';
 import { POINT_BUY_MAX, POINT_BUY_MIN } from '../rules/abilities.js';
 
@@ -24,19 +25,6 @@ export const abilityScoresSchema = z.object(
     typeof abilityScoreSchema
   >,
 );
-
-/** Тег свойства оружия: набор тот же, что у справочных профилей. */
-export const WEAPON_PROPERTIES = [
-  'FINESSE',
-  'LIGHT',
-  'HEAVY',
-  'TWO_HANDED',
-  'THROWN',
-  'REACH',
-  'LOADING',
-  'AMMUNITION',
-  'SPECIAL',
-] as const;
 
 /** Кость урона вида «2d6»: свободная строка приехала бы в боёвку. */
 const damageDiceSchema = z.string().regex(/^\d+d\d+$/);
