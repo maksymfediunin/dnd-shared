@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { diceNotation, type RandomSource, type RollRequest, rollDice } from './dice.js';
+import { diceNotation, keptDie, type RandomSource, type RollRequest, rollDice } from './dice.js';
 
 /**
  * Подставной источник — очередь заранее заданных значений. Настоящая
@@ -80,5 +80,26 @@ describe('rollDice с преимуществом и помехой', () => {
     const random = queue(17, 3);
     const outcome = rollDice(baseRequest({ advantageMode: 'ADVANTAGE', modifier: 5 }), random);
     expect(outcome.total).toBe(22);
+  });
+});
+
+describe('оставленная кость', () => {
+  // Хвост 13: правило «при преимуществе решает большая, при помехе —
+  // меньшая» жило в двух местах — в самом броске и ещё раз в атаке.
+  // Разъехаться им было нечем, но и держать одно правило в двух копиях
+  // незачем.
+  it('преимущество оставляет большую, помеха — меньшую', () => {
+    expect(keptDie([7, 19], 'ADVANTAGE')).toBe(19);
+    expect(keptDie([7, 19], 'DISADVANTAGE')).toBe(7);
+  });
+
+  it('без преимущества и помехи кость одна — она и решает', () => {
+    expect(keptDie([13], 'NONE')).toBe(13);
+  });
+
+  // Пустого броска не бывает, но единица здесь — не выдумка: это
+  // натуральная единица, то есть промах, а не случайный успех.
+  it('на пустом списке отвечает единицей, а не выдумывает успех', () => {
+    expect(keptDie([], 'NONE')).toBe(1);
   });
 });

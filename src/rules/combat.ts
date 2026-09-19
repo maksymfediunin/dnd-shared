@@ -1,6 +1,7 @@
+import type { WeaponProperty, WeaponRangeType } from '../enums/character.js';
 import type { DeathSaveOutcome } from '../enums/combat.js';
 import type { AdvantageMode } from '../enums/dice.js';
-import { diceNotation, type RandomSource, rollDice } from './dice.js';
+import { diceNotation, keptDie, type RandomSource, rollDice } from './dice.js';
 import type { Cell } from './grid.js';
 
 /**
@@ -55,13 +56,9 @@ export function attackRoll(
   );
 
   // При преимуществе и помехе решает оставленная кость, а не обе: это
-  // она определяет крит, и её же видит игрок как «сработавшую».
-  const natural =
-    input.advantageMode === 'ADVANTAGE'
-      ? Math.max(...outcome.results)
-      : input.advantageMode === 'DISADVANTAGE'
-        ? Math.min(...outcome.results)
-        : (outcome.results[0] ?? 1);
+  // она определяет крит, и её же видит игрок как «сработавшую». Правило
+  // — общее с самим броском (`keptDie`), а не вторая его копия.
+  const natural = keptDie(outcome.results, input.advantageMode);
 
   return {
     results: outcome.results,
@@ -192,8 +189,8 @@ export function movementCost(from: Cell, to: Cell, cellSizeFeet: number): number
  * первое берёт больший из двух модификаторов, второе всегда ловкость.
  */
 export function weaponAttackBonus(input: {
-  properties: string[];
-  rangeType: string;
+  properties: WeaponProperty[];
+  rangeType: WeaponRangeType;
   strengthModifier: number;
   dexterityModifier: number;
   proficiencyBonus: number;

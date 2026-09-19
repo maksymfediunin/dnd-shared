@@ -28,6 +28,21 @@ export function diceNotation(count: number, sides: number, modifier: number): st
   return `${base}${modifier > 0 ? '+' : '-'}${Math.abs(modifier)}`;
 }
 
+/**
+ * Кость, которая решает: при преимуществе — большая из двух, при
+ * помехе — меньшая, иначе единственная брошенная. Отсюда же берётся
+ * натуральная двадцатка для крита и натуральная единица для промаха,
+ * поэтому правило живёт в одном месте, а не повторяется в самом броске
+ * и в разборе атаки (хвост 13 волны «а» куска 7).
+ */
+export function keptDie(results: number[], advantageMode: AdvantageMode): number {
+  if (advantageMode === 'ADVANTAGE') return Math.max(...results);
+  if (advantageMode === 'DISADVANTAGE') return Math.min(...results);
+  // Единица, а не ноль: пустого броска не бывает, но если он случится,
+  // это промах, а не случайный успех.
+  return results[0] ?? 1;
+}
+
 export function rollDice(request: RollRequest, random: RandomSource): RollOutcome {
   const { diceCount, diceSides, modifier, advantageMode } = request;
   const notation = diceNotation(diceCount, diceSides, modifier);
@@ -35,8 +50,7 @@ export function rollDice(request: RollRequest, random: RandomSource): RollOutcom
   if (advantageMode !== 'NONE') {
     // Схема уже не пустила сюда ничего, кроме одного d20.
     const results = [random(diceSides), random(diceSides)];
-    const kept = advantageMode === 'ADVANTAGE' ? Math.max(...results) : Math.min(...results);
-    return { results, total: kept + modifier, notation };
+    return { results, total: keptDie(results, advantageMode) + modifier, notation };
   }
 
   const results = Array.from({ length: diceCount }, () => random(diceSides));

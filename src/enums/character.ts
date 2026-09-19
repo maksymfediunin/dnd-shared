@@ -114,3 +114,29 @@ export const LEVEL_CHOICE_TYPES = [
 export const levelChoiceTypeSchema = z.enum(LEVEL_CHOICE_TYPES);
 
 export type LevelChoiceType = (typeof LEVEL_CHOICE_TYPES)[number];
+
+/**
+ * Теги свойств оружия и вид дистанции. Место им здесь, а не в схеме
+ * персонажа и не в движке правил: на них ссылаются справочник, схема
+ * самодельного оружия и боевые правила разом, а до хвоста 11 правила
+ * принимали их простыми строками — опечатка в «FINESSE» стоила бы
+ * молча потерянного модификатора.
+ */
+export const WEAPON_PROPERTIES = [
+  'FINESSE',
+  'LIGHT',
+  'HEAVY',
+  'TWO_HANDED',
+  'THROWN',
+  'REACH',
+  'LOADING',
+  'AMMUNITION',
+  'SPECIAL',
+] as const;
+export type WeaponProperty = (typeof WEAPON_PROPERTIES)[number];
+
+export const WEAPON_RANGE_TYPES = ['MELEE', 'RANGED'] as const;
+export type WeaponRangeType = (typeof WEAPON_RANGE_TYPES)[number];
+
+export const WEAPON_CATEGORIES = ['SIMPLE', 'MARTIAL'] as const;
+export type WeaponCategory = (typeof WEAPON_CATEGORIES)[number];
