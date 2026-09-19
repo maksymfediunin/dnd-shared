@@ -7,6 +7,7 @@ import {
   fitsInGrid,
   footprint,
   isFree,
+  reachableCells,
 } from './grid.js';
 
 const grid = { width: 10, height: 10 };
@@ -107,5 +108,75 @@ describe('bottomEdgeStart', () => {
   it('когда занята вся сетка, места нет и у нижнего края', () => {
     const all = blockedCells([{ origin: { x: 0, y: 0 }, span: 10 }]);
     expect(bottomEdgeStart(0, 1, grid, all)).toBeNull();
+  });
+});
+
+describe('reachableCells', () => {
+  const empty = new Set<string>();
+
+  it('клетка за стеной стоит обхода, а не двух шагов по прямой', () => {
+    const walls = blockedCells([
+      { origin: { x: 1, y: 0 }, span: 1 },
+      { origin: { x: 1, y: 1 }, span: 1 },
+    ]);
+
+    const reach = reachableCells({
+      from: { x: 0, y: 0 },
+      span: 1,
+      grid,
+      walls,
+      tokens: empty,
+      maxSteps: 6,
+    });
+
+    expect(reach.get('2:0')).toBe(4);
+  });
+  it('сквозь союзника проходят, но встать на него нельзя', () => {
+    const tokens = blockedCells([{ origin: { x: 1, y: 0 }, span: 1 }]);
+
+    const reach = reachableCells({
+      from: { x: 0, y: 0 },
+      span: 1,
+      grid,
+      walls: empty,
+      tokens,
+      maxSteps: 3,
+    });
+
+    expect(reach.has('1:0')).toBe(false);
+    expect(reach.get('2:0')).toBe(2);
+  });
+  it('за бюджет шагов не выходит', () => {
+    const reach = reachableCells({
+      from: { x: 0, y: 0 },
+      span: 1,
+      grid,
+      walls: empty,
+      tokens: empty,
+      maxSteps: 2,
+    });
+
+    expect(reach.get('2:2')).toBe(2);
+    expect(reach.has('3:3')).toBe(false);
+  });
+
+  // Стена во всю ширину сетки: клетка за ней свободна и в сетке, но
+  // пути к ней нет вовсе — сервер по этому и отличает «не дойти» от
+  // «клетка занята».
+  it('отрезанной стеной клетки в ответе нет', () => {
+    const walls = blockedCells([{ origin: { x: 0, y: 1 }, span: 1 }]);
+    for (let x = 1; x < grid.width; x += 1) walls.add(`${x}:1`);
+
+    const reach = reachableCells({
+      from: { x: 0, y: 0 },
+      span: 1,
+      grid,
+      walls,
+      tokens: empty,
+      maxSteps: 30,
+    });
+
+    expect(reach.has('0:2')).toBe(false);
+    expect(reach.get('1:0')).toBe(1);
   });
 });

@@ -154,3 +154,59 @@ export function bottomEdgeStart(
 
   return findFreeCell({ x: 0, y }, span, grid, blocked);
 }
+
+export interface ReachInput {
+  from: Cell;
+  span: number;
+  grid: Grid;
+  /** Непроходимое: стена, колонна, любое препятствие с `blocksMovement`. */
+  walls: Set<string>;
+  /** Проходимое, но не для остановки: чужие живые фишки. */
+  tokens: Set<string>;
+  maxSteps: number;
+}
+
+/**
+ * Куда фишка дойдёт и во сколько шагов. Обход в ширину, а не круг по
+ * расстоянию Чебышёва: круг считает клетку за стеной соседней, и до
+ * этой функции сервер списывал за такой шаг цену прямой, а подсветка
+ * на фронте уже вела фишку в обход — два правила на одно движение
+ * (хвост 21 волны «а»).
+ *
+ * Шаг стоит одну клетку в любую из восьми сторон: диагональ на сетке
+ * D&D не дороже прямой. Футы здесь не считаются — цена клетки в футах
+ * зависит от сцены, а не от сетки, и живёт в правилах боя.
+ */
+export function reachableCells(input: ReachInput): Map<string, number> {
+  const reached = new Map<string, number>();
+  const seen = new Set([key(input.from)]);
+  let frontier: Cell[] = [input.from];
+
+  for (let step = 1; step <= input.maxSteps && frontier.length > 0; step += 1) {
+    const next: Cell[] = [];
+
+    for (const from of frontier) {
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          if (dx === 0 && dy === 0) continue;
+
+          const cell = { x: from.x + dx, y: from.y + dy };
+          const cellKey = key(cell);
+          if (seen.has(cellKey)) continue;
+          if (!isFree(cell, input.span, input.grid, input.walls)) continue;
+
+          seen.add(cellKey);
+          next.push(cell);
+          // Дорога и остановка — разные вопросы: сквозь союзника
+          // проходят, а встать на него нельзя. Поэтому занятая клетка
+          // остаётся во фронтире, но в ответ не попадает.
+          if (isFree(cell, input.span, input.grid, input.tokens)) reached.set(cellKey, step);
+        }
+      }
+    }
+
+    frontier = next;
+  }
+
+  return reached;
+}
