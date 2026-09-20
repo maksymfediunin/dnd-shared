@@ -34,6 +34,18 @@ export type ConditionCode = (typeof CONDITION_CODES)[number];
 export const EXHAUSTION_MIN_LEVEL = 1;
 export const EXHAUSTION_MAX_LEVEL = 6;
 
+/**
+ * Границы уровня истощения одной конструкцией — `schemas/map.ts` (наложение
+ * ведущим) и `schemas/combat.ts` (payload строки журнала) считали её
+ * порознь от тех же констант: числа разойтись не могли, а форма проверки
+ * была повторена дважды (хвосты волны «б», находка 15).
+ */
+export const exhaustionLevelSchema = z
+  .number()
+  .int()
+  .min(EXHAUSTION_MIN_LEVEL)
+  .max(EXHAUSTION_MAX_LEVEL);
+
 /** Что случилось со строкой состояния — этим подписана строка журнала. */
 export const CONDITION_ACTIONS = ['APPLIED', 'REMOVED', 'EXPIRED'] as const;
 export const conditionActionSchema = z.enum(CONDITION_ACTIONS);

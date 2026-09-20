@@ -184,6 +184,15 @@ describe('conditionApplySchema', () => {
     expect(conditionApplySchema.safeParse({ code: 'exhaustion', level: 7 }).success).toBe(false);
   });
 
+  // Хвосты волны «б», находка 5: без уровня правила читали истощение как
+  // первое (`level ?? 1`), а панель ведущего его вовсе не показывала —
+  // на экране была голая надпись «Истощение», в бросках — первый
+  // уровень. Решено: уровень у истощения обязателен, как источник — у
+  // испуга.
+  it('истощение без уровня отвергается', () => {
+    expect(conditionApplySchema.safeParse({ code: 'exhaustion' }).success).toBe(false);
+  });
+
   it('срок меньше одного раунда бессмыслен', () => {
     expect(conditionApplySchema.safeParse({ code: 'poisoned', roundsRemaining: 0 }).success).toBe(
       false,

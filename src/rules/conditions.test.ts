@@ -158,37 +158,30 @@ describe('isNearFor', () => {
   });
 });
 
+// Принимает готовый признак `isDown`, а не хиты и `isDead` по отдельности
+// (ревью волны «б», находка 9): у монстра числа скрыты от игрока
+// (`currentHitPoints: null`), и функция, читающая хиты сама, не отличила
+// бы сбитого монстра от целого — сервер и клиент теперь считают «сбит
+// ли» один раз каждый на своей стороне (сервер — из настоящих хитов,
+// клиент — из этого же признака в снимке) и отдают сюда уже готовый
+// булев ответ.
 describe('derivedConditions', () => {
-  it('ноль хитов даёт два выведенных кода', () => {
-    const derived = derivedConditions({ conditions: [], currentHitPoints: 0, isDead: false });
+  it('сбитый получает два выведенных кода', () => {
+    const derived = derivedConditions({ conditions: [], isDown: true });
     expect(derived.map((c) => c.code)).toEqual(['unconscious', 'prone']);
   });
 
-  it('мёртвый выведенных кодов не получает', () => {
-    const derived = derivedConditions({ conditions: [], currentHitPoints: 0, isDead: true });
+  it('не сбитый выведенных кодов не получает', () => {
+    const derived = derivedConditions({ conditions: [], isDown: false });
     expect(derived).toEqual([]);
   });
 
   it('уже наложенный prone не дублируется', () => {
     const derived = derivedConditions({
       conditions: [{ code: 'prone' }],
-      currentHitPoints: 0,
-      isDead: false,
+      isDown: true,
     });
     expect(derived.map((c) => c.code)).toEqual(['prone', 'unconscious']);
-  });
-
-  // Монстр со скрытыми от игрока числами: currentHitPoints === null,
-  // а не 0 — выводить тут нечего, иначе игрок увидел бы ложную
-  // бесчувственность у целого монстра.
-  it('null хитов не даёт ничего — не считается нулём', () => {
-    const derived = derivedConditions({ conditions: [], currentHitPoints: null, isDead: false });
-    expect(derived).toEqual([]);
-  });
-
-  it('положительные хиты ничего не выводят', () => {
-    const derived = derivedConditions({ conditions: [], currentHitPoints: 5, isDead: false });
-    expect(derived).toEqual([]);
   });
 });
 
