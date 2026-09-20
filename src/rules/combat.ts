@@ -251,3 +251,18 @@ export function reachDistance(a: Placed, b: Placed): number {
   const spanB = footprint(b.size);
   return Math.max(edgeGap(a.x, spanA, b.x, spanB), edgeGap(a.y, spanA, b.y, spanB));
 }
+
+/**
+ * Испуг запрещает не ходить, а приближаться: шаг годится, если
+ * расстояние до источника после него не меньше, чем было. Сравнение
+ * «до и после» через `reachDistance» — та же геометрия, что и досягаемость
+ * атаки, а не собственная копия: `encounter.service.ts` на сервере и
+ * подсветка на фронте переписывали её от руки и однажды разошлись бы
+ * молча (ревью волны «б», находка 3), как уже разошлась сама
+ * `reachDistance` до задачи 11.
+ */
+export function movesCloser(mover: Placed, to: Cell, source: Placed): boolean {
+  const before = reachDistance(mover, source);
+  const after = reachDistance({ ...mover, x: to.x, y: to.y }, source);
+  return after < before;
+}

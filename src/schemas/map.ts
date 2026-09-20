@@ -158,5 +158,12 @@ export const conditionApplySchema = z
   .refine((v) => v.level === undefined || v.code === 'exhaustion', {
     path: ['level'],
     message: 'Уровень есть только у истощения',
+  })
+  // Симметрично уровню выше: источник кого-то бояться есть только у
+  // испуга, у остальных четырнадцати кодов его никто не читает — присланный
+  // лёг бы в базу мёртвым грузом (ревью волны «б», находка 4).
+  .refine((v) => v.sourceParticipantId === undefined || v.code === 'frightened', {
+    path: ['sourceParticipantId'],
+    message: 'Источник есть только у испуга',
   });
 export type ConditionApplyInput = z.infer<typeof conditionApplySchema>;

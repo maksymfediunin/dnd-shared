@@ -7,6 +7,7 @@ import {
   deathSave,
   initiativeOrder,
   movementCost,
+  movesCloser,
   reachDistance,
   reachInCells,
   weaponAttackBonus,
@@ -307,5 +308,36 @@ describe('reachDistance', () => {
     expect(
       reachDistance({ x: 0, y: 0, size: 'GARGANTUAN' }, { x: 5, y: 0, size: 'GARGANTUAN' }),
     ).toBe(2);
+  });
+});
+
+// Одно и то же правило переписывалось руками в encounter.service.ts
+// (assertNotTowardsFear) и в EncounterBoard.tsx — сюда его вынесли, чтобы
+// разойтись было больше нечему (ревью волны «б», находка 3).
+describe('movesCloser', () => {
+  const source = { x: 5, y: 0, size: 'MEDIUM' } as const;
+
+  it('шаг прямо к источнику — приближение', () => {
+    const mover = { x: 5, y: 5, size: 'MEDIUM' } as const;
+    expect(movesCloser(mover, { x: 5, y: 4 }, source)).toBe(true);
+  });
+
+  it('шаг вбок на том же расстоянии — не приближение', () => {
+    const mover = { x: 5, y: 5, size: 'MEDIUM' } as const;
+    expect(movesCloser(mover, { x: 8, y: 5 }, source)).toBe(false);
+  });
+
+  it('шаг прочь от источника — не приближение', () => {
+    const mover = { x: 5, y: 5, size: 'MEDIUM' } as const;
+    expect(movesCloser(mover, { x: 5, y: 6 }, source)).toBe(false);
+  });
+
+  // reachDistance учитывает размер фишки — считает от ближайшего края,
+  // а не от угла, и movesCloser не должен эту поправку терять.
+  it('считает через ту же геометрию, что и reachDistance — размер фишки не игнорируется', () => {
+    const largeMover = { x: 0, y: 0, size: 'LARGE' } as const;
+    // До источника (7,0) от края LARGE (x=0..1) — 5; после шага на (1,0)
+    // (край x=1..2) — 4: приближение.
+    expect(movesCloser(largeMover, { x: 1, y: 0 }, { x: 7, y: 0, size: 'MEDIUM' })).toBe(true);
   });
 });

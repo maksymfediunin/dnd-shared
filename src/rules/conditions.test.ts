@@ -3,8 +3,10 @@ import {
   attackAdvantage,
   autoCritOn,
   combineConditions,
+  derivedConditions,
   effectiveSpeed,
   effectsOf,
+  isNearFor,
   NO_EFFECTS,
 } from './conditions.js';
 
@@ -123,5 +125,76 @@ describe('autoCritOn', () => {
 
     expect(autoCritOn(target, true)).toBe(true);
     expect(autoCritOn(target, false)).toBe(false);
+  });
+});
+
+// Одно и то же выражение переписывалось руками в combat.service.ts на
+// сервере и в CombatActions.tsx на фронте, литерал «пять футов» включая
+// (ревью волны «б», находка 1).
+describe('isNearFor', () => {
+  it('клетка пять футов: сосед — вблизи, через одну — уже нет', () => {
+    const a = { x: 0, y: 0, size: 'MEDIUM' } as const;
+    expect(isNearFor(a, { x: 1, y: 0, size: 'MEDIUM' }, 5)).toBe(true);
+    expect(isNearFor(a, { x: 2, y: 0, size: 'MEDIUM' }, 5)).toBe(false);
+  });
+
+  // На десятифутовой клетке порог в клетках не «съезжает» до нуля
+  // (reachInCells не бывает меньше одной) — сосед остаётся вблизи, а
+  // клетка через одну — уже нет, как и на пятифутовой.
+  it('клетка десять футов: сосед — вблизи, через одну — уже нет', () => {
+    const a = { x: 0, y: 0, size: 'MEDIUM' } as const;
+    expect(isNearFor(a, { x: 1, y: 0, size: 'MEDIUM' }, 10)).toBe(true);
+    expect(isNearFor(a, { x: 2, y: 0, size: 'MEDIUM' }, 10)).toBe(false);
+  });
+
+  // Крупная фишка считает от ближайшего края, а не от угла — та же
+  // геометрия, что и у reachDistance.
+  it('крупная фишка: вблизи считается от ближайшего края', () => {
+    const ogre = { x: 0, y: 0, size: 'LARGE' } as const;
+    expect(isNearFor(ogre, { x: 2, y: 0, size: 'MEDIUM' }, 5)).toBe(true);
+    expect(isNearFor(ogre, { x: 3, y: 0, size: 'MEDIUM' }, 5)).toBe(false);
+  });
+});
+
+describe('derivedConditions', () => {
+  it('ноль хитов даёт два выведенных кода', () => {
+    const derived = derivedConditions({ conditions: [], currentHitPoints: 0, isDead: false });
+    expect(derived.map((c) => c.code)).toEqual(['unconscious', 'prone']);
+  });
+
+  it('мёртвый выведенных кодов не получает', () => {
+    const derived = derivedConditions({ conditions: [], currentHitPoints: 0, isDead: true });
+    expect(derived).toEqual([]);
+  });
+
+  it('уже наложенный prone не дублируется', () => {
+    const derived = derivedConditions({
+      conditions: [{ code: 'prone' }],
+      currentHitPoints: 0,
+      isDead: false,
+    });
+    expect(derived.map((c) => c.code)).toEqual(['prone', 'unconscious']);
+  });
+
+  // Монстр со скрытыми от игрока числами: currentHitPoints === null,
+  // а не 0 — выводить тут нечего, иначе игрок увидел бы ложную
+  // бесчувственность у целого монстра.
+  it('null хитов не даёт ничего — не считается нулём', () => {
+    const derived = derivedConditions({ conditions: [], currentHitPoints: null, isDead: false });
+    expect(derived).toEqual([]);
+  });
+
+  it('положительные хиты ничего не выводят', () => {
+    const derived = derivedConditions({ conditions: [], currentHitPoints: 5, isDead: false });
+    expect(derived).toEqual([]);
+  });
+});
+
+// Общая константа на весь процесс: случайная запись в поле отравила бы
+// её для всех, кто её же держит без единого следствия (ревью волны «б»,
+// находка 8).
+describe('NO_EFFECTS', () => {
+  it('заморожена от записи', () => {
+    expect(Object.isFrozen(NO_EFFECTS)).toBe(true);
   });
 });

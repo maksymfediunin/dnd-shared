@@ -189,4 +189,29 @@ describe('conditionApplySchema', () => {
       false,
     );
   });
+
+  // Источник есть только у испуга — тем же правилом, что и уровень есть
+  // только у истощения: у остальных четырнадцати кодов его никто не
+  // читает, и присланный лёг бы в базу мёртвым грузом (ревью волны «б»,
+  // находка 4).
+  it('источник у всех, кроме испуга, отвергается', () => {
+    expect(
+      conditionApplySchema.safeParse({
+        code: 'poisoned',
+        sourceParticipantId: '123e4567-e89b-12d3-a456-426614174000',
+      }).success,
+    ).toBe(false);
+    expect(
+      conditionApplySchema.safeParse({
+        code: 'frightened',
+        sourceParticipantId: '123e4567-e89b-12d3-a456-426614174000',
+      }).success,
+    ).toBe(true);
+  });
+
+  // Испуг без источника — законный случай (страх перед ловушкой или
+  // темнотой, а не перед фишкой), а не то, что схема должна отвергать.
+  it('испуг без источника по-прежнему допустим', () => {
+    expect(conditionApplySchema.safeParse({ code: 'frightened' }).success).toBe(true);
+  });
 });

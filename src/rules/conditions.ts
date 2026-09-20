@@ -1,5 +1,6 @@
 import type { ConditionCode } from '../enums/conditions.js';
 import type { AdvantageMode } from '../enums/dice.js';
+import { type Placed, reachDistance, reachInCells } from './combat.js';
 
 /**
  * Правила состояний: чистая арифметика без базы и без React. Состояние
@@ -25,7 +26,12 @@ export interface ConditionEffects {
   keepsAwayFromSource: boolean;
 }
 
-export const NO_EFFECTS: ConditionEffects = {
+// Заморожена: это общая константа на весь процесс, а не шаблон для
+// копирования, и случайная запись в одно из её полей (`effects.speed =
+// ...` по опечатке вместо создания нового объекта) отравила бы её для
+// всех, кто её же и держит без единого следствия (ревью волны «б»,
+// находка 8).
+export const NO_EFFECTS: ConditionEffects = Object.freeze({
   cannotAct: false,
   speed: 'NORMAL',
   ownAttacks: 'NORMAL',
@@ -33,7 +39,7 @@ export const NO_EFFECTS: ConditionEffects = {
   incomingFar: 'NORMAL',
   meleeAutoCrit: false,
   keepsAwayFromSource: false,
-};
+});
 
 export interface ConditionEntry {
   code: ConditionCode;
@@ -189,4 +195,60 @@ export function attackAdvantage(input: {
 /** Попадание вблизи по парализованному или бесчувственному — критическое. */
 export function autoCritOn(target: ConditionEffects, isNear: boolean): boolean {
   return isNear && target.meleeAutoCrit;
+}
+
+/**
+ * Порог книги: «в пределах пяти футов» — по лежачему вблизи бьют с
+ * преимуществом, дальше — с помехой (см. `incomingNear`/`incomingFar`
+ * выше), и это единственное место, где число «пять» названо. Считается
+ * в клетках через `reachInCells` от размера клетки сцены, а не «одна
+ * клетка»: клетка бывает десятифутовой, и на такой карте порог в клетках
+ * поехал бы вдвое.
+ *
+ * До этой функции сервер (`combat.service.ts`) и фронт
+ * (`CombatActions.tsx`) писали ровно это выражение с литералом `5` у
+ * каждого себе — и разошлись бы молча при первой же правке одной из
+ * копий (ревью волны «б», находка 1).
+ */
+export function isNearFor(a: Placed, b: Placed, cellSizeFeet: number): boolean {
+  const NEAR_FEET = 5;
+  return reachDistance(a, b) <= reachInCells({ reachFeet: NEAR_FEET, cellSizeFeet });
+}
+
+/**
+ * Полный список состояний фишки: наложенные строки плюс выведенное из
+ * хитов. Персонаж на нуле хитов уже описан полями волны «а»
+ * (`currentHitPoints`, `isDead`) — заводить вдобавок строку состояния
+ * `unconscious` значило бы хранить один факт дважды, и тогда лечение
+ * подняло бы хиты, а строка осталась (§4 дизайна волны).
+ *
+ * Живёт в пакете, а не только на сервере: клиент подписывает причину
+ * помехи и рисует значки на фишке до броска (§11 дизайна), и без этой
+ * функции ему нечем узнать про бесчувственность сбитого — он видит
+ * только наложенные строки, которых на нуле хитов ещё не было ни одной.
+ *
+ * `currentHitPoints: null` — числа скрыты (монстр игроку) — выводить
+ * тут нечего, и `null` не считается нулём: иначе игрок увидел бы у
+ * целого монстра ложную бесчувственность.
+ */
+export function derivedConditions(input: {
+  conditions: ConditionEntry[];
+  currentHitPoints: number | null;
+  isDead: boolean;
+}): ConditionEntry[] {
+  if (input.currentHitPoints === null || input.currentHitPoints > 0 || input.isDead) {
+    return input.conditions;
+  }
+
+  // Бесчувственный в книге ещё и лежит, и без второго кода дальний
+  // выстрел по сбитому шёл бы с преимуществом: по книге преимущество
+  // бесчувственного и помеха за дальность по лежачему гасят друг друга.
+  // Вблизи всё как было — преимущество и крит.
+  const derived: ConditionCode[] = ['unconscious', 'prone'];
+  return [
+    ...input.conditions,
+    ...derived
+      .filter((code) => !input.conditions.some((c) => c.code === code))
+      .map((code) => ({ code, level: null })),
+  ];
 }
