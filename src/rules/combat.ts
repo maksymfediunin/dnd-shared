@@ -1,8 +1,9 @@
 import type { WeaponProperty, WeaponRangeType } from '../enums/character.js';
 import type { DeathSaveOutcome } from '../enums/combat.js';
 import type { AdvantageMode } from '../enums/dice.js';
+import type { SizeCategory } from '../enums/size.js';
 import { diceNotation, keptDie, type RandomSource, rollDice } from './dice.js';
-import type { Cell } from './grid.js';
+import { type Cell, footprint } from './grid.js';
 
 /**
  * Правила боя: чистая арифметика без базы, без Express и без React.
@@ -215,4 +216,53 @@ export function weaponAttackBonus(input: {
  */
 export function reachInCells(input: { reachFeet: number; cellSizeFeet: number }): number {
   return Math.max(1, Math.floor(input.reachFeet / input.cellSizeFeet));
+}
+
+/** Фишка на сетке с известным размером — ровно то, что нужно `reachDistance`, чтобы мерить не углы, а ближайшие клетки. */
+export interface Placed {
+  x: number;
+  y: number;
+  size: SizeCategory;
+}
+
+/** Зазор по одной оси между двумя отрезками клеток — 0, если они пересекаются. */
+function edgeGap(aMin: number, aSpan: number, bMin: number, bSpan: number): number {
+  const aMax = aMin + aSpan - 1;
+  const bMax = bMin + bSpan - 1;
+  return Math.max(0, Math.max(aMin - bMax, bMin - aMax));
+}
+
+/**
+ * Расстояние Чебышёва между фишками с поправкой на их размер: не
+ * между углами квадратов (`x`/`y` — левый верхний), а между ближайшими
+ * клетками. Огр (2×2) и гоблин впритык к его лапе стоят на расстоянии
+ * 1 — как и любые обычные соседние клетки, — а не 2, как вышло бы по
+ * разнице левых верхних углов.
+ *
+ * Живёт здесь, а не в сервере и не на фронте: досягаемость атаки
+ * (`assertWithinReach` в dnd-api) и запрет приближаться к источнику
+ * испуга (`assertNotTowardsFear` там же, и подсветка на фронте) —
+ * это одна и та же геометрия, а не два похожих правила. Разъехавшиеся
+ * копии этой функции уже расходились молча (ревью задачи 11, находка 1)
+ * — сюда её вынесли, чтобы разойтись было больше нечему.
+ */
+export function reachDistance(a: Placed, b: Placed): number {
+  const spanA = footprint(a.size);
+  const spanB = footprint(b.size);
+  return Math.max(edgeGap(a.x, spanA, b.x, spanB), edgeGap(a.y, spanA, b.y, spanB));
+}
+
+/**
+ * Испуг запрещает не ходить, а приближаться: шаг годится, если
+ * расстояние до источника после него не меньше, чем было. Сравнение
+ * «до и после» через `reachDistance» — та же геометрия, что и досягаемость
+ * атаки, а не собственная копия: `encounter.service.ts` на сервере и
+ * подсветка на фронте переписывали её от руки и однажды разошлись бы
+ * молча (ревью волны «б», находка 3), как уже разошлась сама
+ * `reachDistance` до задачи 11.
+ */
+export function movesCloser(mover: Placed, to: Cell, source: Placed): boolean {
+  const before = reachDistance(mover, source);
+  const after = reachDistance({ ...mover, x: to.x, y: to.y }, source);
+  return after < before;
 }

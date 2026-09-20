@@ -5,7 +5,7 @@ import {
   MAP_MAX_OBSTACLES,
   MAP_ROTATION_STEP,
 } from '../enums/map.js';
-import { battleMapSaveSchema, participantUpdateSchema } from './map.js';
+import { battleMapSaveSchema, conditionApplySchema, participantUpdateSchema } from './map.js';
 
 const validMap = {
   name: 'Лесное святилище',
@@ -161,5 +161,57 @@ describe('participantUpdateSchema', () => {
 
     const withoutX = participantUpdateSchema.safeParse({ y: 1 });
     expect(withoutX.error?.issues.at(-1)?.path).toEqual(['x']);
+  });
+});
+
+describe('conditionApplySchema', () => {
+  it('принимает состояние без срока — держится до снятия рукой', () => {
+    const parsed = conditionApplySchema.parse({ code: 'prone' });
+    expect(parsed.code).toBe('prone');
+    expect(parsed.roundsRemaining).toBeUndefined();
+  });
+
+  // Уровень есть только у истощения: присланный у лежачего означает,
+  // что отправитель считает иначе, чем сервер, и молчать об этом хуже,
+  // чем отказать.
+  it('уровень у всех, кроме истощения, отвергается', () => {
+    expect(conditionApplySchema.safeParse({ code: 'prone', level: 2 }).success).toBe(false);
+    expect(conditionApplySchema.safeParse({ code: 'exhaustion', level: 2 }).success).toBe(true);
+  });
+
+  it('уровень истощения не выходит за 1–6', () => {
+    expect(conditionApplySchema.safeParse({ code: 'exhaustion', level: 0 }).success).toBe(false);
+    expect(conditionApplySchema.safeParse({ code: 'exhaustion', level: 7 }).success).toBe(false);
+  });
+
+  it('срок меньше одного раунда бессмыслен', () => {
+    expect(conditionApplySchema.safeParse({ code: 'poisoned', roundsRemaining: 0 }).success).toBe(
+      false,
+    );
+  });
+
+  // Источник есть только у испуга — тем же правилом, что и уровень есть
+  // только у истощения: у остальных четырнадцати кодов его никто не
+  // читает, и присланный лёг бы в базу мёртвым грузом (ревью волны «б»,
+  // находка 4).
+  it('источник у всех, кроме испуга, отвергается', () => {
+    expect(
+      conditionApplySchema.safeParse({
+        code: 'poisoned',
+        sourceParticipantId: '123e4567-e89b-12d3-a456-426614174000',
+      }).success,
+    ).toBe(false);
+    expect(
+      conditionApplySchema.safeParse({
+        code: 'frightened',
+        sourceParticipantId: '123e4567-e89b-12d3-a456-426614174000',
+      }).success,
+    ).toBe(true);
+  });
+
+  // Испуг без источника — законный случай (страх перед ловушкой или
+  // темнотой, а не перед фишкой), а не то, что схема должна отвергать.
+  it('испуг без источника по-прежнему допустим', () => {
+    expect(conditionApplySchema.safeParse({ code: 'frightened' }).success).toBe(true);
   });
 });

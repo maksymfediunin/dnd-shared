@@ -186,4 +186,25 @@ describe('encounterEventPayloadSchema', () => {
 
     expect(res.success).toBe(false);
   });
+
+  it('разбирает строку о наложенном состоянии', () => {
+    const parsed = encounterEventPayloadSchema.parse({
+      kind: 'CONDITION',
+      code: 'frightened',
+      action: 'APPLIED',
+      roundsRemaining: 2,
+    });
+
+    expect(parsed).toMatchObject({ kind: 'CONDITION', code: 'frightened', action: 'APPLIED' });
+  });
+
+  it('строка об истечении срока не требует ни уровня, ни остатка', () => {
+    const parsed = encounterEventPayloadSchema.parse({
+      kind: 'CONDITION',
+      code: 'poisoned',
+      action: 'EXPIRED',
+    });
+
+    expect(parsed).toMatchObject({ action: 'EXPIRED' });
+  });
 });

@@ -18,6 +18,9 @@ export type CombatStatus = (typeof COMBAT_STATUSES)[number];
  * подъём хитов правкой, отчего снижение той же правкой не писалось
  * ничем (хвост 22). Настоящее лечение придёт волной «в» и заведёт свой
  * вид тогда же — обещаний без исполнителя в контракте больше нет.
+ *
+ * `CONDITION` — наложение, снятие и истечение состояния. `CAST` из
+ * §6.7 общего ТЗ придёт волной «в» вместе с настоящими заклинаниями.
  */
 export const ENCOUNTER_EVENT_KINDS = [
   'INITIATIVE',
@@ -25,6 +28,7 @@ export const ENCOUNTER_EVENT_KINDS = [
   'ATTACK',
   'DAMAGE',
   'HP_ADJUST',
+  'CONDITION',
   'DEATH_SAVE',
   'END_TURN',
   'ROUND',

@@ -5,6 +5,12 @@ import {
   INITIATIVE_MAX,
   INITIATIVE_MIN,
 } from '../enums/combat.js';
+import {
+  conditionActionSchema,
+  conditionCodeSchema,
+  EXHAUSTION_MAX_LEVEL,
+  EXHAUSTION_MIN_LEVEL,
+} from '../enums/conditions.js';
 import { advantageModeSchema } from '../enums/dice.js';
 
 /**
@@ -147,6 +153,15 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
       .int()
       .refine((v) => v !== 0, 'Правка хитов обязана что-то менять'),
     hitPointsLeft: z.number().int().min(0),
+  }),
+  z.object({
+    kind: z.literal('CONDITION'),
+    code: conditionCodeSchema,
+    action: conditionActionSchema,
+    /** Только у истощения — у остальных состояний степени не бывает. */
+    level: z.number().int().min(EXHAUSTION_MIN_LEVEL).max(EXHAUSTION_MAX_LEVEL).optional(),
+    /** Пусто у состояния без срока: оно держится до снятия рукой. */
+    roundsRemaining: z.number().int().min(0).max(100).optional(),
   }),
   z.object({
     kind: z.literal('DEATH_SAVE'),
