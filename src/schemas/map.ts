@@ -1,9 +1,5 @@
 import { z } from 'zod';
-import {
-  conditionCodeSchema,
-  EXHAUSTION_MAX_LEVEL,
-  EXHAUSTION_MIN_LEVEL,
-} from '../enums/conditions.js';
+import { conditionCodeSchema, exhaustionLevelSchema } from '../enums/conditions.js';
 import {
   MAP_DEFAULT_CELL_SIZE_FEET,
   MAP_MAX_CELL_SIZE_FEET,
@@ -146,18 +142,25 @@ export type ParticipantAddInput = z.infer<typeof participantAddSchema>;
  * Наложение состояния ведущим. Срок необязателен: пусто — держится до
  * снятия рукой, и это основной случай, потому что стол ведёт человек.
  * Уровень принимается только у истощения — у остальных состояний
- * степени не бывает.
+ * степени не бывает, а у истощения он обязателен: без него правила
+ * читали бы состояние как первый уровень (`level ?? 1`), панель и значок
+ * уровня его не показывали бы, и на экране осталась бы голая надпись
+ * «Истощение» (хвосты волны «б», находка 5).
  */
 export const conditionApplySchema = z
   .object({
     code: conditionCodeSchema,
     roundsRemaining: z.number().int().min(1).max(100).optional(),
-    level: z.number().int().min(EXHAUSTION_MIN_LEVEL).max(EXHAUSTION_MAX_LEVEL).optional(),
+    level: exhaustionLevelSchema.optional(),
     sourceParticipantId: z.uuid().optional(),
   })
   .refine((v) => v.level === undefined || v.code === 'exhaustion', {
     path: ['level'],
     message: 'Уровень есть только у истощения',
+  })
+  .refine((v) => v.code !== 'exhaustion' || v.level !== undefined, {
+    path: ['level'],
+    message: 'Уровень истощения обязателен',
   })
   // Симметрично уровню выше: источник кого-то бояться есть только у
   // испуга, у остальных четырнадцати кодов его никто не читает — присланный

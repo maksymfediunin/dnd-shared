@@ -1,6 +1,7 @@
 import type { ConditionCode } from '../enums/conditions.js';
 import type { AdvantageMode } from '../enums/dice.js';
-import { type Placed, reachDistance, reachInCells } from './combat.js';
+import { movesCloser, type Placed, reachDistance, reachInCells } from './combat.js';
+import { cellKey, footprint, type Grid, reachableCells } from './grid.js';
 
 /**
  * Правила состояний: чистая арифметика без базы и без React. Состояние
@@ -168,6 +169,68 @@ export function effectiveSpeed(speed: number, effects: ConditionEffects): number
   return effects.speed === 'HALF' ? Math.floor(speed / 2) : speed;
 }
 
+/** Уже разобранные величины, нужные подсветке — не снимок сцены целиком. */
+export interface ReachableCellsInput {
+  mover: Placed;
+  conditions: ConditionEntry[];
+  speed: number;
+  /** Остаток хода носителя в футах. */
+  movementLeftFeet: number;
+  cellSizeFeet: number;
+  grid: Grid;
+  /** Непроходимое: стены и препятствия с `blocksMovement`. */
+  walls: Set<string>;
+  /** Проходимое, но не для остановки: чужие живые фишки. */
+  tokens: Set<string>;
+  /** Источники испуга, ещё стоящие на сцене — фишку-источник могли снять со стола, и тогда бояться уже некого. */
+  fearSources: Placed[];
+}
+
+/**
+ * Клетки, куда достаёт остаток хода фишки с учётом её состояний —
+ * бюджет от `effectiveSpeed`, обход в ширину до него (`reachableCells`),
+ * отсев клеток, приближающих к источнику испуга (`movesCloser`). Ровно
+ * то, чем сервер и подсветка на фронте раньше считали одно и то же
+ * порознь и однажды разошлись бы молча (ревью волны «б», находка 3).
+ *
+ * Принимает уже разобранные величины, а не снимок сцены: какие поля
+ * бывают у участника, что `movementLeftFeet` бывает `null` у скрытых
+ * от игрока чисел, что состояния лежат в `conditions` — это форма
+ * клиентского снимка, а не правило боя, и решать её вызывающему коду
+ * (он же знает, кто у него участник и что с ним скрыто).
+ */
+export function reachableCellsFor(input: ReachableCellsInput): Set<string> {
+  const effects = combineConditions(input.conditions);
+  const budgetFeet = Math.min(input.movementLeftFeet, effectiveSpeed(input.speed, effects));
+
+  const reach = reachableCells({
+    from: { x: input.mover.x, y: input.mover.y },
+    span: footprint(input.mover.size),
+    grid: input.grid,
+    walls: input.walls,
+    tokens: input.tokens,
+    maxSteps: Math.floor(budgetFeet / input.cellSizeFeet),
+  });
+
+  if (!effects.keepsAwayFromSource) return new Set(reach.keys());
+
+  // Клетка строится вперёд от координат сетки, а не разбором ключа
+  // назад: формат ключа — внутреннее устройство `reachableCells`,
+  // которое вызывающему коду знать не положено.
+  const allowed = new Set<string>();
+  for (let y = 0; y < input.grid.height; y += 1) {
+    for (let x = 0; x < input.grid.width; x += 1) {
+      const key = cellKey({ x, y });
+      if (!reach.has(key)) continue;
+      const approaches = input.fearSources.some((source) =>
+        movesCloser(input.mover, { x, y }, source),
+      );
+      if (!approaches) allowed.add(key);
+    }
+  }
+  return allowed;
+}
+
 /**
  * Единственное место, где сходятся ручной выбор и состояния обеих
  * сторон. Ручной выбор — такой же источник, как остальные, а не
@@ -227,16 +290,22 @@ export function isNearFor(a: Placed, b: Placed, cellSizeFeet: number): boolean {
  * функции ему нечем узнать про бесчувственность сбитого — он видит
  * только наложенные строки, которых на нуле хитов ещё не было ни одной.
  *
- * `currentHitPoints: null` — числа скрыты (монстр игроку) — выводить
- * тут нечего, и `null` не считается нулём: иначе игрок увидел бы у
- * целого монстра ложную бесчувственность.
+ * Принимает уже готовый признак `isDown`, а не хиты с `isDead` порознь
+ * (ревью волны «б», находка 9): у монстра хиты от игрока скрыты
+ * (`currentHitPoints: null` в его снимке), и функция, которая сама
+ * сравнивала бы их с нулём, не отличила бы сбитого монстра от целого —
+ * игрок не увидел бы ни значков, ни подписи причины, хотя сервер
+ * преимущество и крит уже применит. «Сбит» каждая сторона считает
+ * из своих чисел сама (сервер — из настоящих хитов участника, клиент —
+ * из этого же признака, отданного ему в снимке), а сюда попадает уже
+ * готовый ответ — тайна чисел ведущего этим не нарушается: то, что
+ * фишка лежит, игрок видит глазами, хиты и КД остаются скрытыми.
  */
 export function derivedConditions(input: {
   conditions: ConditionEntry[];
-  currentHitPoints: number | null;
-  isDead: boolean;
+  isDown: boolean;
 }): ConditionEntry[] {
-  if (input.currentHitPoints === null || input.currentHitPoints > 0 || input.isDead) {
+  if (!input.isDown) {
     return input.conditions;
   }
 

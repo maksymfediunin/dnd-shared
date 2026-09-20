@@ -8,7 +8,9 @@ import {
   effectsOf,
   isNearFor,
   NO_EFFECTS,
+  reachableCellsFor,
 } from './conditions.js';
+import { blockedCells, cellKey } from './grid.js';
 
 describe('следствия одного состояния', () => {
   // По лежачему вблизи бьют с преимуществом, издали — с помехой. Это
@@ -156,37 +158,30 @@ describe('isNearFor', () => {
   });
 });
 
+// Принимает готовый признак `isDown`, а не хиты и `isDead` по отдельности
+// (ревью волны «б», находка 9): у монстра числа скрыты от игрока
+// (`currentHitPoints: null`), и функция, читающая хиты сама, не отличила
+// бы сбитого монстра от целого — сервер и клиент теперь считают «сбит
+// ли» один раз каждый на своей стороне (сервер — из настоящих хитов,
+// клиент — из этого же признака в снимке) и отдают сюда уже готовый
+// булев ответ.
 describe('derivedConditions', () => {
-  it('ноль хитов даёт два выведенных кода', () => {
-    const derived = derivedConditions({ conditions: [], currentHitPoints: 0, isDead: false });
+  it('сбитый получает два выведенных кода', () => {
+    const derived = derivedConditions({ conditions: [], isDown: true });
     expect(derived.map((c) => c.code)).toEqual(['unconscious', 'prone']);
   });
 
-  it('мёртвый выведенных кодов не получает', () => {
-    const derived = derivedConditions({ conditions: [], currentHitPoints: 0, isDead: true });
+  it('не сбитый выведенных кодов не получает', () => {
+    const derived = derivedConditions({ conditions: [], isDown: false });
     expect(derived).toEqual([]);
   });
 
   it('уже наложенный prone не дублируется', () => {
     const derived = derivedConditions({
       conditions: [{ code: 'prone' }],
-      currentHitPoints: 0,
-      isDead: false,
+      isDown: true,
     });
     expect(derived.map((c) => c.code)).toEqual(['prone', 'unconscious']);
-  });
-
-  // Монстр со скрытыми от игрока числами: currentHitPoints === null,
-  // а не 0 — выводить тут нечего, иначе игрок увидел бы ложную
-  // бесчувственность у целого монстра.
-  it('null хитов не даёт ничего — не считается нулём', () => {
-    const derived = derivedConditions({ conditions: [], currentHitPoints: null, isDead: false });
-    expect(derived).toEqual([]);
-  });
-
-  it('положительные хиты ничего не выводят', () => {
-    const derived = derivedConditions({ conditions: [], currentHitPoints: 5, isDead: false });
-    expect(derived).toEqual([]);
   });
 });
 
@@ -196,5 +191,110 @@ describe('derivedConditions', () => {
 describe('NO_EFFECTS', () => {
   it('заморожена от записи', () => {
     expect(Object.isFrozen(NO_EFFECTS)).toBe(true);
+  });
+});
+
+// Переехало из EncounterBoard.tsx на фронте (ревью волны «б», находка
+// 3): подсветка достижимых клеток — правило боя, а не разметка, и её
+// не проверить без базы и без React только пока она сидит в компоненте.
+describe('reachableCellsFor', () => {
+  const grid = { width: 10, height: 10 };
+  const empty = new Set<string>();
+  const mover = { x: 0, y: 0, size: 'MEDIUM' } as const;
+
+  it('клетка за стеной стоит обхода, а не двух шагов по прямой', () => {
+    const walls = blockedCells([
+      { origin: { x: 1, y: 0 }, span: 1 },
+      { origin: { x: 1, y: 1 }, span: 1 },
+    ]);
+
+    const reach = reachableCellsFor({
+      mover,
+      conditions: [],
+      speed: 30,
+      movementLeftFeet: 30,
+      cellSizeFeet: 5,
+      grid,
+      walls,
+      tokens: empty,
+      fearSources: [],
+    });
+
+    expect(reach.has(cellKey({ x: 1, y: 0 }))).toBe(false);
+    expect(reach.has(cellKey({ x: 2, y: 0 }))).toBe(true);
+  });
+
+  it('половина скорости режет бюджет вдвое, а не остаток хода', () => {
+    const reach = reachableCellsFor({
+      mover,
+      conditions: [{ code: 'exhaustion', level: 2 }],
+      speed: 30,
+      movementLeftFeet: 30,
+      cellSizeFeet: 5,
+      grid,
+      walls: empty,
+      tokens: empty,
+      fearSources: [],
+    });
+
+    expect(reach.has(cellKey({ x: 3, y: 0 }))).toBe(true);
+    expect(reach.has(cellKey({ x: 4, y: 0 }))).toBe(false);
+  });
+
+  it('нулевая скорость не даёт сойти с клетки', () => {
+    const reach = reachableCellsFor({
+      mover,
+      conditions: [{ code: 'restrained' }],
+      speed: 30,
+      movementLeftFeet: 30,
+      cellSizeFeet: 5,
+      grid,
+      walls: empty,
+      tokens: empty,
+      fearSources: [],
+    });
+
+    expect(reach.size).toBe(0);
+  });
+
+  it('испуг отсеивает клетки, приближающие к источнику', () => {
+    const frightened = { x: 5, y: 5, size: 'MEDIUM' } as const;
+    const source = { x: 5, y: 0, size: 'MEDIUM' } as const;
+
+    const reach = reachableCellsFor({
+      mover: frightened,
+      conditions: [{ code: 'frightened' }],
+      speed: 30,
+      movementLeftFeet: 30,
+      cellSizeFeet: 5,
+      grid,
+      walls: empty,
+      tokens: empty,
+      fearSources: [source],
+    });
+
+    expect(reach.has(cellKey({ x: 5, y: 4 }))).toBe(false);
+    expect(reach.has(cellKey({ x: 5, y: 6 }))).toBe(true);
+  });
+
+  // Источник могли снять со сцены — тогда бояться уже некого, и запрет
+  // приближаться молча перестаёт действовать (assertNotTowardsFear на
+  // сервере считает так же).
+  it('источника испуга нет на сцене — отсева нет вовсе', () => {
+    const frightened = { x: 5, y: 5, size: 'MEDIUM' } as const;
+
+    const reach = reachableCellsFor({
+      mover: frightened,
+      conditions: [{ code: 'frightened' }],
+      speed: 30,
+      movementLeftFeet: 30,
+      cellSizeFeet: 5,
+      grid,
+      walls: empty,
+      tokens: empty,
+      fearSources: [],
+    });
+
+    expect(reach.has(cellKey({ x: 5, y: 4 }))).toBe(true);
   });
 });
