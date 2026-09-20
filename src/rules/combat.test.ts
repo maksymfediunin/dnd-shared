@@ -7,6 +7,7 @@ import {
   deathSave,
   initiativeOrder,
   movementCost,
+  reachDistance,
   reachInCells,
   weaponAttackBonus,
 } from './combat.js';
@@ -264,5 +265,47 @@ describe('reachInCells', () => {
   // Дробное округляется вниз: достать «на полторы клетки» нельзя.
   it('дробную досягаемость округляет вниз, но не до нуля', () => {
     expect(reachInCells({ reachFeet: 5, cellSizeFeet: 10 })).toBe(1);
+  });
+});
+
+describe('reachDistance', () => {
+  it('между фишками размером в клетку — обычное расстояние Чебышёва', () => {
+    expect(reachDistance({ x: 0, y: 0, size: 'MEDIUM' }, { x: 3, y: 1, size: 'MEDIUM' })).toBe(3);
+  });
+
+  // Та же единица, что и мера ближнего боя: reachInCells(5фт/5фт) даёт 1,
+  // и сцена dnd-api с игроком и гоблином через клетку друг от друга
+  // (myTurnEncounterAdjacent в combat-attack.test.ts) бьёт именно на
+  // этом расстоянии — единица тестов не расходится с единицей сервера.
+  it('соседняя клетка — расстояние 1, как обычный шаг', () => {
+    expect(reachDistance({ x: 0, y: 0, size: 'MEDIUM' }, { x: 1, y: 0, size: 'MEDIUM' })).toBe(1);
+  });
+
+  // Огр (LARGE, 2×2) вплотную к гоблину — то же расстояние 1, что и
+  // между обычными соседними клетками: важен зазор до ближайшей клетки
+  // чужой фишки, а не разница между левыми верхними углами квадратов
+  // (по ним вышло бы 2).
+  it('крупная фишка считает расстояние от ближайшей своей клетки, а не от угла', () => {
+    expect(reachDistance({ x: 0, y: 0, size: 'LARGE' }, { x: 2, y: 0, size: 'MEDIUM' })).toBe(1);
+    expect(reachDistance({ x: 0, y: 0, size: 'LARGE' }, { x: 3, y: 0, size: 'MEDIUM' })).toBe(2);
+  });
+
+  // Обе оси проверяются отдельно: формула берёт больший из двух
+  // зазоров, и ошибка в одной оси осталась бы незамеченной, разойдись
+  // они по величине.
+  it('считает независимо по каждой оси и берёт больший зазор', () => {
+    expect(reachDistance({ x: 0, y: 0, size: 'MEDIUM' }, { x: 0, y: 4, size: 'MEDIUM' })).toBe(4);
+    expect(reachDistance({ x: 0, y: 0, size: 'MEDIUM' }, { x: 4, y: 0, size: 'MEDIUM' })).toBe(4);
+  });
+
+  // Крупная фишка (GARGANTUAN, 4×4) с обеих сторон — зазор считается от
+  // ближайших краёв обоих квадратов, а не только одного.
+  it('две крупные фишки меряются между ближайшими краями обеих', () => {
+    expect(
+      reachDistance({ x: 0, y: 0, size: 'GARGANTUAN' }, { x: 4, y: 0, size: 'GARGANTUAN' }),
+    ).toBe(1);
+    expect(
+      reachDistance({ x: 0, y: 0, size: 'GARGANTUAN' }, { x: 5, y: 0, size: 'GARGANTUAN' }),
+    ).toBe(2);
   });
 });
