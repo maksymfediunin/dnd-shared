@@ -171,6 +171,13 @@ describe('conditionApplySchema', () => {
     expect(parsed.roundsRemaining).toBeUndefined();
   });
 
+  // В отличие от источника-фишки, источник-заклинание не привязан к
+  // коду состояния: концентрационным заклинанием держится что угодно.
+  it('принимает источник-заклинание у любого состояния', () => {
+    const parsed = conditionApplySchema.parse({ code: 'restrained', sourceSpellCode: 'web' });
+    expect(parsed.sourceSpellCode).toBe('web');
+  });
+
   // Уровень есть только у истощения: присланный у лежачего означает,
   // что отправитель считает иначе, чем сервер, и молчать об этом хуже,
   // чем отказать.

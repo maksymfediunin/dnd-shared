@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   attackInputSchema,
+  castInputSchema,
   damageInputSchema,
   encounterEventPayloadSchema,
   initiativeInputSchema,
@@ -175,13 +176,147 @@ describe('encounterEventPayloadSchema', () => {
     expect(res.success).toBe(false);
   });
 
-  // `HEAL` ушёл из контракта вместе с хвостом 22: писать им подъём
-  // хитов значило оставить снижение без строки вовсе.
-  it('вида HEAL в журнале больше нет', () => {
+  // `HEAL` вернулся волной «в» уже с исполнителем — настоящим лечением
+  // заклинанием, а не подъёмом хитов правкой ведущего: подъём правкой
+  // так и остаётся `HP_ADJUST` (хвост 22).
+  it('разбирает строку о лечении заклинанием', () => {
+    const parsed = encounterEventPayloadSchema.parse({
+      kind: 'HEAL',
+      spellCode: 'cure-wounds',
+      notation: '1d8+3',
+      results: [5],
+      amount: 8,
+    });
+
+    expect(parsed).toMatchObject({ kind: 'HEAL', spellCode: 'cure-wounds', amount: 8 });
+  });
+
+  it('лечение без заклинания — не строка журнала: правка хитов пишется своим видом', () => {
     const res = encounterEventPayloadSchema.safeParse({
       kind: 'HEAL',
       amount: 4,
       hitPointsLeft: 9,
+    });
+
+    expect(res.success).toBe(false);
+  });
+
+  it('разбирает сотворение по цели', () => {
+    const parsed = encounterEventPayloadSchema.parse({
+      kind: 'CAST',
+      spellCode: 'cure-wounds',
+      slotLevel: 1,
+      targetIds: ['11111111-1111-4111-8111-111111111111'],
+    });
+
+    expect(parsed).toMatchObject({ kind: 'CAST', slotLevel: 1 });
+  });
+
+  // Кантрип ячейки не тратит, и круг у его строки пустой — не ноль:
+  // нулевого круга ячеек не бывает вовсе.
+  it('сотворение кантрипа идёт без круга ячейки', () => {
+    const parsed = encounterEventPayloadSchema.parse({
+      kind: 'CAST',
+      spellCode: 'fire-bolt',
+      slotLevel: null,
+      targetIds: ['11111111-1111-4111-8111-111111111111'],
+    });
+
+    expect(parsed).toMatchObject({ slotLevel: null });
+  });
+
+  // Клетки области кладутся теми же ключами, какие складывает `cellKey`
+  // и возвращает `cellsInArea`: подсветка на карте и разбор строки
+  // журнала должны видеть одни и те же клетки.
+  it('сотворение по площади помнит её клетки', () => {
+    const parsed = encounterEventPayloadSchema.parse({
+      kind: 'CAST',
+      spellCode: 'fireball',
+      slotLevel: 3,
+      targetIds: [],
+      areaCells: ['4:4', '5:4', '4:5'],
+    });
+
+    expect(parsed).toMatchObject({ areaCells: ['4:4', '5:4', '4:5'] });
+  });
+
+  it('клетка области чужого вида не проходит', () => {
+    const res = encounterEventPayloadSchema.safeParse({
+      kind: 'CAST',
+      spellCode: 'fireball',
+      slotLevel: 3,
+      targetIds: [],
+      areaCells: ['4,4'],
+    });
+
+    expect(res.success).toBe(false);
+  });
+
+  it('разбирает спасбросок цели против заклинания', () => {
+    const parsed = encounterEventPayloadSchema.parse({
+      kind: 'SAVE',
+      spellCode: 'fireball',
+      ability: 'dexterity',
+      notation: '1d20+2',
+      results: [11],
+      total: 13,
+      dc: 16,
+      outcome: 'FAILURE',
+    });
+
+    expect(parsed).toMatchObject({ kind: 'SAVE', dc: 16, outcome: 'FAILURE' });
+  });
+
+  // Без сложности по броску нечего разбирать — а разбор спорного
+  // момента за столом начинается именно с этой строки (§6 дизайна).
+  it('спасбросок без сложности не проходит', () => {
+    const res = encounterEventPayloadSchema.safeParse({
+      kind: 'SAVE',
+      spellCode: 'fireball',
+      ability: 'dexterity',
+      notation: '1d20+2',
+      results: [11],
+      total: 13,
+      outcome: 'FAILURE',
+    });
+
+    expect(res.success).toBe(false);
+  });
+
+  it('разбирает удержанную концентрацию со спасброском', () => {
+    const parsed = encounterEventPayloadSchema.parse({
+      kind: 'CONCENTRATION',
+      spellCode: 'hold-person',
+      outcome: 'KEPT',
+      notation: '1d20+2',
+      results: [15],
+      total: 17,
+      dc: 10,
+    });
+
+    expect(parsed).toMatchObject({ kind: 'CONCENTRATION', outcome: 'KEPT', dc: 10 });
+  });
+
+  // Концентрация рвётся и без броска — смертью носителя и новым
+  // концентрационным заклинанием (§6 дизайна). Записать такому обрыву
+  // выдуманный бросок хуже, чем оставить его без броска.
+  it('разбирает обрыв концентрации без броска', () => {
+    const parsed = encounterEventPayloadSchema.parse({
+      kind: 'CONCENTRATION',
+      spellCode: 'hold-person',
+      outcome: 'BROKEN',
+      results: [],
+    });
+
+    expect(parsed).toMatchObject({ outcome: 'BROKEN' });
+  });
+
+  it('чужой исход концентрации не проходит', () => {
+    const res = encounterEventPayloadSchema.safeParse({
+      kind: 'CONCENTRATION',
+      spellCode: 'hold-person',
+      outcome: 'LOST',
+      results: [],
     });
 
     expect(res.success).toBe(false);
@@ -206,5 +341,61 @@ describe('encounterEventPayloadSchema', () => {
     });
 
     expect(parsed).toMatchObject({ action: 'EXPIRED' });
+  });
+});
+
+describe('castInputSchema', () => {
+  const targetId = '11111111-1111-4111-8111-111111111111';
+
+  it('принимает сотворение по фишке', () => {
+    const parsed = castInputSchema.parse({ spellCode: 'cure-wounds', slotLevel: 1, targetId });
+
+    expect(parsed).toMatchObject({ spellCode: 'cure-wounds', slotLevel: 1 });
+  });
+
+  it('принимает сотворение по клетке', () => {
+    const parsed = castInputSchema.parse({
+      spellCode: 'fireball',
+      slotLevel: 3,
+      cell: { x: 4, y: 7 },
+    });
+
+    expect(parsed.cell).toEqual({ x: 4, y: 7 });
+  });
+
+  // Ровно одно из двух, как у удара оружием: заклинание бьёт либо по
+  // фишке, либо по точке, и выбирать за игрока служба не должна.
+  it('отвергает цель и клетку разом', () => {
+    const res = castInputSchema.safeParse({
+      spellCode: 'fireball',
+      slotLevel: 3,
+      targetId,
+      cell: { x: 4, y: 7 },
+    });
+
+    expect(res.success).toBe(false);
+  });
+
+  it('отвергает сотворение в никуда', () => {
+    expect(castInputSchema.safeParse({ spellCode: 'fireball', slotLevel: 3 }).success).toBe(false);
+  });
+
+  it('кантрип идёт без круга ячейки', () => {
+    const parsed = castInputSchema.parse({ spellCode: 'fire-bolt', targetId });
+
+    expect(parsed.slotLevel).toBeUndefined();
+  });
+
+  it('круга ноль и круга десять не бывает', () => {
+    expect(
+      castInputSchema.safeParse({ spellCode: 'fireball', slotLevel: 0, targetId }).success,
+    ).toBe(false);
+    expect(
+      castInputSchema.safeParse({ spellCode: 'fireball', slotLevel: 10, targetId }).success,
+    ).toBe(false);
+  });
+
+  it('заклинание без кода не сотворяется', () => {
+    expect(castInputSchema.safeParse({ spellCode: '  ', targetId }).success).toBe(false);
   });
 });

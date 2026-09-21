@@ -153,6 +153,16 @@ export const conditionApplySchema = z
     roundsRemaining: z.number().int().min(1).max(100).optional(),
     level: exhaustionLevelSchema.optional(),
     sourceParticipantId: z.uuid().optional(),
+    /**
+     * Каким заклинанием состояние держится. Необязательное и без
+     * привязки к коду состояния — в отличие от `sourceParticipantId`
+     * выше, который есть только у испуга: концентрационным заклинанием
+     * держится что угодно, от опутывания до паралича. По нему состояние
+     * уходит вместе с обрывом концентрации (§6 дизайна волны «в») —
+     * без этого поля колонка базы осталась бы мёртвой, а «опутывание»
+     * пережило бы своего заклинателя.
+     */
+    sourceSpellCode: z.string().min(1).max(64).optional(),
   })
   .refine((v) => v.level === undefined || v.code === 'exhaustion', {
     path: ['level'],

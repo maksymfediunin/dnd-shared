@@ -1,9 +1,12 @@
 import { z } from 'zod';
+import { abilityCodeSchema } from '../enums/character.js';
 import {
   attackOutcomeSchema,
+  concentrationOutcomeSchema,
   deathSaveOutcomeSchema,
   INITIATIVE_MAX,
   INITIATIVE_MIN,
+  savingThrowOutcomeSchema,
 } from '../enums/combat.js';
 import {
   conditionActionSchema,
@@ -11,6 +14,7 @@ import {
   exhaustionLevelSchema,
 } from '../enums/conditions.js';
 import { advantageModeSchema } from '../enums/dice.js';
+import { spellSlotLevelSchema } from '../enums/spells.js';
 
 /**
  * Бросок инициативы. Пустое тело — «бросаю за себя»; ведущий может
@@ -57,6 +61,45 @@ export const attackInputSchema = z
     message: 'Ударить можно либо оружием, либо действием монстра',
   });
 export type AttackInput = z.infer<typeof attackInputSchema>;
+
+/**
+ * Клетка, по которой бьёт заклинание. Границы сетки этой сцены схема
+ * не знает — как и `coordinateSchema` в `schemas/map.ts`, она держит
+ * только «клетка, а не мусор», а попадание в настоящие размеры карты
+ * проверяет служба (`MAP_CELL_OUT_OF_BOUNDS`).
+ */
+const targetCellSchema = z.object({
+  x: z.number().int().min(0),
+  y: z.number().int().min(0),
+});
+
+/**
+ * Сотворение заклинания. Маршрут один на все четыре исхода, потому что
+ * играющий выбирает не вид разрешения, а заклинание: какой у него
+ * исход — свойство самого заклинания, известное серверу из справочника
+ * (§5 дизайна).
+ *
+ * `slotLevel` отсутствует у кантрипа и обязателен у прочих, но
+ * обязательность эту проверяет служба: круг самого заклинания схеме
+ * неизвестен — он лежит в справочнике, а не в теле запроса.
+ */
+export const castInputSchema = z
+  .object({
+    /** Чьей фишкой колдуем; правила подстановки те же, что у удара. */
+    participantId: z.uuid().optional(),
+    /** Код заклинания справочника — тот же, что у `Spell.code`. */
+    spellCode: z.string().trim().min(1).max(64),
+    slotLevel: spellSlotLevelSchema.optional(),
+    targetId: z.uuid().optional(),
+    cell: targetCellSchema.optional(),
+    /** Ход властью ведущего — та же дверь, что и у удара. */
+    override: z.boolean().optional(),
+  })
+  .refine((v) => (v.targetId === undefined) !== (v.cell === undefined), {
+    path: ['targetId'],
+    message: 'Заклинание бьёт либо по фишке, либо по клетке',
+  });
+export type CastInput = z.infer<typeof castInputSchema>;
 
 /**
  * Бросок урона. `amount` — ручная поправка вместо броска, право
@@ -139,6 +182,76 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     damageType: z.string().min(1).max(40),
     temporaryAbsorbed: z.number().int().min(0),
     hitPointsLeft: z.number().int().min(0),
+  }),
+  z.object({
+    kind: z.literal('CAST'),
+    /**
+     * Код, а не название: приложение трёхъязычное, и подпись строки
+     * фронт берёт из справочника на языке стола — как он делает это со
+     * строкой состояния. Название оружия в `ATTACK` лежит строкой
+     * потому, что оружием бывает предмет самого персонажа, которого в
+     * справочнике нет вовсе.
+     */
+    spellCode: z.string().min(1).max(64),
+    /** Пусто у кантрипа: ячейки он не тратит, а нулевого круга не бывает. */
+    slotLevel: spellSlotLevelSchema.nullable(),
+    /**
+     * Кого накрыло. Пустой список законен: заклинание без машинной
+     * механики и промах по пустой клетке целей не задели, а строка о
+     * сотворении всё равно нужна — ячейка потрачена.
+     */
+    targetIds: z.array(z.uuid()).max(40),
+    /**
+     * Клетки области теми же ключами, какие складывает `cellKey` и
+     * возвращает `cellsInArea`: подсветка на карте и разбор строки
+     * журнала обязаны видеть одни и те же клетки. Пусто у заклинания
+     * по фишке — области у него нет.
+     */
+    areaCells: z
+      .array(z.string().regex(/^\d+:\d+$/))
+      .max(400)
+      .optional(),
+  }),
+  z.object({
+    kind: z.literal('SAVE'),
+    /**
+     * Чей это бросок, строка говорит колонкой `targetParticipantId` —
+     * той же, какой говорит о цели урон: спасбросок бросает цель, и
+     * второго имени для того же участника в payload быть не должно.
+     */
+    spellCode: z.string().min(1).max(64),
+    /** Против чего бросали: спасбросок заклинания — не всегда ловкость. */
+    ability: abilityCodeSchema,
+    ...rollShape,
+    total: z.number().int(),
+    /** Сложность заклинателя — без неё по броску нечего разбирать. */
+    dc: z.number().int().min(1),
+    outcome: savingThrowOutcomeSchema,
+  }),
+  z.object({
+    kind: z.literal('HEAL'),
+    /** Лечение бывает только заклинанием: правку хитов пишет `HP_ADJUST`. */
+    spellCode: z.string().min(1).max(64),
+    ...rollShape,
+    amount: z.number().int().min(0),
+  }),
+  z.object({
+    kind: z.literal('CONCENTRATION'),
+    spellCode: z.string().min(1).max(64),
+    outcome: concentrationOutcomeSchema,
+    /**
+     * Броска может не быть вовсе: концентрация рвётся смертью носителя
+     * и новым концентрационным заклинанием (§6 дизайна), и там никто
+     * ничего не бросал. Записать такому обрыву выдуманный бросок хуже,
+     * чем оставить его без броска, — по журналу разбирают спорный
+     * момент. Форма пустого броска та же, что у ручного урона ведущего
+     * в `DAMAGE`: `results` пуст, `notation` нет.
+     */
+    notation: rollShape.notation.optional(),
+    results: z.array(z.number().int().min(1).max(100)).max(20),
+    total: z.number().int().optional(),
+    /** Сложность спасброска: `max(10, половина урона)`. */
+    dc: z.number().int().min(1).optional(),
   }),
   z.object({
     kind: z.literal('HP_ADJUST'),

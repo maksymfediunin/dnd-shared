@@ -67,6 +67,25 @@ export const ERROR_CODES = {
    * зелёная.
    */
   MOVE_TOWARDS_FEAR_SOURCE: 'MOVE_TOWARDS_FEAR_SOURCE',
+  /** Заклинания нет среди подготовленных этим персонажем. */
+  SPELL_NOT_PREPARED: 'SPELL_NOT_PREPARED',
+  /** Ячеек этого круга не осталось. */
+  NO_SPELL_SLOT: 'NO_SPELL_SLOT',
+  /** Ячейка круга ниже, чем сам круг заклинания. */
+  SPELL_SLOT_TOO_LOW: 'SPELL_SLOT_TOO_LOW',
+  SPELL_OUT_OF_RANGE: 'SPELL_OUT_OF_RANGE',
+  /**
+   * Заклинание бьёт по фишке, а прислали клетку, или наоборот. Свой
+   * код, а не общий отказ: игрок должен прочитать, чего именно ждут, —
+   * ровно так же подписан и шаг к источнику испуга.
+   */
+  SPELL_NEEDS_TARGET: 'SPELL_NEEDS_TARGET',
+  /**
+   * Время сотворения не `1 action`. В бою сотворяется только оно:
+   * реакций и бонусных действий система не различает, и врать об этом
+   * в журнале хуже, чем отказать (§2 дизайна волны «в»).
+   */
+  SPELL_NOT_IN_COMBAT: 'SPELL_NOT_IN_COMBAT',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

@@ -10,6 +10,15 @@ describe('коды ошибок', () => {
     expect(ERROR_CODES.MAX_LEVEL_REACHED).toBe('MAX_LEVEL_REACHED');
   });
 
+  it('знает коды заклинаний', () => {
+    expect(ERROR_CODES.SPELL_NOT_PREPARED).toBe('SPELL_NOT_PREPARED');
+    expect(ERROR_CODES.NO_SPELL_SLOT).toBe('NO_SPELL_SLOT');
+    expect(ERROR_CODES.SPELL_SLOT_TOO_LOW).toBe('SPELL_SLOT_TOO_LOW');
+    expect(ERROR_CODES.SPELL_OUT_OF_RANGE).toBe('SPELL_OUT_OF_RANGE');
+    expect(ERROR_CODES.SPELL_NEEDS_TARGET).toBe('SPELL_NEEDS_TARGET');
+    expect(ERROR_CODES.SPELL_NOT_IN_COMBAT).toBe('SPELL_NOT_IN_COMBAT');
+  });
+
   it('код совпадает с именем: словарь перевода ищет ошибку по имени', () => {
     for (const [name, code] of Object.entries(ERROR_CODES)) {
       expect(code).toBe(name);

@@ -1,4 +1,5 @@
 export * from './abilities.js';
+export * from './areas.js';
 export * from './character.js';
 export * from './combat.js';
 export * from './conditions.js';
