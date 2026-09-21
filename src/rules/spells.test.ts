@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { LEVELS } from './progression.js';
 import {
+  damageDiceFor,
+  healDiceFor,
   maxSpellLevel,
+  slotLevelsAvailable,
   spellAttackBonus,
   spellcastingAbility,
   spellSaveDc,
@@ -84,5 +87,104 @@ describe('подготовка заклинаний', () => {
     expect(spellsPrepared({ classCode: 'warlock', level: 5, spellcastingModifier: 3 })).toBeNull();
     expect(spellsPrepared({ classCode: 'ranger', level: 5, spellcastingModifier: 3 })).toBeNull();
     expect(spellsPrepared({ classCode: 'fighter', level: 5, spellcastingModifier: 0 })).toBeNull();
+  });
+});
+
+describe('кости урона заклинания', () => {
+  // Формы ровно те, что приезжают из SRD: карта «строковый ключ →
+  // запись броска».
+  const fireball = {
+    level: 3,
+    damageAtSlotLevel: { '3': '8d6', '4': '9d6', '5': '10d6' },
+  };
+  const fireBolt = {
+    level: 0,
+    damageAtLevel: { '1': '1d10', '5': '2d10', '11': '3d10', '17': '4d10' },
+  };
+
+  it('заклинание с ячейкой берёт кости по кругу ячейки', () => {
+    expect(damageDiceFor({ spell: fireball, slotLevel: 3 })).toBe('8d6');
+    expect(damageDiceFor({ spell: fireball, slotLevel: 5 })).toBe('10d6');
+  });
+
+  // Ячейка выше последней ступени таблицы — ступень последняя и
+  // остаётся: в SRD таблица обрывается, а ячейки девятого круга есть.
+  it('круг выше таблицы берёт её последнюю ступень', () => {
+    expect(damageDiceFor({ spell: fireball, slotLevel: 9 })).toBe('10d6');
+  });
+
+  it('без круга ячейки берётся круг самого заклинания', () => {
+    expect(damageDiceFor({ spell: fireball })).toBe('8d6');
+  });
+
+  it('кантрип растёт уровнем персонажа, а не ячейкой', () => {
+    expect(damageDiceFor({ spell: fireBolt, casterLevel: 1 })).toBe('1d10');
+    expect(damageDiceFor({ spell: fireBolt, casterLevel: 4 })).toBe('1d10');
+    expect(damageDiceFor({ spell: fireBolt, casterLevel: 5 })).toBe('2d10');
+    expect(damageDiceFor({ spell: fireBolt, casterLevel: 20 })).toBe('4d10');
+  });
+
+  // Половина заклинаний кругов 0–3 машинных полей не несёт вовсе — это
+  // штатный случай (§3 дизайна), а не сбой.
+  it('заклинание без костей отдаёт null', () => {
+    expect(damageDiceFor({ spell: { level: 2 }, slotLevel: 2 })).toBeNull();
+    expect(damageDiceFor({ spell: { level: 0 }, casterLevel: 5 })).toBeNull();
+    expect(damageDiceFor({ spell: fireBolt })).toBeNull();
+  });
+});
+
+describe('круги ячеек персонажа', () => {
+  it('полный заклинатель набирает круги по таблице', () => {
+    expect(slotLevelsAvailable('wizard', 1)).toEqual([1]);
+    expect(slotLevelsAvailable('wizard', 3)).toEqual([1, 2]);
+    expect(slotLevelsAvailable('wizard', 5)).toEqual([1, 2, 3]);
+  });
+
+  it('половинный начинает со второго уровня', () => {
+    expect(slotLevelsAvailable('paladin', 1)).toEqual([]);
+    expect(slotLevelsAvailable('paladin', 2)).toEqual([1]);
+    expect(slotLevelsAvailable('ranger', 5)).toEqual([1, 2]);
+  });
+
+  // У колдуна все ячейки одного круга: предложить ему круги ниже
+  // значило бы показать в панели ячейки, которых у него нет.
+  it('колдун имеет только свой круг договора', () => {
+    expect(slotLevelsAvailable('warlock', 1)).toEqual([1]);
+    expect(slotLevelsAvailable('warlock', 3)).toEqual([2]);
+    expect(slotLevelsAvailable('warlock', 5)).toEqual([3]);
+  });
+
+  it('у не-заклинателя ячеек нет', () => {
+    expect(slotLevelsAvailable('fighter', 5)).toEqual([]);
+    expect(slotLevelsAvailable('rogue', 1)).toEqual([]);
+  });
+});
+
+describe('кости лечения заклинания', () => {
+  // Форма та же, что у урона, и «+ MOD» источника остаётся в записи:
+  // модификатор заклинателя подставляет тот, кто бросает, — правило
+  // выбирает ступень, а не считает бросок.
+  const cureWounds = {
+    level: 1,
+    healAtSlotLevel: { '1': '1d8 + MOD', '2': '2d8 + MOD', '3': '3d8 + MOD' },
+  };
+
+  it('берёт кости по кругу потраченной ячейки', () => {
+    expect(healDiceFor({ spell: cureWounds, slotLevel: 1 })).toBe('1d8 + MOD');
+    expect(healDiceFor({ spell: cureWounds, slotLevel: 3 })).toBe('3d8 + MOD');
+  });
+
+  // Та же «ступень не выше круга», что и у урона: точный поиск оставил
+  // бы без костей ячейку, которой в таблице нет.
+  it('круг выше таблицы берёт её последнюю ступень', () => {
+    expect(healDiceFor({ spell: cureWounds, slotLevel: 9 })).toBe('3d8 + MOD');
+  });
+
+  it('без круга ячейки берётся круг самого заклинания', () => {
+    expect(healDiceFor({ spell: cureWounds })).toBe('1d8 + MOD');
+  });
+
+  it('заклинание без лечения отдаёт null', () => {
+    expect(healDiceFor({ spell: { level: 3 }, slotLevel: 3 })).toBeNull();
   });
 });

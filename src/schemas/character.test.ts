@@ -6,6 +6,7 @@ import {
   customArmorProfileSchema,
   customWeaponProfileSchema,
   levelUpSchema,
+  restSchema,
 } from './character.js';
 
 const VALID_ABILITIES = {
@@ -245,5 +246,19 @@ describe('самодельные профили', () => {
         damageType: 'slashing',
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('restSchema', () => {
+  it('принимает долгий отдых', () => {
+    expect(restSchema.parse({ kind: 'LONG' })).toEqual({ kind: 'LONG' });
+  });
+
+  it('отклоняет короткий отдых и пустое тело', () => {
+    // Короткий отдых восполняет ячейки колдуна и классовые ресурсы —
+    // того, чего волна не делает. Принять его и промолчать значило бы
+    // сказать листу неправду о своём состоянии.
+    expect(restSchema.safeParse({ kind: 'SHORT' }).success).toBe(false);
+    expect(restSchema.safeParse({}).success).toBe(false);
   });
 });

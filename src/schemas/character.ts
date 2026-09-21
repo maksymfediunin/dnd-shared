@@ -148,6 +148,15 @@ export const characterUpdateSchema = z
   })
   .strict();
 
+/**
+ * Отдых восполняет ячейки заклинаний. Вид один — долгий: короткий
+ * отдых возвращает ячейки колдуна и классовые ресурсы (ярость, ки),
+ * а их эта волна намеренно не трогает. Принимать 'SHORT' и ничего по
+ * нему не делать нельзя: лист показал бы невосполненное как
+ * восполненное, и игрок ушёл бы в бой с чужими числами.
+ */
+export const restSchema = z.object({ kind: z.literal('LONG') }).strict();
+
 export const levelChoiceSchema = z.object({
   choiceType: levelChoiceTypeSchema,
   choiceValue: z.string().trim().min(1).max(100),
@@ -165,5 +174,6 @@ export type CharacterUpdateInput = z.infer<typeof characterUpdateSchema>;
 export type CharacterItemInput = z.infer<typeof characterItemInputSchema>;
 export type CustomWeaponProfile = z.infer<typeof customWeaponProfileSchema>;
 export type CustomArmorProfile = z.infer<typeof customArmorProfileSchema>;
+export type RestInput = z.infer<typeof restSchema>;
 export type LevelChoiceInput = z.infer<typeof levelChoiceSchema>;
 export type LevelUpInput = z.infer<typeof levelUpSchema>;
