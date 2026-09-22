@@ -13,6 +13,7 @@ import {
   mapBackgroundSchema,
   mapObstacleKindSchema,
 } from '../enums/map.js';
+import { firstObstacleOverlap, obstacleFitsInGrid } from '../rules/obstacles.js';
 
 /**
  * Потолок координаты — предельная сетка, а не сетка этой карты: о ней
@@ -72,16 +73,28 @@ export const battleMapSaveSchema = z
     monsters: z.array(mapMonsterPresetInputSchema).max(MAP_MAX_MONSTER_PRESETS).default([]),
   })
   .superRefine((value, ctx) => {
-    const outside = (p: { x: number; y: number }): boolean =>
-      p.x >= value.gridWidth || p.y >= value.gridHeight;
+    const grid = { width: value.gridWidth, height: value.gridHeight };
 
+    // Препятствие проверяется отпечатком, а монстр — углом: у фишки
+    // монстра размер берётся из бестиария и здесь неизвестен, а у
+    // препятствия он есть прямо в виде.
     value.obstacles.forEach((o, i) => {
-      if (outside(o)) {
+      if (!obstacleFitsInGrid(o.kind, { x: o.x, y: o.y }, grid)) {
         ctx.addIssue({ code: 'custom', path: ['obstacles', i], message: 'Препятствие вне сетки' });
       }
     });
+
+    const overlap = firstObstacleOverlap(value.obstacles);
+    if (overlap !== null) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['obstacles', overlap],
+        message: 'Препятствия перекрываются',
+      });
+    }
+
     value.monsters.forEach((m, i) => {
-      if (outside(m)) {
+      if (m.x >= value.gridWidth || m.y >= value.gridHeight) {
         ctx.addIssue({ code: 'custom', path: ['monsters', i], message: 'Монстр вне сетки' });
       }
     });

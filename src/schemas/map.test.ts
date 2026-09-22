@@ -44,6 +44,42 @@ describe('battleMapSaveSchema', () => {
     expect(res.success).toBe(false);
   });
 
+  it('отклоняет бревно, вылезающее за правый край', () => {
+    const result = battleMapSaveSchema.safeParse({
+      name: 'Просека',
+      gridWidth: 10,
+      gridHeight: 10,
+      obstacles: [{ kind: 'LOG_H' as const, x: 8, y: 0 }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('принимает то же бревно на клетку левее', () => {
+    const result = battleMapSaveSchema.safeParse({
+      name: 'Просека',
+      gridWidth: 10,
+      gridHeight: 10,
+      obstacles: [{ kind: 'LOG_H' as const, x: 7, y: 0 }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  // Одноклеточные препятствия пересекаться не умели вовсе — клетка была
+  // одна на запись. С отпечатками пересечение стало возможным, и правило
+  // нужно завести вместе с ними, а не после первой сломанной карты.
+  it('отклоняет камень, лежащий на середине бревна', () => {
+    const result = battleMapSaveSchema.safeParse({
+      name: 'Просека',
+      gridWidth: 10,
+      gridHeight: 10,
+      obstacles: [
+        { kind: 'LOG_H' as const, x: 0, y: 0 },
+        { kind: 'ROCK' as const, x: 1, y: 0 },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('отвергает поворот не кратный 45°', () => {
     const res = battleMapSaveSchema.safeParse({
       ...validMap,
@@ -74,20 +110,30 @@ describe('battleMapSaveSchema', () => {
   // не карта, а склад, и упереться в предел надо на разборе тела, а не
   // на записи в базу.
   it('принимает ровно предел препятствий и отвергает один сверх него', () => {
+    // Сетка 20×10 — ровно 200 клеток на 200 препятствий: с появлением
+    // отпечатков одноклеточные препятствия впритык на 10×10 стали
+    // перекрытием, а этот тест про предел количества, а не про укладку.
+    const wide = { gridWidth: 20, gridHeight: 10 };
     const obstacles = (count: number) =>
       Array.from({ length: count }, (_, i) => ({
         kind: 'ROCK' as const,
-        x: i % 10,
-        y: Math.floor(i / 10) % 10,
+        x: i % 20,
+        y: Math.floor(i / 20) % 10,
       }));
 
     expect(
-      battleMapSaveSchema.safeParse({ ...validMap, obstacles: obstacles(MAP_MAX_OBSTACLES) })
-        .success,
+      battleMapSaveSchema.safeParse({
+        ...validMap,
+        ...wide,
+        obstacles: obstacles(MAP_MAX_OBSTACLES),
+      }).success,
     ).toBe(true);
     expect(
-      battleMapSaveSchema.safeParse({ ...validMap, obstacles: obstacles(MAP_MAX_OBSTACLES + 1) })
-        .success,
+      battleMapSaveSchema.safeParse({
+        ...validMap,
+        ...wide,
+        obstacles: obstacles(MAP_MAX_OBSTACLES + 1),
+      }).success,
     ).toBe(false);
   });
 

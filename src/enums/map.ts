@@ -7,11 +7,37 @@ export type MapBackground = (typeof MAP_BACKGROUNDS)[number];
 
 /**
  * Набор препятствий из ТЗ («ветки/бочки/ящики/колоны»), дополненный
- * камнем и столом: это те же два поведения (мешает пройти, мешает
- * увидеть) в другой картинке, и рисовать их дешевле, чем объяснять
- * ведущему, почему в таверне нет столов.
+ * камнем, столом и лесной мелочью. Вид означает не только картинку, но
+ * и отпечаток: длина бревна — часть вида, а не поле записи, потому что
+ * спрайт рисуется под конкретную длину (§4 дизайна). Пары `_H`/`_V` —
+ * цена снятого поворота: в трёх четвертях вертикальный вариант не
+ * получается поворотом горизонтального, у него другой свет (§6).
  */
-export const MAP_OBSTACLE_KINDS = ['BRANCH', 'BARREL', 'CRATE', 'COLUMN', 'ROCK', 'TABLE'] as const;
+export const MAP_OBSTACLE_KINDS = [
+  'BRANCH',
+  'BARREL',
+  'CRATE',
+  'COLUMN',
+  'ROCK',
+  'TABLE',
+  'BUSH',
+  'STUMP',
+  'STICK_H',
+  'STICK_V',
+  'LOG_H',
+  'LOG_V',
+  'TABLE_LONG_H',
+  'TABLE_LONG_V',
+  'COLUMN_FALLEN_H',
+  'COLUMN_FALLEN_V',
+  'ROCK_2',
+  'BUSH_2',
+  'CRATES_2',
+  'RUBBLE_2',
+  'ROCKS_3',
+  'THICKET_H',
+  'THICKET_V',
+] as const;
 export const mapObstacleKindSchema = z.enum(MAP_OBSTACLE_KINDS);
 export type MapObstacleKind = (typeof MAP_OBSTACLE_KINDS)[number];
 
