@@ -4,6 +4,7 @@ import {
   damageDiceFor,
   healDiceFor,
   maxSpellLevel,
+  parseSpellDice,
   slotLevelsAvailable,
   spellAttackBonus,
   spellcastingAbility,
@@ -186,5 +187,27 @@ describe('кости лечения заклинания', () => {
 
   it('заклинание без лечения отдаёт null', () => {
     expect(healDiceFor({ spell: { level: 3 }, slotLevel: 3 })).toBeNull();
+  });
+});
+
+describe('запись броска SRD', () => {
+  it('разбирает кости, прибавку числом и прибавку модификатором', () => {
+    expect(parseSpellDice('8d6', 3)).toEqual({ dice: '8d6', modifier: 0 });
+    expect(parseSpellDice('3d4 + 3', 3)).toEqual({ dice: '3d4', modifier: 3 });
+    expect(parseSpellDice('1d8 + MOD', 4)).toEqual({ dice: '1d8', modifier: 4 });
+  });
+
+  // Голое число — не бросок вовсе: так в SRD записано лечение высоких
+  // кругов («heal» поднимает семьдесят хитов без костей).
+  it('голое число отдаёт прибавкой без костей', () => {
+    expect(parseSpellDice('70', 3)).toEqual({ dice: null, modifier: 70 });
+  });
+
+  // Запись из двух наборов костей правилу не по зубам, и считать её
+  // наугад хуже, чем не считать: сотворение пройдёт без машинного
+  // урона, а эффект применит ведущий (§3 дизайна).
+  it('незнакомую запись отдаёт пустой', () => {
+    expect(parseSpellDice('2d8 + 4d6', 3)).toBeNull();
+    expect(parseSpellDice('', 3)).toBeNull();
   });
 });
