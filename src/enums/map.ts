@@ -62,9 +62,6 @@ export const MAP_DEFAULT_CELL_SIZE_FEET = 5;
 export const MAP_MIN_CELL_SIZE_FEET = 1;
 export const MAP_MAX_CELL_SIZE_FEET = 20;
 
-/** Восемь положений иконки: свободный угол задавать на телефоне нечем. */
-export const MAP_ROTATION_STEP = 45;
-
 /** Пределы одного сохранения: это карта, а не склад. */
 export const MAP_MAX_OBSTACLES = 200;
 export const MAP_MAX_MONSTER_PRESETS = 30;

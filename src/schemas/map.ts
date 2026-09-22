@@ -9,7 +9,6 @@ import {
   MAP_MAX_OBSTACLES,
   MAP_MIN_CELL_SIZE_FEET,
   MAP_MIN_GRID,
-  MAP_ROTATION_STEP,
   mapBackgroundSchema,
   mapObstacleKindSchema,
 } from '../enums/map.js';
@@ -32,13 +31,6 @@ export const mapObstacleInputSchema = z.object({
   kind: mapObstacleKindSchema,
   x: coordinateSchema,
   y: coordinateSchema,
-  rotation: z
-    .number()
-    .int()
-    .min(0)
-    .max(360 - MAP_ROTATION_STEP)
-    .refine((n) => n % MAP_ROTATION_STEP === 0, { message: 'Поворот кратен 45°' })
-    .default(0),
   blocksMovement: z.boolean().default(true),
   blocksSight: z.boolean().default(false),
 });

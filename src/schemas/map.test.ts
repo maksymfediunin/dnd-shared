@@ -3,7 +3,6 @@ import {
   MAP_MAX_MONSTER_PRESETS,
   MAP_MAX_MONSTER_QUANTITY,
   MAP_MAX_OBSTACLES,
-  MAP_ROTATION_STEP,
 } from '../enums/map.js';
 import { battleMapSaveSchema, conditionApplySchema, participantUpdateSchema } from './map.js';
 
@@ -17,12 +16,11 @@ const validMap = {
 };
 
 describe('battleMapSaveSchema', () => {
-  it('подставляет размер клетки, поворот и флаги препятствия', () => {
+  it('подставляет размер клетки и флаги препятствия', () => {
     const parsed = battleMapSaveSchema.parse(validMap);
 
     expect(parsed.cellSizeFeet).toBe(5);
     expect(parsed.obstacles[0]).toMatchObject({
-      rotation: 0,
       blocksMovement: true,
       blocksSight: false,
     });
@@ -78,32 +76,6 @@ describe('battleMapSaveSchema', () => {
       ],
     });
     expect(result.success).toBe(false);
-  });
-
-  it('отвергает поворот не кратный 45°', () => {
-    const res = battleMapSaveSchema.safeParse({
-      ...validMap,
-      obstacles: [{ kind: 'COLUMN' as const, x: 1, y: 1, rotation: 30 }],
-    });
-    expect(res.success).toBe(false);
-  });
-
-  // C19: потолок поворота — полный оборот минус шаг. 360° это тот же
-  // ноль, и два разных числа для одного положения схема принимать не
-  // должна.
-  it('принимает крайний поворот 315° и отвергает полный оборот', () => {
-    const last = 360 - MAP_ROTATION_STEP;
-    const ok = battleMapSaveSchema.safeParse({
-      ...validMap,
-      obstacles: [{ kind: 'COLUMN' as const, x: 1, y: 1, rotation: last }],
-    });
-    expect(ok.success).toBe(true);
-
-    const full = battleMapSaveSchema.safeParse({
-      ...validMap,
-      obstacles: [{ kind: 'COLUMN' as const, x: 1, y: 1, rotation: 360 }],
-    });
-    expect(full.success).toBe(false);
   });
 
   // C19: пределы одного сохранения. Заготовка на 201 препятствие — это
