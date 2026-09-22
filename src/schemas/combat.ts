@@ -7,6 +7,7 @@ import {
   INITIATIVE_MAX,
   INITIATIVE_MIN,
   savingThrowOutcomeSchema,
+  spellUnresolvedReasonSchema,
 } from '../enums/combat.js';
 import {
   conditionActionSchema,
@@ -215,18 +216,10 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
      * Почему машинного расчёта не вышло, хотя машинные поля у
      * заклинания есть. Пусто — расчёт был (или заклинание машинных
      * полей не имеет вовсе, и это видно ещё в панели: там подпись
-     * «эффект применяет ведущий»).
-     *
-     * Два случая, и они различимы, а не свёрнуты в общее «не смогли»:
-     * разбор спорного момента за столом начинается с вопроса, чего
-     * именно не хватило.
-     *
-     * `NO_DAMAGE_TYPE` — кости в SRD есть, вида урона нет (`sleep`,
-     * `prismatic-spray`), а схема строки `DAMAGE` вид требует;
-     * придумывать его нельзя. `UNPARSED_DICE` — запись костей вида
-     * `2d8 + 4d6`, которую разбор не берёт.
+     * «эффект применяет ведущий»). Сами значения и их разбор — в
+     * `SPELL_UNRESOLVED_REASONS`.
      */
-    unresolvedReason: z.enum(['NO_DAMAGE_TYPE', 'UNPARSED_DICE']).optional(),
+    unresolvedReason: spellUnresolvedReasonSchema.optional(),
   }),
   z.object({
     kind: z.literal('SAVE'),
