@@ -110,15 +110,18 @@ describe('battleMapSaveSchema', () => {
   // не карта, а склад, и упереться в предел надо на разборе тела, а не
   // на записи в базу.
   it('принимает ровно предел препятствий и отвергает один сверх него', () => {
-    // Сетка 20×10 — ровно 200 клеток на 200 препятствий: с появлением
-    // отпечатков одноклеточные препятствия впритык на 10×10 стали
-    // перекрытием, а этот тест про предел количества, а не про укладку.
-    const wide = { gridWidth: 20, gridHeight: 10 };
+    // Сетка 21×10 — 210 клеток, с запасом на одно препятствие сверх
+    // предела (201): без запаса 201-е неизбежно легло бы на уже занятую
+    // клетку, и отказ ушёл бы по перекрытию, а не по количеству —
+    // проверка ниже перестала бы отличать одно от другого. `% 10` по
+    // `y` не нужен: он прятал бы переполнение сетки, а не предотвращал
+    // его.
+    const wide = { gridWidth: 21, gridHeight: 10 };
     const obstacles = (count: number) =>
       Array.from({ length: count }, (_, i) => ({
         kind: 'ROCK' as const,
-        x: i % 20,
-        y: Math.floor(i / 20) % 10,
+        x: i % 21,
+        y: Math.floor(i / 21),
       }));
 
     expect(
@@ -128,13 +131,20 @@ describe('battleMapSaveSchema', () => {
         obstacles: obstacles(MAP_MAX_OBSTACLES),
       }).success,
     ).toBe(true);
-    expect(
-      battleMapSaveSchema.safeParse({
-        ...validMap,
-        ...wide,
-        obstacles: obstacles(MAP_MAX_OBSTACLES + 1),
-      }).success,
-    ).toBe(false);
+
+    // Не просто `success === false`: перекрытие тоже даёт `false`, и
+    // тест, не различающий две причины, не заметит, если предел
+    // количества снимут вовсе — 201-е препятствие тогда откажет по
+    // перекрытию, и тест продолжит зелено врать о том, что охраняет.
+    const overLimit = battleMapSaveSchema.safeParse({
+      ...validMap,
+      ...wide,
+      obstacles: obstacles(MAP_MAX_OBSTACLES + 1),
+    });
+    expect(overLimit.success).toBe(false);
+    expect(overLimit.error?.issues).toContainEqual(
+      expect.objectContaining({ code: 'too_big', path: ['obstacles'] }),
+    );
   });
 
   it('принимает ровно предел пресетов монстров и отвергает один сверх него', () => {
