@@ -7,6 +7,7 @@ import {
   INITIATIVE_MAX,
   INITIATIVE_MIN,
   savingThrowOutcomeSchema,
+  spellUnresolvedReasonSchema,
 } from '../enums/combat.js';
 import {
   conditionActionSchema,
@@ -211,6 +212,14 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
       .array(z.string().regex(/^\d+:\d+$/))
       .max(400)
       .optional(),
+    /**
+     * Почему машинного расчёта не вышло, хотя машинные поля у
+     * заклинания есть. Пусто — расчёт был (или заклинание машинных
+     * полей не имеет вовсе, и это видно ещё в панели: там подпись
+     * «эффект применяет ведущий»). Сами значения и их разбор — в
+     * `SPELL_UNRESOLVED_REASONS`.
+     */
+    unresolvedReason: spellUnresolvedReasonSchema.optional(),
   }),
   z.object({
     kind: z.literal('SAVE'),

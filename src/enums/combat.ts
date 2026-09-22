@@ -56,6 +56,24 @@ export const ENCOUNTER_EVENT_KINDS = [
 export const encounterEventKindSchema = z.enum(ENCOUNTER_EVENT_KINDS);
 export type EncounterEventKind = (typeof ENCOUNTER_EVENT_KINDS)[number];
 
+/**
+ * Чего не хватило машинному расчёту урона у сотворённого заклинания.
+ * Перечнем, а не инлайновым `z.enum` в схеме строки: значения выходят
+ * из сервера в журнал и оттуда — в ключ перевода, и третья причина,
+ * добавленная когда-нибудь, должна ломать сверку локалей, а не
+ * показывать за столом сырой ключ.
+ *
+ * Два случая, и они различимы, а не свёрнуты в общее «не смогли»:
+ * разбор спорного момента за столом начинается с вопроса, чего именно
+ * не хватило. `NO_DAMAGE_TYPE` — кости в SRD есть, вида урона нет
+ * (`sleep`, `prismatic-spray`), а схема строки `DAMAGE` вид требует;
+ * придумывать его нельзя. `UNPARSED_DICE` — запись костей вида
+ * `2d8 + 4d6`, которую разбор не берёт.
+ */
+export const SPELL_UNRESOLVED_REASONS = ['NO_DAMAGE_TYPE', 'UNPARSED_DICE'] as const;
+export const spellUnresolvedReasonSchema = z.enum(SPELL_UNRESOLVED_REASONS);
+export type SpellUnresolvedReason = (typeof SPELL_UNRESOLVED_REASONS)[number];
+
 /** Исход броска атаки. Промах по единице — тоже `MISS`. */
 export const ATTACK_OUTCOMES = ['HIT', 'MISS'] as const;
 export const attackOutcomeSchema = z.enum(ATTACK_OUTCOMES);

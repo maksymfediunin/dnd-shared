@@ -198,3 +198,42 @@ export function healDiceFor({ spell, slotLevel }: HealDiceInput): string | null 
   // умолчанием, что и у костей урона.
   return diceAtOrBelow(spell.healAtSlotLevel, slotLevel ?? spell.level);
 }
+
+/**
+ * Запись броска из SRD, разобранная на кости и прибавку. Источник
+ * пишет их одной строкой и в трёх видах: «8d6», «3d4 + 3» и
+ * «1d8 + MOD», где MOD — модификатор заклинательной характеристики.
+ * Голое число («10» у лечения высоких кругов) — не бросок вовсе, и
+ * кости у него пусты.
+ */
+export interface SpellDiceRoll {
+  /** `null` — броска нет, есть только число прибавки. */
+  dice: string | null;
+  modifier: number;
+}
+
+/**
+ * Разбор записи броска. `null` — запись, которой правило не знает
+ * («2d8 + 4d6» у пары заклинаний высоких кругов): считать её наугад
+ * хуже, чем не считать вовсе, — сотворение тогда проходит без машинного
+ * урона, а эффект применяет ведущий (§3 дизайна).
+ *
+ * Живёт здесь, а не рядом с сотворением на сервере, потому что от
+ * разбора зависит и признак `isMachineResolvable`, который лист отдаёт
+ * панели боя: разойдись эти двое — в панели снова появилось бы обещание
+ * расчёта, которого не будет.
+ */
+export function parseSpellDice(
+  notation: string,
+  spellcastingModifier: number,
+): SpellDiceRoll | null {
+  const match = /^(?:(\d+d\d+)(?:\s*\+\s*(\d+|mod))?|(\d+))$/i.exec(notation.trim());
+  if (!match) return null;
+
+  const [, dice, bonus, flat] = match;
+  if (flat !== undefined) return { dice: null, modifier: Number(flat) };
+
+  const modifier =
+    bonus === undefined ? 0 : bonus.toLowerCase() === 'mod' ? spellcastingModifier : Number(bonus);
+  return { dice: dice as string, modifier };
+}

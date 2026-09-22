@@ -252,6 +252,36 @@ describe('encounterEventPayloadSchema', () => {
     expect(res.success).toBe(false);
   });
 
+  // Молчание сервера («урона нет») должно быть объяснимо: строка `CAST`
+  // несёт причину, по которой машинный расчёт не вышел, хотя машинные
+  // поля у заклинания есть.
+  it('сотворение помнит причину непосчитанного урона', () => {
+    const parsed = encounterEventPayloadSchema.parse({
+      kind: 'CAST',
+      spellCode: 'sleep',
+      slotLevel: 1,
+      targetIds: [],
+      unresolvedReason: 'NO_DAMAGE_TYPE',
+    });
+
+    expect(parsed).toMatchObject({ unresolvedReason: 'NO_DAMAGE_TYPE' });
+  });
+
+  // Третьего значения причины нет: цена успеха `other` до сотворения не
+  // доживает, импорт схлопывает её в обычное отсутствие эффекта (§5.2
+  // дизайна куска 8) — восстанавливать его здесь не входит в задачу.
+  it('чужое значение причины не проходит', () => {
+    const res = encounterEventPayloadSchema.safeParse({
+      kind: 'CAST',
+      spellCode: 'sleep',
+      slotLevel: 1,
+      targetIds: [],
+      unresolvedReason: 'OTHER_SUCCESS_COST',
+    });
+
+    expect(res.success).toBe(false);
+  });
+
   it('разбирает спасбросок цели против заклинания', () => {
     const parsed = encounterEventPayloadSchema.parse({
       kind: 'SAVE',
