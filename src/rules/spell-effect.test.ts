@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  isMachineResolvable,
-  type SpellResolutionFields,
-  spellDamagePlan,
-  spellResolution,
-} from './spell-effect.js';
+import { type SpellResolutionFields, spellDamagePlan, spellResolution } from './spell-effect.js';
 
 /**
  * Заклинания настоящие, полями из `dnd-api/srd/en/spells.json` в том
@@ -54,47 +49,46 @@ const FIRE_BOLT = spell({
   damageAtLevel: { '1': '1d10', '5': '2d10' },
 });
 
-describe('isMachineResolvable', () => {
-  it('«Огненный шар» считается: спасбросок и разобранные кости урона', () => {
-    expect(isMachineResolvable(FIREBALL, { slotLevel: 3 })).toBe(true);
+describe('spellResolution', () => {
+  it('«Огненный шар» — спасбросок с уроном', () => {
     expect(spellResolution(FIREBALL, { slotLevel: 3 })).toBe('SAVE');
   });
 
-  it('«Огненный снаряд» считается: атака у кантрипа не ждёт ячейки', () => {
-    expect(isMachineResolvable(FIRE_BOLT, { casterLevel: 1 })).toBe(true);
+  it('«Огненный снаряд» — атака: у кантрипа она не ждёт ячейки', () => {
     expect(spellResolution(FIRE_BOLT, { casterLevel: 1 })).toBe('ATTACK');
   });
 
-  it('«Лечение ран» считается: лечение — третье разрешение', () => {
-    expect(isMachineResolvable(CURE_WOUNDS, { slotLevel: 1 })).toBe(true);
+  it('«Лечение ран» — лечение', () => {
     expect(spellResolution(CURE_WOUNDS, { slotLevel: 1 })).toBe('HEAL');
   });
 
-  // Ровно тот случай, ради которого признак переписан: кости и вид
-  // урона у «Волшебной стрелы» есть, разбираются, и прежнее «есть ли
-  // машинные поля» отвечало «да» — а сервер бросать их некому: ни
-  // атаки, ни спасброска у заклинания нет.
-  it('«Волшебная стрела» не считается: кости есть, а бросать их нечем', () => {
+  // Кости и вид урона есть, разбираются, но бросать их некому: ни
+  // атаки, ни спасброска. Раньше это уходило в NONE, и «Волшебная
+  // стрела» — одно из самых частых заклинаний низких кругов — в бою не
+  // считалась вовсе.
+  it('«Волшебная стрела» — урон без броска: попадание не проверяется', () => {
     expect(spellDamagePlan(MAGIC_MISSILE, { slotLevel: 1 }).kind).toBe('DAMAGE');
-    expect(isMachineResolvable(MAGIC_MISSILE, { slotLevel: 1 })).toBe(false);
+    expect(spellResolution(MAGIC_MISSILE, { slotLevel: 1 })).toBe('AUTO_DAMAGE');
   });
 
-  // Зеркальный случай: спасбросок есть, а урона по нему нет вовсе —
-  // эффект «удержан» система не применяет.
-  it('«Удержание личности» не считается: спасбросок без костей урона', () => {
-    expect(isMachineResolvable(HOLD_PERSON, { slotLevel: 2 })).toBe(false);
+  // Зеркальный случай: спасбросок есть, а урона по нему нет. Бросок
+  // система катит и пишет, а что именно накладывается на провале —
+  // справочник не знает: поля состояния в SRD нет, только текст
+  // описания. Поэтому эффект остаётся за ведущим.
+  it('«Удержание личности» — только спасбросок, без эффекта', () => {
+    expect(spellResolution(HOLD_PERSON, { slotLevel: 2 })).toBe('SAVE_ONLY');
   });
 
-  it('«Благословение» не считается: машинных полей нет вовсе', () => {
-    expect(isMachineResolvable(BLESS, { slotLevel: 1 })).toBe(false);
+  it('«Благословение» — ничего: машинных полей нет вовсе', () => {
+    expect(spellResolution(BLESS, { slotLevel: 1 })).toBe('NONE');
   });
 
   // Круг ячейки выше своего даёт другие кости, но не другое
-  // разрешение: признак, посчитанный листом заранее, не обязан меняться
-  // от выбора в панели.
-  it('ячейка выше круга заклинания признака не меняет', () => {
-    expect(isMachineResolvable(FIREBALL, { slotLevel: 9 })).toBe(true);
-    expect(isMachineResolvable(MAGIC_MISSILE, { slotLevel: 9 })).toBe(false);
+  // разрешение: вид, посчитанный листом заранее, не обязан меняться от
+  // выбора в панели.
+  it('ячейка выше круга заклинания вида разрешения не меняет', () => {
+    expect(spellResolution(FIREBALL, { slotLevel: 9 })).toBe('SAVE');
+    expect(spellResolution(MAGIC_MISSILE, { slotLevel: 9 })).toBe('AUTO_DAMAGE');
   });
 });
 
@@ -112,9 +106,12 @@ describe('spellDamagePlan', () => {
     });
   });
 
-  // «Ледяной шторм»: две пары костей в одной записи, разбор их не берёт
-  // — и спасбросок из-за этого не разрешается тоже.
-  it('запись «2d8 + 4d6» — UNPARSED_DICE, и спасбросок по ней не идёт', () => {
+  // «Ледяной шторм»: две пары костей в одной записи, разбор их не
+  // берёт. Спасбросок с уроном по такой записи не разрешается — но сам
+  // бросок система всё равно катит (`SAVE_ONLY`), а причину отсутствия
+  // урона пишет в строку сотворения. Молчания не остаётся ни в одном
+  // из двух мест.
+  it('запись «2d8 + 4d6» — UNPARSED_DICE, урона нет, а спасбросок идёт', () => {
     const iceStorm = spell({
       level: 4,
       saveAbility: 'dex',
@@ -125,7 +122,7 @@ describe('spellDamagePlan', () => {
       kind: 'UNRESOLVED',
       reason: 'UNPARSED_DICE',
     });
-    expect(isMachineResolvable(iceStorm, { slotLevel: 4 })).toBe(false);
+    expect(spellResolution(iceStorm, { slotLevel: 4 })).toBe('SAVE_ONLY');
   });
 
   it('«+ MOD» подставляет модификатор заклинателя', () => {
