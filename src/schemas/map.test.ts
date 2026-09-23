@@ -3,7 +3,6 @@ import {
   MAP_MAX_MONSTER_PRESETS,
   MAP_MAX_MONSTER_QUANTITY,
   MAP_MAX_OBSTACLES,
-  MAP_ROTATION_STEP,
 } from '../enums/map.js';
 import { battleMapSaveSchema, conditionApplySchema, participantUpdateSchema } from './map.js';
 
@@ -17,12 +16,11 @@ const validMap = {
 };
 
 describe('battleMapSaveSchema', () => {
-  it('подставляет размер клетки, поворот и флаги препятствия', () => {
+  it('подставляет размер клетки и флаги препятствия', () => {
     const parsed = battleMapSaveSchema.parse(validMap);
 
     expect(parsed.cellSizeFeet).toBe(5);
     expect(parsed.obstacles[0]).toMatchObject({
-      rotation: 0,
       blocksMovement: true,
       blocksSight: false,
     });
@@ -44,51 +42,81 @@ describe('battleMapSaveSchema', () => {
     expect(res.success).toBe(false);
   });
 
-  it('отвергает поворот не кратный 45°', () => {
-    const res = battleMapSaveSchema.safeParse({
-      ...validMap,
-      obstacles: [{ kind: 'COLUMN' as const, x: 1, y: 1, rotation: 30 }],
+  it('отклоняет бревно, вылезающее за правый край', () => {
+    const result = battleMapSaveSchema.safeParse({
+      name: 'Просека',
+      gridWidth: 10,
+      gridHeight: 10,
+      obstacles: [{ kind: 'LOG_H' as const, x: 8, y: 0 }],
     });
-    expect(res.success).toBe(false);
+    expect(result.success).toBe(false);
   });
 
-  // C19: потолок поворота — полный оборот минус шаг. 360° это тот же
-  // ноль, и два разных числа для одного положения схема принимать не
-  // должна.
-  it('принимает крайний поворот 315° и отвергает полный оборот', () => {
-    const last = 360 - MAP_ROTATION_STEP;
-    const ok = battleMapSaveSchema.safeParse({
-      ...validMap,
-      obstacles: [{ kind: 'COLUMN' as const, x: 1, y: 1, rotation: last }],
+  it('принимает то же бревно на клетку левее', () => {
+    const result = battleMapSaveSchema.safeParse({
+      name: 'Просека',
+      gridWidth: 10,
+      gridHeight: 10,
+      obstacles: [{ kind: 'LOG_H' as const, x: 7, y: 0 }],
     });
-    expect(ok.success).toBe(true);
+    expect(result.success).toBe(true);
+  });
 
-    const full = battleMapSaveSchema.safeParse({
-      ...validMap,
-      obstacles: [{ kind: 'COLUMN' as const, x: 1, y: 1, rotation: 360 }],
+  // Одноклеточные препятствия пересекаться не умели вовсе — клетка была
+  // одна на запись. С отпечатками пересечение стало возможным, и правило
+  // нужно завести вместе с ними, а не после первой сломанной карты.
+  it('отклоняет камень, лежащий на середине бревна', () => {
+    const result = battleMapSaveSchema.safeParse({
+      name: 'Просека',
+      gridWidth: 10,
+      gridHeight: 10,
+      obstacles: [
+        { kind: 'LOG_H' as const, x: 0, y: 0 },
+        { kind: 'ROCK' as const, x: 1, y: 0 },
+      ],
     });
-    expect(full.success).toBe(false);
+    expect(result.success).toBe(false);
   });
 
   // C19: пределы одного сохранения. Заготовка на 201 препятствие — это
   // не карта, а склад, и упереться в предел надо на разборе тела, а не
   // на записи в базу.
   it('принимает ровно предел препятствий и отвергает один сверх него', () => {
+    // Сетка 21×10 — 210 клеток, с запасом на одно препятствие сверх
+    // предела (201): без запаса 201-е неизбежно легло бы на уже занятую
+    // клетку, и отказ ушёл бы по перекрытию, а не по количеству —
+    // проверка ниже перестала бы отличать одно от другого. `% 10` по
+    // `y` не нужен: он прятал бы переполнение сетки, а не предотвращал
+    // его.
+    const wide = { gridWidth: 21, gridHeight: 10 };
     const obstacles = (count: number) =>
       Array.from({ length: count }, (_, i) => ({
         kind: 'ROCK' as const,
-        x: i % 10,
-        y: Math.floor(i / 10) % 10,
+        x: i % 21,
+        y: Math.floor(i / 21),
       }));
 
     expect(
-      battleMapSaveSchema.safeParse({ ...validMap, obstacles: obstacles(MAP_MAX_OBSTACLES) })
-        .success,
+      battleMapSaveSchema.safeParse({
+        ...validMap,
+        ...wide,
+        obstacles: obstacles(MAP_MAX_OBSTACLES),
+      }).success,
     ).toBe(true);
-    expect(
-      battleMapSaveSchema.safeParse({ ...validMap, obstacles: obstacles(MAP_MAX_OBSTACLES + 1) })
-        .success,
-    ).toBe(false);
+
+    // Не просто `success === false`: перекрытие тоже даёт `false`, и
+    // тест, не различающий две причины, не заметит, если предел
+    // количества снимут вовсе — 201-е препятствие тогда откажет по
+    // перекрытию, и тест продолжит зелено врать о том, что охраняет.
+    const overLimit = battleMapSaveSchema.safeParse({
+      ...validMap,
+      ...wide,
+      obstacles: obstacles(MAP_MAX_OBSTACLES + 1),
+    });
+    expect(overLimit.success).toBe(false);
+    expect(overLimit.error?.issues).toContainEqual(
+      expect.objectContaining({ code: 'too_big', path: ['obstacles'] }),
+    );
   });
 
   it('принимает ровно предел пресетов монстров и отвергает один сверх него', () => {
