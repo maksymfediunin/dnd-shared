@@ -21,6 +21,18 @@ export const roomStatusSchema = z.enum(ROOM_STATUSES);
 
 export type RoomStatus = (typeof ROOM_STATUSES)[number];
 
+/**
+ * Порядок каталога. По времени начала — пустое время всегда в конце, в
+ * какую сторону ни сортируй: комната без назначенной игры не «раньше» и
+ * не «позже» других. STARTS_ASC — умолчание: ради ближайших игр каталог
+ * и открывают.
+ */
+export const ROOM_SORTS = ['STARTS_ASC', 'STARTS_DESC', 'CREATED_DESC', 'CREATED_ASC'] as const;
+
+export const roomSortSchema = z.enum(ROOM_SORTS);
+
+export type RoomSort = (typeof ROOM_SORTS)[number];
+
 /** Роль внутри комнаты — ровно две, как в общем ТЗ. */
 export const ROOM_ROLES = ['GM', 'PLAYER'] as const;
 
