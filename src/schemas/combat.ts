@@ -15,6 +15,7 @@ import {
   exhaustionLevelSchema,
 } from '../enums/conditions.js';
 import { advantageModeSchema } from '../enums/dice.js';
+import { localeSchema } from '../enums/locale.js';
 import { spellSlotLevelSchema } from '../enums/spells.js';
 
 /**
@@ -153,7 +154,17 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
   }),
   z.object({
     kind: z.literal('ATTACK'),
+    /** Подпись, если перевода на языке зрителя нет: предмет, придуманный
+     * игроком, и события, записанные до `weaponNames`. */
     weaponName: z.string().min(1).max(120),
+    /**
+     * Название на каждом языке — у оружия из справочника, действия
+     * монстра и заклинания. Кодом, как у `CAST`, тут не обойтись: оружие
+     * бывает предметом самого персонажа, а действие монстра по одному
+     * коду справочник не отдаёт. Одна строка на языке по умолчанию
+     * показывала англоязычному столу украинское «Рапіра».
+     */
+    weaponNames: z.partialRecord(localeSchema, z.string().min(1).max(120)).optional(),
     ...rollShape,
     total: z.number().int(),
     targetArmorClass: z.number().int(),

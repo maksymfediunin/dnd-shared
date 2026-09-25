@@ -103,6 +103,27 @@ describe('encounterEventPayloadSchema', () => {
     expect(parsed).toMatchObject({ kind: 'ATTACK', outcome: 'HIT' });
   });
 
+  it('принимает названия оружия по языкам и отвергает чужой язык', () => {
+    const attack = {
+      kind: 'ATTACK',
+      weaponName: 'Рапіра',
+      notation: '1d20+4',
+      results: [17],
+      total: 21,
+      targetArmorClass: 10,
+      outcome: 'HIT',
+      isCritical: false,
+    };
+    const names = { ru: 'Рапира', uk: 'Рапіра', en: 'Rapier' };
+
+    expect(encounterEventPayloadSchema.parse({ ...attack, weaponNames: names })).toMatchObject({
+      weaponNames: names,
+    });
+    expect(
+      encounterEventPayloadSchema.safeParse({ ...attack, weaponNames: { de: 'Rapier' } }).success,
+    ).toBe(false);
+  });
+
   it('разбирает запись об уроне', () => {
     const parsed = encounterEventPayloadSchema.parse({
       kind: 'DAMAGE',
