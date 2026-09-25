@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { roomStatusSchema, roomVisibilitySchema } from '../enums/room.js';
+import { roomSortSchema, roomStatusSchema, roomVisibilitySchema } from '../enums/room.js';
 import { MAX_LEVEL } from '../rules/progression.js';
 import { emailSchema } from './auth.js';
 import { paginationSchema } from './common.js';
@@ -102,6 +102,7 @@ export const roomListQuerySchema = paginationSchema.extend({
     .transform((value) => value === 'true')
     .optional(),
   mine: z.enum(['gm', 'player', 'any']).optional(),
+  sort: roomSortSchema.default('STARTS_ASC'),
 });
 
 /**

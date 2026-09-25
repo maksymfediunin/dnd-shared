@@ -139,6 +139,12 @@ describe('каталог и отказ', () => {
     expect(parsed).toMatchObject({ page: 2, perPage: 10, minLevel: 3, hasFreeSlots: true });
   });
 
+  it('каталог без сортировки — ближайшие игры сверху, чужой порядок отвергается', () => {
+    expect(roomListQuerySchema.parse({}).sort).toBe('STARTS_ASC');
+    expect(roomListQuerySchema.parse({ sort: 'CREATED_DESC' }).sort).toBe('CREATED_DESC');
+    expect(roomListQuerySchema.safeParse({ sort: 'name' }).success).toBe(false);
+  });
+
   it('отказ по умолчанию не заносит в чёрный список', () => {
     expect(roomRejectSchema.parse({})).toEqual({ blacklist: false });
   });
