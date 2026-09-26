@@ -90,8 +90,13 @@ export const alignmentSchema = z.enum(ALIGNMENTS);
 
 export type Alignment = (typeof ALIGNMENTS)[number];
 
-/** Откуда у персонажа заклинание: от класса, от расы или от предмета. */
-export const SPELL_SOURCES = ['CLASS', 'RACE', 'ITEM'] as const;
+/**
+ * Откуда у персонажа заклинание: от класса, от расы, от предмета или от
+ * подкласса. Заклинания подкласса (домен жизни, клятва преданности,
+ * круг земли) всегда подготовлены и в лимит подготовки не входят —
+ * поэтому у них свой источник, а не CLASS.
+ */
+export const SPELL_SOURCES = ['CLASS', 'RACE', 'ITEM', 'SUBCLASS'] as const;
 
 export const spellSourceSchema = z.enum(SPELL_SOURCES);
 
