@@ -1,4 +1,4 @@
-import type { WeaponProperty, WeaponRangeType } from '../enums/character.js';
+import type { WeaponCategory, WeaponProperty, WeaponRangeType } from '../enums/character.js';
 import type { DeathSaveOutcome } from '../enums/combat.js';
 import type { AdvantageMode } from '../enums/dice.js';
 import type { SizeCategory } from '../enums/size.js';
@@ -43,7 +43,12 @@ export interface AttackRollResult {
 }
 
 export function attackRoll(
-  input: { attackBonus: number; advantageMode: AdvantageMode },
+  input: {
+    attackBonus: number;
+    advantageMode: AdvantageMode;
+    /** Улучшенный критический чемпиона: крит с 19. */
+    critThreshold?: number;
+  },
   random: RandomSource,
 ): AttackRollResult {
   const outcome = rollDice(
@@ -65,7 +70,7 @@ export function attackRoll(
     results: outcome.results,
     total: outcome.total,
     notation: outcome.notation,
-    isCritical: natural === 20,
+    isCritical: natural >= (input.critThreshold ?? 20),
     isCriticalMiss: natural === 1,
   };
 }
@@ -196,8 +201,10 @@ export function weaponAttackBonus(input: {
   dexterityModifier: number;
   proficiencyBonus: number;
   isProficient: boolean;
+  /** Боевые искусства монаха: оружие монаха — как фехтовальное. */
+  monkWeapon?: boolean;
 }): number {
-  const finesse = input.properties.includes('FINESSE');
+  const finesse = input.properties.includes('FINESSE') || input.monkWeapon === true;
   const ranged = input.rangeType === 'RANGED';
 
   const ability = ranged
@@ -265,4 +272,36 @@ export function movesCloser(mover: Placed, to: Cell, source: Placed): boolean {
   const before = reachDistance(mover, source);
   const after = reachDistance({ ...mover, x: to.x, y: to.y }, source);
   return after < before;
+}
+
+/**
+ * Оружие монаха (SRD): короткий меч и любое простое рукопашное оружие
+ * без свойств «двуручное» и «тяжёлое». Боевой посох — оно.
+ */
+export function isMonkWeapon(weapon: {
+  code: string | null;
+  category: WeaponCategory;
+  rangeType: WeaponRangeType;
+  properties: WeaponProperty[];
+}): boolean {
+  if (weapon.code === 'shortsword') return true;
+  return (
+    weapon.category === 'SIMPLE' &&
+    weapon.rangeType === 'MELEE' &&
+    !weapon.properties.includes('TWO_HANDED') &&
+    !weapon.properties.includes('HEAVY')
+  );
+}
+
+/**
+ * Бо́льшая из двух костей урона по среднему: кость боевых искусств
+ * заменяет кость оружия, только если она больше (к4 против к6 посоха —
+ * остаётся к6).
+ */
+export function largerDice(a: string, b: string): string {
+  const average = (dice: string) => {
+    const { count, sides } = parseDice(dice);
+    return (count * (sides + 1)) / 2;
+  };
+  return average(b) > average(a) ? b : a;
 }
