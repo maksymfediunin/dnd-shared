@@ -77,6 +77,14 @@ export const characterItemInputSchema = z
 export const equipmentChoiceSchema = z.object({
   choiceIndex: z.number().int().min(0),
   optionIndex: z.number().int().min(0),
+  /**
+   * Конкретные предметы для частей варианта, заданных категорией
+   * («любое простое оружие», «два воинских оружия»), по порядку: по
+   * одному на каждую единицу категории. Без них сервер по-старому
+   * кладёт заглушку с названием категории — у неё нет профиля оружия,
+   * и в бою она бесполезна; мастер присылает их всегда.
+   */
+  itemCodes: z.array(codeSchema).max(4).default([]),
 });
 
 /**
@@ -105,6 +113,12 @@ export const characterCreateSchema = z
     skillCodes: z.array(codeSchema).max(20).default([]),
     languageCodes: z.array(codeSchema).max(20).default([]),
     equipmentChoices: z.array(equipmentChoiceSchema).max(20).default([]),
+    /**
+     * Предметы из категорий снаряжения предыстории по порядку её
+     * вариантов: святой символ послушника, инструмент артиста,
+     * инструменты ремесленника. Раньше эти варианты терялись целиком.
+     */
+    backgroundItemCodes: z.array(codeSchema).max(4).default([]),
     spellCodes: z.array(codeSchema).max(50).default([]),
     /**
      * Характеристики, которые игрок выбрал сам, когда раса даёт выбор
