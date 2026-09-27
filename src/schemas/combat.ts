@@ -190,6 +190,10 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
      * показывала англоязычному столу украинское «Рапіра».
      */
     weaponNames: z.partialRecord(localeSchema, z.string().min(1).max(120)).optional(),
+    /** Скрытая атака, заработанная броском: кости к6, которые добавит урон. */
+    sneakAttackDice: z.number().int().min(1).max(20).optional(),
+    /** На урон этого попадания можно наложить божественную кару. */
+    canSmite: z.boolean().optional(),
     ...rollShape,
     total: z.number().int(),
     targetArmorClass: z.number().int(),
