@@ -204,5 +204,11 @@ export type CharacterItemInput = z.infer<typeof characterItemInputSchema>;
 export type CustomWeaponProfile = z.infer<typeof customWeaponProfileSchema>;
 export type CustomArmorProfile = z.infer<typeof customArmorProfileSchema>;
 export type RestInput = z.infer<typeof restSchema>;
+
+/** Трата (+) или возврат (−) ресурса класса вне боя: ци, ярость, вдохновение. */
+export const resourceSpendSchema = z.object({
+  delta: z.number().int().min(-100).max(100),
+});
+export type ResourceSpendInput = z.infer<typeof resourceSpendSchema>;
 export type LevelChoiceInput = z.infer<typeof levelChoiceSchema>;
 export type LevelUpInput = z.infer<typeof levelUpSchema>;

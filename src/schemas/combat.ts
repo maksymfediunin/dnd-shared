@@ -48,6 +48,12 @@ export const attackInputSchema = z
     monsterActionCode: z.string().trim().min(1).max(64).optional(),
     advantageMode: advantageModeSchema.default('NONE'),
     /**
+     * Атака бонусным действием: удар без оружия монаха после действия
+     * «Атака» или лёгкое оружие во второй руке. Право на неё проверяет
+     * служба — по умениям и тому, чем бил первым.
+     */
+    bonusAction: z.boolean().optional(),
+    /**
      * Ход властью ведущего, вне правил очереди и бюджета футов. Раньше
      * ведущий был вне правил всегда — и за столом это выходило боком:
      * монстрам футы не списывались никогда, а случайный клик в чужой ход
@@ -111,7 +117,26 @@ export type CastInput = z.infer<typeof castInputSchema>;
  */
 export const damageInputSchema = z.object({
   amount: z.number().int().min(0).max(999).optional(),
+  /**
+   * Божественная кара паладина: круг ячейки, потраченной на попадание
+   * рукопашным оружием. Пусто — кары нет.
+   */
+  smiteSlotLevel: spellSlotLevelSchema.optional(),
 });
+
+/** Удар без оружия — вместо id предмета в `weaponItemId`. */
+export const UNARMED_STRIKE = 'unarmed';
+
+/** Умения, которые сами по себе действие хода (а не прибавка к удару). */
+export const COMBAT_ABILITIES = ['RAGE', 'END_RAGE', 'SECOND_WIND', 'ACTION_SURGE'] as const;
+export type CombatAbility = (typeof COMBAT_ABILITIES)[number];
+
+export const abilityInputSchema = z.object({
+  participantId: z.uuid().optional(),
+  ability: z.enum(COMBAT_ABILITIES),
+  override: z.boolean().optional(),
+});
+export type AbilityInput = z.infer<typeof abilityInputSchema>;
 export type DamageInput = z.infer<typeof damageInputSchema>;
 
 /**
@@ -192,6 +217,9 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     results: z.array(z.number().int().min(1).max(100)).max(20),
     amount: z.number().int().min(0),
     damageType: z.string().min(1).max(40),
+    /** Кости сверху от умений — подписать строку журнала. */
+    sneakAttackDice: z.number().int().min(1).max(20).optional(),
+    smiteDice: z.number().int().min(1).max(20).optional(),
     temporaryAbsorbed: z.number().int().min(0),
     hitPointsLeft: z.number().int().min(0),
   }),
@@ -304,6 +332,14 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     failures: z.number().int().min(0).max(3),
   }),
   z.object({ kind: z.literal('END_TURN') }),
+  z.object({
+    kind: z.literal('ABILITY'),
+    ability: z.enum(COMBAT_ABILITIES),
+    /** Второе дыхание: брошенное и вылеченное. */
+    notation: z.string().min(1).max(32).optional(),
+    results: z.array(z.number().int().min(1).max(100)).max(20).optional(),
+    amount: z.number().int().min(0).optional(),
+  }),
   z.object({ kind: z.literal('ROUND'), round: z.number().int().min(1) }),
 ]);
 export type EncounterEventPayload = z.infer<typeof encounterEventPayloadSchema>;

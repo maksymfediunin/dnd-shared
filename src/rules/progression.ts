@@ -310,3 +310,23 @@ export function sneakAttackDice(level: number): number {
 export function invocationsKnown(level: number): number {
   return atLevel(INVOCATIONS_KNOWN, level);
 }
+
+/**
+ * Когда ресурс возвращается. Короткий отдых — ци, второе дыхание,
+ * всплеск действий, проводник божественности, дикий облик; вдохновение
+ * барда — с 5-го уровня (источник вдохновения). Прочее — долгий.
+ */
+export function resourceRecovery(code: CharacterResourceCode, level: number): 'SHORT' | 'LONG' {
+  switch (code) {
+    case 'KI':
+    case 'SECOND_WIND':
+    case 'ACTION_SURGE':
+    case 'CHANNEL_DIVINITY':
+    case 'WILD_SHAPE':
+      return 'SHORT';
+    case 'BARDIC_INSPIRATION':
+      return level >= 5 ? 'SHORT' : 'LONG';
+    default:
+      return 'LONG';
+  }
+}
