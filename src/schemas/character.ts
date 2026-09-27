@@ -128,6 +128,21 @@ export const characterCreateSchema = z
      */
     chosenAbilityBonuses: z.array(abilityCodeSchema).max(6).default([]),
     /**
+     * Выборы, которые даёт раса: два навыка полуэльфа, инструмент
+     * дварфа, заговор высшего эльфа, драконий предок дракорождённого.
+     * Раньше их не спрашивали вовсе — черты лежали текстом.
+     */
+    racialChoices: z
+      .object({
+        skillCodes: z.array(codeSchema).max(4).default([]),
+        toolCode: codeSchema.optional(),
+        cantripCode: codeSchema.optional(),
+        /** Код подчерты — `draconic-ancestry-red` и т.п. */
+        ancestry: codeSchema.optional(),
+      })
+      .strict()
+      .default({ skillCodes: [] }),
+    /**
      * Выборы внутри классовых умений первого уровня: боевой стиль
      * воина, экспертиза плута, избранный враг следопыта. Умение
      * называется кодом, значение — кодом выбранного варианта.
