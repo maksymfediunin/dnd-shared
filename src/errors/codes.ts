@@ -71,6 +71,12 @@ export const ERROR_CODES = {
   SPELL_NOT_PREPARED: 'SPELL_NOT_PREPARED',
   /** Ячеек этого круга не осталось. */
   NO_SPELL_SLOT: 'NO_SPELL_SLOT',
+  /** Ресурса класса (ци, ярость, второе дыхание) не осталось. */
+  RESOURCE_EXHAUSTED: 'RESOURCE_EXHAUSTED',
+  /** Бонусное действие в этом ходу уже потрачено. */
+  BONUS_ACTION_ALREADY_USED: 'BONUS_ACTION_ALREADY_USED',
+  /** Умения у персонажа нет или сейчас его не применить. */
+  ABILITY_NOT_AVAILABLE: 'ABILITY_NOT_AVAILABLE',
   /** Ячейка круга ниже, чем сам круг заклинания. */
   SPELL_SLOT_TOO_LOW: 'SPELL_SLOT_TOO_LOW',
   SPELL_OUT_OF_RANGE: 'SPELL_OUT_OF_RANGE',

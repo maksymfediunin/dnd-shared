@@ -254,11 +254,11 @@ describe('restSchema', () => {
     expect(restSchema.parse({ kind: 'LONG' })).toEqual({ kind: 'LONG' });
   });
 
-  it('отклоняет короткий отдых и пустое тело', () => {
-    // Короткий отдых восполняет ячейки колдуна и классовые ресурсы —
-    // того, чего волна не делает. Принять его и промолчать значило бы
-    // сказать листу неправду о своём состоянии.
-    expect(restSchema.safeParse({ kind: 'SHORT' }).success).toBe(false);
+  it('принимает короткий отдых, отклоняет пустое тело и чужой вид', () => {
+    // Короткий отдых теперь делает своё: ресурсы короткого отдыха и
+    // ячейки договора колдуна (кусок E аудита правил).
+    expect(restSchema.safeParse({ kind: 'SHORT' }).success).toBe(true);
     expect(restSchema.safeParse({}).success).toBe(false);
+    expect(restSchema.safeParse({ kind: 'NAP' }).success).toBe(false);
   });
 });

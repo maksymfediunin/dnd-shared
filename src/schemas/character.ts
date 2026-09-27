@@ -128,6 +128,21 @@ export const characterCreateSchema = z
      */
     chosenAbilityBonuses: z.array(abilityCodeSchema).max(6).default([]),
     /**
+     * Выборы, которые даёт раса: два навыка полуэльфа, инструмент
+     * дварфа, заговор высшего эльфа, драконий предок дракорождённого.
+     * Раньше их не спрашивали вовсе — черты лежали текстом.
+     */
+    racialChoices: z
+      .object({
+        skillCodes: z.array(codeSchema).max(4).default([]),
+        toolCode: codeSchema.optional(),
+        cantripCode: codeSchema.optional(),
+        /** Код подчерты — `draconic-ancestry-red` и т.п. */
+        ancestry: codeSchema.optional(),
+      })
+      .strict()
+      .default({ skillCodes: [] }),
+    /**
      * Выборы внутри классовых умений первого уровня: боевой стиль
      * воина, экспертиза плута, избранный враг следопыта. Умение
      * называется кодом, значение — кодом выбранного варианта.
@@ -163,13 +178,11 @@ export const characterUpdateSchema = z
   .strict();
 
 /**
- * Отдых восполняет ячейки заклинаний. Вид один — долгий: короткий
- * отдых возвращает ячейки колдуна и классовые ресурсы (ярость, ки),
- * а их эта волна намеренно не трогает. Принимать 'SHORT' и ничего по
- * нему не делать нельзя: лист показал бы невосполненное как
- * восполненное, и игрок ушёл бы в бой с чужими числами.
+ * Отдых. Короткий возвращает ресурсы короткого отдыха (ци, второе
+ * дыхание, всплеск действий…) и ячейки договора колдуна; долгий — всё:
+ * ресурсы, ячейки, хиты и половину костей хитов.
  */
-export const restSchema = z.object({ kind: z.literal('LONG') }).strict();
+export const restSchema = z.object({ kind: z.enum(['SHORT', 'LONG']) }).strict();
 
 export const levelChoiceSchema = z.object({
   choiceType: levelChoiceTypeSchema,
@@ -189,5 +202,11 @@ export type CharacterItemInput = z.infer<typeof characterItemInputSchema>;
 export type CustomWeaponProfile = z.infer<typeof customWeaponProfileSchema>;
 export type CustomArmorProfile = z.infer<typeof customArmorProfileSchema>;
 export type RestInput = z.infer<typeof restSchema>;
+
+/** Трата (+) или возврат (−) ресурса класса вне боя: ци, ярость, вдохновение. */
+export const resourceSpendSchema = z.object({
+  delta: z.number().int().min(-100).max(100),
+});
+export type ResourceSpendInput = z.infer<typeof resourceSpendSchema>;
 export type LevelChoiceInput = z.infer<typeof levelChoiceSchema>;
 export type LevelUpInput = z.infer<typeof levelUpSchema>;
