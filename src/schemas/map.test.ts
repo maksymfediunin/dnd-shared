@@ -21,9 +21,22 @@ describe('battleMapSaveSchema', () => {
 
     expect(parsed.cellSizeFeet).toBe(5);
     expect(parsed.obstacles[0]).toMatchObject({
+      scale: 1,
       blocksMovement: true,
       blocksSight: false,
     });
+  });
+
+  it('проверяет край сетки по отпечатку с учётом размера, а размер — по пределам', () => {
+    const at = (x: number, scale: number) =>
+      battleMapSaveSchema.safeParse({
+        ...validMap,
+        obstacles: [{ kind: 'BARREL' as const, x, y: 0, scale }],
+      }).success;
+    expect(at(8, 2)).toBe(true);
+    expect(at(9, 2)).toBe(false);
+    expect(at(0, 4)).toBe(false);
+    expect(at(0, 0)).toBe(false);
   });
 
   it('отвергает сетку мельче пяти клеток', () => {

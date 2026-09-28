@@ -7,6 +7,7 @@ import {
   obstacleBlockedCells,
   obstacleCells,
   obstacleFitsInGrid,
+  obstacleFootprint,
 } from './obstacles.js';
 
 const grid = { width: 10, height: 10 };
@@ -112,5 +113,25 @@ describe('obstacleAtCell', () => {
     expect(
       obstacleAtCell([{ kind: 'LOG_H' as const, x: 2, y: 5 }], { x: 5, y: 5 }),
     ).toBeUndefined();
+  });
+});
+
+describe('размер препятствия (scale)', () => {
+  it('множитель растягивает отпечаток пропорционально по обеим сторонам', () => {
+    expect(obstacleFootprint('LOG_H', 2)).toEqual({ w: 6, h: 2 });
+    expect(obstacleCells('BARREL', { x: 1, y: 1 }, 2)).toEqual([
+      { x: 1, y: 1 },
+      { x: 2, y: 1 },
+      { x: 1, y: 2 },
+      { x: 2, y: 2 },
+    ]);
+  });
+
+  it('увеличенное препятствие занимает, накрывает и не влезает всем отпечатком', () => {
+    const big = { kind: 'BARREL' as const, x: 8, y: 8, scale: 2 };
+    expect(obstacleBlockedCells([big]).has('9:9')).toBe(true);
+    expect(obstacleAtCell([big], { x: 9, y: 9 })).toBe(big);
+    expect(obstacleFitsInGrid('BARREL', { x: 9, y: 9 }, grid, 2)).toBe(false);
+    expect(firstObstacleOverlap([big, { kind: 'CRATE', x: 9, y: 8 }])).toBe(1);
   });
 });

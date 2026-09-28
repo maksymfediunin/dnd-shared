@@ -64,5 +64,13 @@ export const MAP_MAX_CELL_SIZE_FEET = 20;
 
 /** Пределы одного сохранения: это карта, а не склад. */
 export const MAP_MAX_OBSTACLES = 200;
+/**
+ * Множитель размера препятствия: отпечаток вида `w×h` становится
+ * `w·s × h·s`. Целый — сетка не знает полклеток; не меньше единицы — у
+ * бревна 3×1 целого пропорционального уменьшения нет. Предел сверху —
+ * бревно 9×3 уже треть самой большой карты.
+ */
+export const MAP_OBSTACLE_MIN_SCALE = 1;
+export const MAP_OBSTACLE_MAX_SCALE = 3;
 export const MAP_MAX_MONSTER_PRESETS = 30;
 export const MAP_MAX_MONSTER_QUANTITY = 12;

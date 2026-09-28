@@ -14,11 +14,13 @@ export interface Footprint {
   h: number;
 }
 
-/** Препятствие глазами укладки: вид и угол, больше ей ничего не нужно. */
+/** Препятствие глазами укладки: вид, угол и множитель размера. */
 export interface ObstaclePlacement {
   kind: MapObstacleKind;
   x: number;
   y: number;
+  /** Нет — значит 1: записи до появления размера его не несут. */
+  scale?: number;
 }
 
 /**
@@ -52,9 +54,15 @@ export const MAP_OBSTACLE_FOOTPRINT: Record<MapObstacleKind, Footprint> = {
   THICKET_V: { w: 2, h: 3 },
 };
 
-/** Угол — левый верхний, как и у фишки: от него же считает CSS grid. */
-export function obstacleCells(kind: MapObstacleKind, origin: Cell): Cell[] {
+/** Отпечаток вида с множителем размера — пропорционально по обеим сторонам. */
+export function obstacleFootprint(kind: MapObstacleKind, scale = 1): Footprint {
   const { w, h } = MAP_OBSTACLE_FOOTPRINT[kind];
+  return { w: w * scale, h: h * scale };
+}
+
+/** Угол — левый верхний, как и у фишки: от него же считает CSS grid. */
+export function obstacleCells(kind: MapObstacleKind, origin: Cell, scale = 1): Cell[] {
+  const { w, h } = obstacleFootprint(kind, scale);
   const cells: Cell[] = [];
 
   for (let dy = 0; dy < h; dy += 1) {
@@ -64,8 +72,13 @@ export function obstacleCells(kind: MapObstacleKind, origin: Cell): Cell[] {
   return cells;
 }
 
-export function obstacleFitsInGrid(kind: MapObstacleKind, origin: Cell, grid: Grid): boolean {
-  const { w, h } = MAP_OBSTACLE_FOOTPRINT[kind];
+export function obstacleFitsInGrid(
+  kind: MapObstacleKind,
+  origin: Cell,
+  grid: Grid,
+  scale = 1,
+): boolean {
+  const { w, h } = obstacleFootprint(kind, scale);
 
   return (
     origin.x >= 0 && origin.y >= 0 && origin.x + w <= grid.width && origin.y + h <= grid.height
@@ -76,7 +89,7 @@ export function obstacleBlockedCells(obstacles: readonly ObstaclePlacement[]): S
   const set = new Set<string>();
 
   for (const o of obstacles) {
-    for (const cell of obstacleCells(o.kind, { x: o.x, y: o.y })) set.add(cellKey(cell));
+    for (const cell of obstacleCells(o.kind, { x: o.x, y: o.y }, o.scale)) set.add(cellKey(cell));
   }
 
   return set;
@@ -94,7 +107,7 @@ export function firstObstacleOverlap(obstacles: readonly ObstaclePlacement[]): n
   // считает `obstacles[i]` возможным `undefined`, хотя цикл сам себя
   // ограничивает длиной массива.
   for (const [i, o] of obstacles.entries()) {
-    const cells = obstacleCells(o.kind, { x: o.x, y: o.y });
+    const cells = obstacleCells(o.kind, { x: o.x, y: o.y }, o.scale);
     if (cells.some((c) => taken.has(cellKey(c)))) return i;
     for (const c of cells) taken.add(cellKey(c));
   }
@@ -112,7 +125,7 @@ export function obstacleAtCell<T extends ObstaclePlacement>(
   cell: Cell,
 ): T | undefined {
   return obstacles.find((o) => {
-    const { w, h } = MAP_OBSTACLE_FOOTPRINT[o.kind];
+    const { w, h } = obstacleFootprint(o.kind, o.scale);
     return cell.x >= o.x && cell.x < o.x + w && cell.y >= o.y && cell.y < o.y + h;
   });
 }
