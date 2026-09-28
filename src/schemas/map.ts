@@ -9,6 +9,8 @@ import {
   MAP_MAX_OBSTACLES,
   MAP_MIN_CELL_SIZE_FEET,
   MAP_MIN_GRID,
+  MAP_OBSTACLE_MAX_SCALE,
+  MAP_OBSTACLE_MIN_SCALE,
   mapBackgroundSchema,
   mapObstacleKindSchema,
 } from '../enums/map.js';
@@ -31,6 +33,9 @@ export const mapObstacleInputSchema = z.object({
   kind: mapObstacleKindSchema,
   x: coordinateSchema,
   y: coordinateSchema,
+  // Необязательное с единицей по умолчанию: заготовки и клиенты до
+  // появления размера шлют препятствие без него.
+  scale: z.number().int().min(MAP_OBSTACLE_MIN_SCALE).max(MAP_OBSTACLE_MAX_SCALE).default(1),
   blocksMovement: z.boolean().default(true),
   blocksSight: z.boolean().default(false),
 });
@@ -71,7 +76,7 @@ export const battleMapSaveSchema = z
     // монстра размер берётся из бестиария и здесь неизвестен, а у
     // препятствия он есть прямо в виде.
     value.obstacles.forEach((o, i) => {
-      if (!obstacleFitsInGrid(o.kind, { x: o.x, y: o.y }, grid)) {
+      if (!obstacleFitsInGrid(o.kind, { x: o.x, y: o.y }, grid, o.scale)) {
         ctx.addIssue({ code: 'custom', path: ['obstacles', i], message: 'Препятствие вне сетки' });
       }
     });
