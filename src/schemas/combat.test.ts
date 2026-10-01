@@ -124,6 +124,33 @@ describe('encounterEventPayloadSchema', () => {
     ).toBe(false);
   });
 
+  it('хранит расклад бонуса атаки и отвергает незнакомый источник', () => {
+    const attack = {
+      kind: 'ATTACK',
+      weaponName: 'Рапира',
+      notation: '1d20+5',
+      results: [12],
+      total: 17,
+      targetArmorClass: 15,
+      outcome: 'HIT',
+      isCritical: false,
+    };
+    const attackParts = [
+      { source: 'dexterity', value: 3 },
+      { source: 'proficiency', value: 2 },
+    ];
+
+    expect(encounterEventPayloadSchema.parse({ ...attack, attackParts })).toMatchObject({
+      attackParts,
+    });
+    expect(
+      encounterEventPayloadSchema.safeParse({
+        ...attack,
+        attackParts: [{ source: 'luck', value: 1 }],
+      }).success,
+    ).toBe(false);
+  });
+
   it('разбирает запись об уроне', () => {
     const parsed = encounterEventPayloadSchema.parse({
       kind: 'DAMAGE',

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { abilityCodeSchema } from '../enums/character.js';
+import { ABILITY_CODES, abilityCodeSchema } from '../enums/character.js';
 import {
   attackOutcomeSchema,
   concentrationOutcomeSchema,
@@ -179,6 +179,32 @@ const rollShape = {
  * объединение, а не общий мешок: запись об уроне без числа — это
  * испорченная строка журнала, и показать её нечем.
  */
+/**
+ * Откуда взялось слагаемое бонуса атаки или урона: характеристика,
+ * мастерство или умение. Нужно столу, чтобы видеть, из чего сложено
+ * «+5», а не верить числу (docs/2026-10-01-modifier-breakdown-design.md).
+ */
+export const MODIFIER_SOURCES = [
+  ...ABILITY_CODES,
+  'proficiency',
+  'archery',
+  'dueling',
+  'rage',
+  'unarmed',
+] as const;
+
+export const modifierPartSchema = z.object({
+  source: z.enum(MODIFIER_SOURCES),
+  value: z.number().int(),
+});
+export type ModifierPart = z.infer<typeof modifierPartSchema>;
+
+/**
+ * Необязательный: у монстра частей нет (бестиарий даёт одно число), и
+ * записи журнала, сделанные до расклада, его не несут.
+ */
+const modifierPartsSchema = z.array(modifierPartSchema).max(10).optional();
+
 export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('INITIATIVE'), ...rollShape, total: z.number().int() }),
   z.object({
@@ -207,6 +233,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     canSmite: z.boolean().optional(),
     /** Атака при отходе — реакция, брошенная сервером сама (§6 дизайна доработок). */
     opportunity: z.boolean().optional(),
+    /** Из чего сложен бонус к попаданию; сумма частей — модификатор броска. */
+    attackParts: modifierPartsSchema,
     ...rollShape,
     total: z.number().int(),
     targetArmorClass: z.number().int(),
@@ -237,6 +265,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     /** Кости сверху от умений — подписать строку журнала. */
     sneakAttackDice: z.number().int().min(1).max(20).optional(),
     smiteDice: z.number().int().min(1).max(20).optional(),
+    /** Из чего сложен модификатор урона; нет у ручного урона ведущего. */
+    damageParts: modifierPartsSchema,
     temporaryAbsorbed: z.number().int().min(0),
     hitPointsLeft: z.number().int().min(0),
   }),
