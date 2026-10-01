@@ -110,7 +110,13 @@ export type SpellResolution =
  * сентября). «Уход за умирающим» стабилизирует — полей для этого в SRD
  * нет вовсе. Разрешает их сервер, каждое своим кодом.
  */
-export const SCRIPTED_SPELL_CODES: readonly string[] = ['sleep', 'spare-the-dying'];
+export const SCRIPTED_SPELL_CODES: readonly string[] = ['sleep', 'spare-the-dying', 'hunters-mark'];
+
+/**
+ * «Метка охотника»: эффект на цели (+1к6 к урону оружием наложившего),
+ * а не урон и не спасбросок — полей для этого в SRD нет.
+ */
+export const HUNTERS_MARK = 'hunters-mark';
 
 export function spellResolution(
   spell: SpellResolutionFields,

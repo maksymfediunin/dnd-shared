@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LEVELS } from './progression.js';
 import {
+  combatCastingTime,
   damageDiceFor,
   healDiceFor,
   maxSpellLevel,
@@ -209,5 +210,14 @@ describe('запись броска SRD', () => {
   it('незнакомую запись отдаёт пустой', () => {
     expect(parseSpellDice('2d8 + 4d6', 3)).toBeNull();
     expect(parseSpellDice('', 3)).toBeNull();
+  });
+});
+
+describe('время сотворения в бою', () => {
+  it('действие и бонусное действие бой проводит, реакцию и минуты — нет', () => {
+    expect(combatCastingTime('1 action')).toBe('ACTION');
+    expect(combatCastingTime('1 bonus action')).toBe('BONUS_ACTION');
+    expect(combatCastingTime('1 reaction')).toBeNull();
+    expect(combatCastingTime('1 minute')).toBeNull();
   });
 });

@@ -89,11 +89,17 @@ export const ERROR_CODES = {
    */
   SPELL_NEEDS_TARGET: 'SPELL_NEEDS_TARGET',
   /**
-   * Время сотворения не `1 action`. В бою сотворяется только оно:
-   * реакций и бонусных действий система не различает, и врать об этом
-   * в журнале хуже, чем отказать (§2 дизайна волны «в»).
+   * Время сотворения ни действие, ни бонусное действие: реакцию и
+   * минуты бой не проводит (`combatCastingTime`).
    */
   SPELL_NOT_IN_COMBAT: 'SPELL_NOT_IN_COMBAT',
+  /**
+   * Правило PHB: после заклинания бонусным действием в этот ход — только
+   * заговор за действие, и наоборот.
+   */
+  SPELL_BONUS_ACTION_RULE: 'SPELL_BONUS_ACTION_RULE',
+  /** Переносить нечего: нет концентрации на метке или её цель ещё на ногах. */
+  HUNTERS_MARK_NOT_MOVABLE: 'HUNTERS_MARK_NOT_MOVABLE',
   /** Стабилизировать можно только того, кто умирает: на нуле хитов, жив и не стабилен. */
   TARGET_NOT_DYING: 'TARGET_NOT_DYING',
   OBSTACLE_NOT_FOUND: 'OBSTACLE_NOT_FOUND',
