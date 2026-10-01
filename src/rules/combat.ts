@@ -194,26 +194,36 @@ export function movementCost(from: Cell, to: Cell, cellSizeFeet: number): number
  * Бонус атаки оружием. Фехтовальное и дальнобойное — по правилам PHB:
  * первое берёт больший из двух модификаторов, второе всегда ловкость.
  */
-export function weaponAttackBonus(input: {
+export function weaponAttackBonus(
+  input: WeaponAbilityInput & {
+    proficiencyBonus: number;
+    isProficient: boolean;
+  },
+): number {
+  const ability =
+    weaponAbility(input) === 'dexterity' ? input.dexterityModifier : input.strengthModifier;
+  return ability + (input.isProficient ? input.proficiencyBonus : 0);
+}
+
+export interface WeaponAbilityInput {
   properties: WeaponProperty[];
   rangeType: WeaponRangeType;
   strengthModifier: number;
   dexterityModifier: number;
-  proficiencyBonus: number;
-  isProficient: boolean;
   /** Боевые искусства монаха: оружие монаха — как фехтовальное. */
   monkWeapon?: boolean;
-}): number {
+}
+
+/**
+ * Какой характеристикой бьёт оружие — отдельно от суммы, чтобы расклад
+ * бонуса в бою называл ту же характеристику, что легла в бросок. При
+ * равенстве у фехтовального — Сила: так же решает и ярость, которой
+ * нужна именно атака Силой.
+ */
+export function weaponAbility(input: WeaponAbilityInput): 'strength' | 'dexterity' {
+  if (input.rangeType === 'RANGED') return 'dexterity';
   const finesse = input.properties.includes('FINESSE') || input.monkWeapon === true;
-  const ranged = input.rangeType === 'RANGED';
-
-  const ability = ranged
-    ? input.dexterityModifier
-    : finesse
-      ? Math.max(input.strengthModifier, input.dexterityModifier)
-      : input.strengthModifier;
-
-  return ability + (input.isProficient ? input.proficiencyBonus : 0);
+  return finesse && input.dexterityModifier > input.strengthModifier ? 'dexterity' : 'strength';
 }
 
 /**

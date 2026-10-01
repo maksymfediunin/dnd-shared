@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { WeaponProperty } from '../enums/character.js';
 import {
   applyDamage,
   attackOutcome,
@@ -11,6 +12,7 @@ import {
   opportunityReactors,
   reachDistance,
   reachInCells,
+  weaponAbility,
   weaponAttackBonus,
 } from './combat.js';
 
@@ -196,6 +198,28 @@ describe('movementCost', () => {
 
   it('считает по размеру клетки сцены', () => {
     expect(movementCost({ x: 0, y: 0 }, { x: 2, y: 0 }, 10)).toBe(20);
+  });
+});
+
+describe('weaponAbility', () => {
+  const base = {
+    properties: [] as WeaponProperty[],
+    rangeType: 'MELEE' as const,
+    strengthModifier: 1,
+    dexterityModifier: 3,
+  };
+
+  it('рукопашное — Сила, дальнобойное — Ловкость', () => {
+    expect(weaponAbility(base)).toBe('strength');
+    expect(weaponAbility({ ...base, rangeType: 'RANGED' })).toBe('dexterity');
+  });
+
+  it('фехтовальное и оружие монаха — большая из двух, при равенстве Сила', () => {
+    expect(weaponAbility({ ...base, properties: ['FINESSE'] })).toBe('dexterity');
+    expect(weaponAbility({ ...base, monkWeapon: true })).toBe('dexterity');
+    expect(weaponAbility({ ...base, properties: ['FINESSE'], strengthModifier: 3 })).toBe(
+      'strength',
+    );
   });
 });
 
