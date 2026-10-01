@@ -329,6 +329,11 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
       .optional(),
     /** Перенос метки охотника с упавшей цели: не сотворение, ячейки нет. */
     moved: z.boolean().optional(),
+    /** Кого отбросило («Волна грома» на провале) и куда. */
+    pushed: z
+      .array(z.object({ participantId: z.uuid(), x: z.number().int(), y: z.number().int() }))
+      .max(40)
+      .optional(),
   }),
   z.object({
     kind: z.literal('SAVE'),

@@ -9,6 +9,7 @@ import {
   isNearFor,
   NO_EFFECTS,
   reachableCellsFor,
+  seesTarget,
 } from './conditions.js';
 import { blockedCells, cellKey } from './grid.js';
 
@@ -322,5 +323,55 @@ describe('reachableCellsFor', () => {
     });
 
     expect(reach.has(cellKey({ x: 5, y: 4 }))).toBe(true);
+  });
+});
+
+describe('видимость сквозь туман и тьму', () => {
+  const fog = new Set(['5:5']);
+  const inFog = { x: 5, y: 5, size: 'MEDIUM' as const };
+  const outside = { x: 7, y: 5, size: 'MEDIUM' as const };
+
+  it('в тумане не видно ни наружу, ни внутрь — разве что слепым зрением', () => {
+    expect(
+      seesTarget({ viewer: outside, target: inFog, obscuredCells: fog, cellSizeFeet: 5 }),
+    ).toBe(false);
+    expect(
+      seesTarget({ viewer: inFog, target: outside, obscuredCells: fog, cellSizeFeet: 5 }),
+    ).toBe(false);
+    expect(
+      seesTarget({
+        viewer: outside,
+        target: inFog,
+        obscuredCells: fog,
+        viewerBlindsightFeet: 10,
+        cellSizeFeet: 5,
+      }),
+    ).toBe(true);
+    expect(
+      seesTarget({
+        viewer: outside,
+        target: { x: 9, y: 9, size: 'MEDIUM' },
+        obscuredCells: fog,
+        cellSizeFeet: 5,
+      }),
+    ).toBe(true);
+  });
+
+  it('двое зрячих друг друга не видят — помеха и преимущество гасятся; слепое зрение даёт преимущество', () => {
+    const base = {
+      manual: 'NONE' as const,
+      attacker: NO_EFFECTS,
+      target: NO_EFFECTS,
+      isNear: true,
+    };
+    expect(
+      attackAdvantage({ ...base, sight: { attackerSeesTarget: false, targetSeesAttacker: false } }),
+    ).toBe('NONE');
+    expect(
+      attackAdvantage({ ...base, sight: { attackerSeesTarget: true, targetSeesAttacker: false } }),
+    ).toBe('ADVANTAGE');
+    expect(
+      attackAdvantage({ ...base, sight: { attackerSeesTarget: false, targetSeesAttacker: true } }),
+    ).toBe('DISADVANTAGE');
   });
 });
