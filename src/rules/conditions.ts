@@ -1,7 +1,7 @@
 import type { ConditionCode } from '../enums/conditions.js';
 import type { AdvantageMode } from '../enums/dice.js';
 import { movesCloser, type Placed, reachDistance, reachInCells } from './combat.js';
-import { cellKey, footprint, type Grid, reachableCells } from './grid.js';
+import { type Cell, cellKey, footprint, type Grid, isFree, reachableCells } from './grid.js';
 
 /**
  * Правила состояний: чистая арифметика без базы и без React. Состояние
@@ -174,8 +174,15 @@ export interface ReachableCellsInput {
   mover: Placed;
   conditions: ConditionEntry[];
   speed: number;
-  /** Остаток хода носителя в футах. */
+  /** Остаток хода носителя в футах — считая от `from`, если он задан. */
   movementLeftFeet: number;
+  /**
+   * Якорь хода: клетка, где фишка стояла на своём последнем действии
+   * (§4 дизайна доработок 29 сентября). Путь меряется от неё, а не от
+   * клетки под фишкой — пока следующего действия нет, фишку можно
+   * переставлять в пределах той же области. Нет — от самой фишки.
+   */
+  from?: Cell;
   cellSizeFeet: number;
   grid: Grid;
   /** Непроходимое: стены и препятствия с `blocksMovement`. */
@@ -204,13 +211,25 @@ export function reachableCellsFor(input: ReachableCellsInput): Set<string> {
   const budgetFeet = Math.min(input.movementLeftFeet, effectiveSpeed(input.speed, effects));
 
   const reach = reachableCells({
-    from: { x: input.mover.x, y: input.mover.y },
+    from: input.from ?? { x: input.mover.x, y: input.mover.y },
     span: footprint(input.mover.size),
     grid: input.grid,
     walls: input.walls,
     tokens: input.tokens,
     maxSteps: Math.floor(budgetFeet / input.cellSizeFeet),
   });
+  // Сам якорь обход не возвращает — с него он начинает. Но фишка,
+  // ушедшая с якоря, обязана суметь на него вернуться: это и есть
+  // «передумал» (§4 дизайна доработок).
+  // Если только на якорь за это время не встал кто-то другой (ведущий
+  // поставил монстра правкой карты): тогда вернуться некуда.
+  if (
+    input.from &&
+    (input.from.x !== input.mover.x || input.from.y !== input.mover.y) &&
+    isFree(input.from, footprint(input.mover.size), input.grid, input.tokens)
+  ) {
+    reach.set(cellKey(input.from), 0);
+  }
 
   if (!effects.keepsAwayFromSource) return new Set(reach.keys());
 

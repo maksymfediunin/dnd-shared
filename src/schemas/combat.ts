@@ -150,6 +150,17 @@ export const deathSaveInputSchema = z.object({
 });
 export type DeathSaveInput = z.infer<typeof deathSaveInputSchema>;
 
+/**
+ * Стабилизация упавшего соседа — проверка Мудрости (Медицина) СЛ 10
+ * действием (PHB). Цель обязательна: стабилизируют не себя.
+ */
+export const stabilizeInputSchema = z.object({
+  participantId: z.uuid().optional(),
+  targetId: z.uuid(),
+  override: z.boolean().optional(),
+});
+export type StabilizeInput = z.infer<typeof stabilizeInputSchema>;
+
 /** Чей ход закончить; пустое тело — свой. */
 export const endTurnInputSchema = z.object({
   participantId: z.uuid().optional(),
@@ -194,6 +205,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     sneakAttackDice: z.number().int().min(1).max(20).optional(),
     /** На урон этого попадания можно наложить божественную кару. */
     canSmite: z.boolean().optional(),
+    /** Атака при отходе — реакция, брошенная сервером сама (§6 дизайна доработок). */
+    opportunity: z.boolean().optional(),
     ...rollShape,
     total: z.number().int(),
     targetArmorClass: z.number().int(),
@@ -263,6 +276,16 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
      * `SPELL_UNRESOLVED_REASONS`.
      */
     unresolvedReason: spellUnresolvedReasonSchema.optional(),
+    /**
+     * Запас хитов «Сна» — брошенное и итог. `targetIds` у него — те,
+     * кто уснул, а не все в области.
+     */
+    pool: z
+      .object({
+        ...rollShape,
+        total: z.number().int().min(0),
+      })
+      .optional(),
   }),
   z.object({
     kind: z.literal('SAVE'),
@@ -334,6 +357,15 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     outcome: deathSaveOutcomeSchema,
     successes: z.number().int().min(0).max(3),
     failures: z.number().int().min(0).max(3),
+  }),
+  z.object({
+    kind: z.literal('STABILIZE'),
+    /** Проверка Мудрости (Медицина) против СЛ 10; у «Ухода за умирающим» броска нет. */
+    notation: rollShape.notation.optional(),
+    results: z.array(z.number().int().min(1).max(100)).max(20),
+    total: z.number().int().optional(),
+    spellCode: z.string().min(1).max(64).optional(),
+    success: z.boolean(),
   }),
   z.object({ kind: z.literal('END_TURN') }),
   z.object({

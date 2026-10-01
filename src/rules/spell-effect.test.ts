@@ -140,3 +140,20 @@ describe('spellDamagePlan', () => {
     });
   });
 });
+
+describe('заклинания с эффектом из кода', () => {
+  it('«Сон» разрешается кодом, а не уроном без вида', () => {
+    const sleep = {
+      code: 'sleep',
+      level: 1,
+      attackType: null,
+      saveAbility: null,
+      damageType: null,
+      damageAtSlotLevel: { '1': '5d8' },
+      damageAtLevel: null,
+      healAtSlotLevel: null,
+    };
+    expect(spellResolution(sleep)).toBe('SCRIPTED');
+    expect(spellResolution({ ...sleep, code: undefined })).toBe('NONE');
+  });
+});

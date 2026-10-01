@@ -10,6 +10,8 @@ import { type DiceByLevel, damageDiceFor, healDiceFor, parseSpellDice } from './
  * прицеливание, а не разрешение, и область без урона ничего не считает.
  */
 export interface SpellResolutionFields {
+  /** Код справочника — по нему узнаются заклинания с эффектом из кода (`SCRIPTED_SPELL_CODES`). */
+  code?: string;
   /** Круг заклинания; ноль — кантрип. */
   level: number;
   attackType: string | null;
@@ -91,12 +93,30 @@ export function spellDamagePlan(
  * наличие: у части заклинаний запись вида `2d8 + 4d6` не берётся, и
  * они остаются за ведущим вместе с причиной в журнале.
  */
-export type SpellResolution = 'ATTACK' | 'SAVE' | 'HEAL' | 'AUTO_DAMAGE' | 'SAVE_ONLY' | 'NONE';
+export type SpellResolution =
+  | 'ATTACK'
+  | 'SAVE'
+  | 'HEAL'
+  | 'AUTO_DAMAGE'
+  | 'SAVE_ONLY'
+  | 'SCRIPTED'
+  | 'NONE';
+
+/**
+ * Заклинания, чей эффект система знает не из машинных полей SRD, а по
+ * коду: у «Сна» в данных есть кости (5к8), но это не урон, а запас
+ * хитов, которые он усыпляет, — по общему правилу он выходил «урон не
+ * посчитан», тратил ячейку и ничего не делал (отчёт со стола 30
+ * сентября). «Уход за умирающим» стабилизирует — полей для этого в SRD
+ * нет вовсе. Разрешает их сервер, каждое своим кодом.
+ */
+export const SCRIPTED_SPELL_CODES: readonly string[] = ['sleep', 'spare-the-dying'];
 
 export function spellResolution(
   spell: SpellResolutionFields,
   input: SpellResolutionInput = {},
 ): SpellResolution {
+  if (spell.code !== undefined && SCRIPTED_SPELL_CODES.includes(spell.code)) return 'SCRIPTED';
   const damage = spellDamagePlan(spell, input);
 
   if (spell.attackType !== null) return 'ATTACK';

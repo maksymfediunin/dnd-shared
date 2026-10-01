@@ -237,3 +237,31 @@ export function parseSpellDice(
     bonus === undefined ? 0 : bonus.toLowerCase() === 'mod' ? spellcastingModifier : Number(bonus);
   return { dice: dice as string, modifier };
 }
+
+/** Дистанция «касание» — соседняя клетка, как у ближнего оружия (PHB). */
+const TOUCH_FEET = 5;
+
+/**
+ * Дистанция «на себя»: у таких заклинаний точка приложения — сам
+ * заклинатель, а не клетка под курсором. Проверять её футами нечем и
+ * незачем — конус огня из ладоней меряется своей длиной, а не
+ * дистанцией.
+ */
+export function isSelfRange(range: string): boolean {
+  return range.trim().toLowerCase().startsWith('self');
+}
+
+/**
+ * Дистанция заклинания в футах. `null` — не измерить: в SRD
+ * встречаются «Sight», «Unlimited» и «Special», и отказывать по
+ * дистанции, которой не знаешь, значило бы придумывать правило за
+ * книгу. Такое заклинание сотворяется без проверки дальности — тем же
+ * решением, каким система не считает то, чего не умеет (§3 дизайна волны «в»).
+ */
+export function spellRangeFeet(range: string): number | null {
+  const normalized = range.trim().toLowerCase();
+  if (normalized.startsWith('touch')) return TOUCH_FEET;
+
+  const match = /^(\d+)\s*(?:feet|foot|ft)/.exec(normalized);
+  return match ? Number(match[1]) : null;
+}

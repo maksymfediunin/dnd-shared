@@ -57,6 +57,8 @@ export const ERROR_CODES = {
   PARTICIPANT_IS_DOWN: 'PARTICIPANT_IS_DOWN',
   INITIATIVE_ALREADY_ROLLED: 'INITIATIVE_ALREADY_ROLLED',
   DEATH_SAVE_NOT_APPLICABLE: 'DEATH_SAVE_NOT_APPLICABLE',
+  /** Спасбросок от смерти в этот ход уже брошен — он один за ход (PHB). */
+  DEATH_SAVE_ALREADY_ROLLED: 'DEATH_SAVE_ALREADY_ROLLED',
   /** Бьёт тот, кому состояние не даёт действовать. */
   PARTICIPANT_CANNOT_ACT: 'PARTICIPANT_CANNOT_ACT',
   /** Скорость в ноль: схвачен, скован, парализован. */
@@ -92,6 +94,9 @@ export const ERROR_CODES = {
    * в журнале хуже, чем отказать (§2 дизайна волны «в»).
    */
   SPELL_NOT_IN_COMBAT: 'SPELL_NOT_IN_COMBAT',
+  /** Стабилизировать можно только того, кто умирает: на нуле хитов, жив и не стабилен. */
+  TARGET_NOT_DYING: 'TARGET_NOT_DYING',
+  OBSTACLE_NOT_FOUND: 'OBSTACLE_NOT_FOUND',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

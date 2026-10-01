@@ -202,6 +202,32 @@ describe('reachableCellsFor', () => {
   const empty = new Set<string>();
   const mover = { x: 0, y: 0, size: 'MEDIUM' } as const;
 
+  // Замечание со стола 28 сентября: переставить фишку, пока не сделал
+  // ничего другого, значит мерить путь от якоря, а не от новой клетки.
+  it('от якоря: область та же, куда бы фишку ни переставили, и назад на якорь можно', () => {
+    const input = {
+      conditions: [],
+      speed: 10,
+      movementLeftFeet: 10,
+      cellSizeFeet: 5,
+      grid,
+      walls: empty,
+      tokens: empty,
+      fearSources: [],
+    };
+    const fromAnchor = reachableCellsFor({ ...input, mover, from: { x: 0, y: 0 } });
+    const moved = reachableCellsFor({
+      ...input,
+      mover: { ...mover, x: 2, y: 0 },
+      from: { x: 0, y: 0 },
+    });
+
+    expect(moved.has(cellKey({ x: 0, y: 0 }))).toBe(true);
+    expect(moved.has(cellKey({ x: 3, y: 0 }))).toBe(false);
+    expect(moved.has(cellKey({ x: 2, y: 2 }))).toBe(true);
+    expect(fromAnchor.has(cellKey({ x: 0, y: 0 }))).toBe(false);
+  });
+
   it('клетка за стеной стоит обхода, а не двух шагов по прямой', () => {
     const walls = blockedCells([
       { origin: { x: 1, y: 0 }, span: 1 },

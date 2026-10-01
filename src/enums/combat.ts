@@ -53,6 +53,7 @@ export const ENCOUNTER_EVENT_KINDS = [
   'END_TURN',
   'ROUND',
   'ABILITY',
+  'STABILIZE',
 ] as const;
 export const encounterEventKindSchema = z.enum(ENCOUNTER_EVENT_KINDS);
 export type EncounterEventKind = (typeof ENCOUNTER_EVENT_KINDS)[number];

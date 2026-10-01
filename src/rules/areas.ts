@@ -134,3 +134,23 @@ export function cellsInArea(input: AreaInput): Set<string> {
 
   return cells;
 }
+
+/**
+ * Точка, от которой считается площадь. Конус и линия идут от
+ * заклинателя — им нужна сторона, а не центр; «на себя» тоже ставит
+ * область себе под ноги (огненные ладони, громовая волна). Всё
+ * остальное ложится в клетку, по которой ударили.
+ *
+ * Переехала сюда из dnd-api: подсветка на карте ставила куб громовой
+ * волны в клетку курсора, а сервер — под заклинателя, и игрок видел
+ * одну область, а под удар попадала другая.
+ */
+export function areaOriginFor(input: {
+  shape: SpellAreaShape;
+  selfRange: boolean;
+  casterCell: Cell;
+  aimCell: Cell;
+}): Cell {
+  const fromCaster = input.selfRange || input.shape === 'CONE' || input.shape === 'LINE';
+  return fromCaster ? input.casterCell : input.aimCell;
+}
