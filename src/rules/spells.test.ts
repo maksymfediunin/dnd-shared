@@ -9,6 +9,7 @@ import {
   slotLevelsAvailable,
   spellAttackBonus,
   spellcastingAbility,
+  spellEffectDuration,
   spellSaveDc,
   spellsPrepared,
 } from './spells.js';
@@ -219,5 +220,17 @@ describe('время сотворения в бою', () => {
     expect(combatCastingTime('1 bonus action')).toBe('BONUS_ACTION');
     expect(combatCastingTime('1 reaction')).toBeNull();
     expect(combatCastingTime('1 minute')).toBeNull();
+  });
+});
+
+describe('длительность эффекта заклинания', () => {
+  it('до минуты — раундами, дольше — до конца сцены, мгновенное — никак', () => {
+    expect(spellEffectDuration('1 round')).toBe(1);
+    expect(spellEffectDuration('1 minute')).toBe(10);
+    expect(spellEffectDuration('Up to 1 minute')).toBe(10);
+    expect(spellEffectDuration('10 minutes')).toBe('LONG');
+    expect(spellEffectDuration('8 hours')).toBe('LONG');
+    expect(spellEffectDuration('Until dispelled')).toBe('LONG');
+    expect(spellEffectDuration('Instantaneous')).toBe('INSTANT');
   });
 });

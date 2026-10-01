@@ -247,6 +247,27 @@ const TOUCH_FEET = 5;
  * незачем — конус огня из ладоней меряется своей длиной, а не
  * дистанцией.
  */
+/** Раундов в минуте боя (PHB: раунд — шесть секунд). */
+const ROUNDS_PER_MINUTE = 10;
+
+/**
+ * Сколько держится эффект заклинания на сцене: `INSTANT` — нисколько,
+ * число — раундов (до минуты включительно), `LONG` — дольше боя (час,
+ * восемь часов, «пока не рассеют»): такой эффект живёт до конца сцены
+ * или пока его не снимет ведущий.
+ */
+export function spellEffectDuration(duration: string): 'INSTANT' | 'LONG' | number {
+  const normalized = duration
+    .trim()
+    .toLowerCase()
+    .replace(/^up to /, '');
+  if (normalized === 'instantaneous') return 'INSTANT';
+  const match = /^(\d+)\s+(round|minute)s?$/.exec(normalized);
+  if (!match) return 'LONG';
+  const rounds = Number(match[1]) * (match[2] === 'minute' ? ROUNDS_PER_MINUTE : 1);
+  return rounds <= ROUNDS_PER_MINUTE ? rounds : 'LONG';
+}
+
 export type CombatCastingTime = 'ACTION' | 'BONUS_ACTION';
 
 /**

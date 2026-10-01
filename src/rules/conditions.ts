@@ -1,7 +1,15 @@
 import type { ConditionCode } from '../enums/conditions.js';
 import type { AdvantageMode } from '../enums/dice.js';
 import { movesCloser, type Placed, reachDistance, reachInCells } from './combat.js';
-import { type Cell, cellKey, footprint, type Grid, isFree, reachableCells } from './grid.js';
+import {
+  type Cell,
+  cellKey,
+  cellsOf,
+  footprint,
+  type Grid,
+  isFree,
+  reachableCells,
+} from './grid.js';
 
 /**
  * Правила состояний: чистая арифметика без базы и без React. Состояние
@@ -263,15 +271,57 @@ export function attackAdvantage(input: {
   attacker: ConditionEffects;
   target: ConditionEffects;
   isNear: boolean;
+  /** Кто кого видит сквозь туман и тьму (`seesTarget`); нет — видят оба. */
+  sight?: { attackerSeesTarget: boolean; targetSeesAttacker: boolean };
 }): AdvantageMode {
   const fromTarget = input.isNear ? input.target.incomingNear : input.target.incomingFar;
   const merged = mergeAdvantage([
     input.manual === 'NONE' ? 'NORMAL' : input.manual,
     input.attacker.ownAttacks,
     fromTarget,
+    // PHB, «Незримые атакующие и цели»: не видишь цель — помеха, цель не
+    // видит тебя — преимущество. Двое зрячих в тумане гасят одно другим.
+    input.sight && !input.sight.attackerSeesTarget ? 'DISADVANTAGE' : 'NORMAL',
+    input.sight && !input.sight.targetSeesAttacker ? 'ADVANTAGE' : 'NORMAL',
   ]);
 
   return merged === 'NORMAL' ? 'NONE' : merged;
+}
+
+/**
+ * Заклинания, чья область сильно заслоняет обзор: внутри не видно ни
+ * наружу, ни внутрь (PHB, «Видимость»). Тьма — магическая, тёмное
+ * зрение её не пробивает.
+ */
+export const OBSCURING_SPELL_CODES: readonly string[] = [
+  'fog-cloud',
+  'darkness',
+  'stinking-cloud',
+  'sleet-storm',
+];
+
+/**
+ * Видит ли `viewer` цель: если хоть один из двоих стоит в заслонённой
+ * клетке — нет, разве что слепое зрение достаёт до цели (оно не
+ * опирается на глаза). Нужна атаке (`attackAdvantage.sight`) — и на
+ * сервере, и в подписи панели до броска.
+ */
+export function seesTarget(input: {
+  viewer: Placed;
+  target: Placed;
+  obscuredCells: ReadonlySet<string>;
+  viewerBlindsightFeet?: number;
+  cellSizeFeet: number;
+}): boolean {
+  const inside = (placed: Placed): boolean =>
+    cellsOf(placed, footprint(placed.size)).some((cell) => input.obscuredCells.has(cellKey(cell)));
+  if (!inside(input.viewer) && !inside(input.target)) return true;
+  const blindsight = input.viewerBlindsightFeet ?? 0;
+  return (
+    blindsight > 0 &&
+    reachDistance(input.viewer, input.target) <=
+      reachInCells({ reachFeet: blindsight, cellSizeFeet: input.cellSizeFeet })
+  );
 }
 
 /** Попадание вблизи по парализованному или бесчувственному — критическое. */
