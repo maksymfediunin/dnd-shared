@@ -20,6 +20,11 @@ export const ERROR_CODES = {
   CANNOT_MODIFY_SELF: 'CANNOT_MODIFY_SELF',
   USER_NOT_FOUND: 'USER_NOT_FOUND',
   CHARACTER_NOT_FOUND: 'CHARACTER_NOT_FOUND',
+  /**
+   * Удалить персонажа нельзя, пока он сидит в незавершённой комнате: на
+   * карте осталась бы фишка без листа. Сначала выйти из комнаты.
+   */
+  CHARACTER_IN_ROOM: 'CHARACTER_IN_ROOM',
   INVALID_ABILITY_SCORES: 'INVALID_ABILITY_SCORES',
   INVALID_CHOICE: 'INVALID_CHOICE',
   LEVEL_UP_NOT_AVAILABLE: 'LEVEL_UP_NOT_AVAILABLE',
