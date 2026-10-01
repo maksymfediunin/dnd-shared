@@ -67,6 +67,38 @@ describe('сфера и цилиндр', () => {
   });
 });
 
+describe('куб «на себя» («Волна грома»)', () => {
+  const caster = { x: 5, y: 5 };
+  const wave = (towards: { x: number; y: number }) =>
+    cellsInArea({
+      ...base,
+      shape: 'CUBE',
+      sizeFeet: 15,
+      origin: caster,
+      towards,
+      fromCreature: true,
+    });
+
+  it('примыкает к заклинателю по центру стороны, сам заклинатель вне волны', () => {
+    expect(wave({ x: 9, y: 5 })).toEqual(
+      new Set(['6:4', '7:4', '8:4', '6:5', '7:5', '8:5', '6:6', '7:6', '8:6']),
+    );
+    expect(wave({ x: 5, y: 1 })).toEqual(
+      new Set(['4:2', '5:2', '6:2', '4:3', '5:3', '6:3', '4:4', '5:4', '6:4']),
+    );
+  });
+
+  it('по диагонали идёт от угла', () => {
+    expect(wave({ x: 1, y: 9 })).toEqual(
+      new Set(['2:6', '3:6', '4:6', '2:7', '3:7', '4:7', '2:8', '3:8', '4:8']),
+    );
+  });
+
+  it('без направления волны нет', () => {
+    expect(wave(caster).size).toBe(0);
+  });
+});
+
 describe('куб', () => {
   it('стоит стороной от точки приложения, как фишка от своего угла', () => {
     const cells = cellsInArea({ ...base, shape: 'CUBE', sizeFeet: 15, origin: { x: 1, y: 1 } });

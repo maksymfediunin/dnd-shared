@@ -23,12 +23,13 @@ export interface AreaInput {
    */
   origin: Cell;
   /**
-   * Сфера или цилиндр расходятся от существа, а не от точки: так у
-   * заклинания «на себя». Существо занимает клетку, и область идёт от
-   * неё во все стороны — у средней фишки на клетку шире, чем от точки.
+   * Область исходит от существа, а не от точки: так у заклинания «на
+   * себя». Сфера и цилиндр идут от его клетки во все стороны — у средней
+   * фишки на клетку шире, чем от точки; куб примыкает к нему со стороны
+   * `towards`.
    */
   fromCreature?: boolean;
-  /** Куда направлены конус и линия. Прочим формам направление не нужно. */
+  /** Куда направлены конус, линия и куб «на себя». Прочим формам направление не нужно. */
   towards?: Cell | null;
   cellSizeFeet: number;
   grid: Grid;
@@ -84,6 +85,32 @@ export function cellsInArea(input: AreaInput): Set<string> {
     // и крупная фишка попадает под неё любой своей клеткой.
     if (fitsInGrid(cell, 1, input.grid)) cells.add(cellKey(cell));
   };
+
+  if (input.shape === 'CUBE' && input.fromCreature) {
+    // Куб «на себя» («Волна грома») исходит от заклинателя: примыкает к
+    // нему с выбранной стороны, а сам заклинатель в него не входит. Раньше
+    // куб ложился от его клетки вправо-вниз — заклинатель всегда попадал
+    // под собственную волну, а направить её было нельзя (отчёт со стола
+    // 1 октября). По прямой куб стоит по центру стороны, по диагонали —
+    // от угла.
+    const direction = input.towards ? directionTo(input.origin, input.towards) : null;
+    if (!direction) return cells;
+    const along = (step: number, axis: number, centre: number): number =>
+      step === 0
+        ? centre - Math.floor((size - 1) / 2) + axis
+        : step > 0
+          ? centre + 1 + axis
+          : centre - size + axis;
+    for (let dy = 0; dy < size; dy += 1) {
+      for (let dx = 0; dx < size; dx += 1) {
+        add({
+          x: along(direction.x, dx, input.origin.x),
+          y: along(direction.y, dy, input.origin.y),
+        });
+      }
+    }
+    return cells;
+  }
 
   if (input.shape === 'CUBE') {
     // Угол — ближний к точке приложения, левый верхний, как у `cellsOf`
