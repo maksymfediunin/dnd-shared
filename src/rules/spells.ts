@@ -247,6 +247,20 @@ const TOUCH_FEET = 5;
  * незачем — конус огня из ладоней меряется своей длиной, а не
  * дистанцией.
  */
+export type CombatCastingTime = 'ACTION' | 'BONUS_ACTION';
+
+/**
+ * Чем сотворяется заклинание в бою. `null` — бой его не проводит:
+ * реакция («Щит») и всё, что длится минуты. Бонусное действие тратит
+ * своё, а не действие (§2 дизайна метки охотника).
+ */
+export function combatCastingTime(castingTime: string): CombatCastingTime | null {
+  const normalized = castingTime.trim().toLowerCase();
+  if (normalized === '1 action') return 'ACTION';
+  if (normalized === '1 bonus action') return 'BONUS_ACTION';
+  return null;
+}
+
 export function isSelfRange(range: string): boolean {
   return range.trim().toLowerCase().startsWith('self');
 }

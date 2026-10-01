@@ -109,6 +109,14 @@ export const castInputSchema = z
   });
 export type CastInput = z.infer<typeof castInputSchema>;
 
+/** Перенос метки охотника на новую цель — бонусным действием, без ячейки. */
+export const moveHuntersMarkInputSchema = z.object({
+  participantId: z.uuid().optional(),
+  targetId: z.uuid(),
+  override: z.boolean().optional(),
+});
+export type MoveHuntersMarkInput = z.infer<typeof moveHuntersMarkInputSchema>;
+
 /**
  * Бросок урона. `amount` — ручная поправка вместо броска, право
  * одного только ведущего: схема ролей не знает, а поле, пришедшее не
@@ -205,6 +213,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     sneakAttackDice: z.number().int().min(1).max(20).optional(),
     /** На урон этого попадания можно наложить божественную кару. */
     canSmite: z.boolean().optional(),
+    /** Цель под меткой охотника бьющего: урон добавит 1к6 (на крите 2к6). */
+    huntersMarkDice: z.number().int().min(1).max(2).optional(),
     /** Атака при отходе — реакция, брошенная сервером сама (§6 дизайна доработок). */
     opportunity: z.boolean().optional(),
     ...rollShape,
@@ -237,6 +247,7 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     /** Кости сверху от умений — подписать строку журнала. */
     sneakAttackDice: z.number().int().min(1).max(20).optional(),
     smiteDice: z.number().int().min(1).max(20).optional(),
+    huntersMarkDice: z.number().int().min(1).max(2).optional(),
     temporaryAbsorbed: z.number().int().min(0),
     hitPointsLeft: z.number().int().min(0),
   }),
@@ -286,6 +297,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
         total: z.number().int().min(0),
       })
       .optional(),
+    /** Перенос метки охотника с упавшей цели: не сотворение, ячейки нет. */
+    moved: z.boolean().optional(),
   }),
   z.object({
     kind: z.literal('SAVE'),

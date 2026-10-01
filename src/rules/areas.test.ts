@@ -6,15 +6,36 @@ const base = { cellSizeFeet: 5, grid };
 const origin = { x: 5, y: 5 };
 
 describe('сфера и цилиндр', () => {
-  it('накрывают квадрат радиусом в клетках, вместе с точкой приложения', () => {
+  it('от точки — пересечения в левом верхнем углу клетки — накрывают два радиуса поперёк', () => {
     const cells = cellsInArea({ ...base, shape: 'SPHERE', sizeFeet: 10, origin });
 
-    // Пять на пять: радиус две клетки в каждую сторону плюс центр.
+    // Четыре на четыре: 10 фт радиуса — 20 фт поперёк.
+    expect(cells.size).toBe(16);
+    expect(cells.has('3:3')).toBe(true);
+    expect(cells.has('6:6')).toBe(true);
+    expect(cells.has('7:7')).toBe(false);
+    expect(cells.has('2:5')).toBe(false);
+  });
+
+  it('радиус 20 фт — восемь клеток поперёк («Сон»)', () => {
+    const cells = cellsInArea({ ...base, shape: 'SPHERE', sizeFeet: 20, origin });
+
+    expect(cells.size).toBe(64);
+  });
+
+  it('от существа («на себя») — от его клетки во все стороны', () => {
+    const cells = cellsInArea({
+      ...base,
+      shape: 'SPHERE',
+      sizeFeet: 10,
+      origin,
+      fromCreature: true,
+    });
+
+    // Пять на пять: радиус две клетки в каждую сторону плюс клетка существа.
     expect(cells.size).toBe(25);
     expect(cells.has('5:5')).toBe(true);
-    expect(cells.has('3:3')).toBe(true);
     expect(cells.has('7:7')).toBe(true);
-    expect(cells.has('2:5')).toBe(false);
   });
 
   // §7 дизайна: сетка плоская, высоты у неё нет, и разница между
@@ -28,9 +49,9 @@ describe('сфера и цилиндр', () => {
   it('клетки за краем сетки в область не попадают', () => {
     const cells = cellsInArea({ ...base, shape: 'SPHERE', sizeFeet: 10, origin: { x: 0, y: 0 } });
 
-    expect(cells.size).toBe(9);
+    expect(cells.size).toBe(4);
     expect(cells.has('0:0')).toBe(true);
-    expect(cells.has('2:2')).toBe(true);
+    expect(cells.has('1:1')).toBe(true);
   });
 
   it('на десятифутовой клетке радиус меряется её размером', () => {
@@ -42,7 +63,7 @@ describe('сфера и цилиндр', () => {
       origin,
     });
 
-    expect(cells.size).toBe(25);
+    expect(cells.size).toBe(16);
   });
 });
 

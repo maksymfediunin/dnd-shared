@@ -156,4 +156,19 @@ describe('заклинания с эффектом из кода', () => {
     expect(spellResolution(sleep)).toBe('SCRIPTED');
     expect(spellResolution({ ...sleep, code: undefined })).toBe('NONE');
   });
+
+  it('«Метка охотника» разрешается кодом — механики в полях SRD у неё нет', () => {
+    expect(
+      spellResolution({
+        code: 'hunters-mark',
+        level: 1,
+        attackType: null,
+        saveAbility: null,
+        damageType: null,
+        damageAtSlotLevel: null,
+        damageAtLevel: null,
+        healAtSlotLevel: null,
+      }),
+    ).toBe('SCRIPTED');
+  });
 });
