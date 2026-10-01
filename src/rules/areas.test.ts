@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cellsInArea } from './areas.js';
+import { areaOriginFor, cellsInArea } from './areas.js';
 
 const grid = { width: 10, height: 10 };
 const base = { cellSizeFeet: 5, grid };
@@ -151,5 +151,22 @@ describe('вырожденные размеры', () => {
     expect(
       cellsInArea({ ...base, shape: 'LINE', sizeFeet: 0, origin, towards: { x: 6, y: 5 } }).size,
     ).toBe(0);
+  });
+});
+
+describe('areaOriginFor', () => {
+  const casterCell = { x: 1, y: 1 };
+  const aimCell = { x: 6, y: 6 };
+
+  it('«на себя» кладёт область под заклинателя, даже куб', () => {
+    expect(areaOriginFor({ shape: 'CUBE', selfRange: true, casterCell, aimCell })).toEqual(
+      casterCell,
+    );
+  });
+
+  it('сфера по дистанции ложится в клетку прицела', () => {
+    expect(areaOriginFor({ shape: 'SPHERE', selfRange: false, casterCell, aimCell })).toEqual(
+      aimCell,
+    );
   });
 });

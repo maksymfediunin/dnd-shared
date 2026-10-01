@@ -305,3 +305,39 @@ export function largerDice(a: string, b: string): string {
   };
   return average(b) > average(a) ? b : a;
 }
+
+/** Кто может ответить атакой при отходе: где стоит и докуда достаёт. */
+export interface OpportunityReactor extends Placed {
+  id: string;
+  reachFeet: number;
+}
+
+/**
+ * Атака при отходе (PHB): шаг уводит фишку из досягаемости врага.
+ * Сравниваются клетка до шага и после, путь не разбирается —
+ * `reachableCells` его не хранит.
+ *
+ * ponytail: обход врага по кругу, не выходя из досягаемости, и выход с
+ * возвратом внутри одного шага не отличаются от стояния на месте; если
+ * это начнут эксплуатировать — хранить путь и проверять каждую клетку.
+ *
+ * Кто враг и не потрачена ли реакция, решает вызывающий: у сервера это
+ * строки базы, у фронта — снимок, где реакция монстра скрыта.
+ */
+export function opportunityReactors(input: {
+  mover: Placed;
+  to: Cell;
+  reactors: OpportunityReactor[];
+  cellSizeFeet: number;
+}): string[] {
+  const moved = { ...input.mover, x: input.to.x, y: input.to.y };
+  return input.reactors
+    .filter((reactor) => {
+      const reach = reachInCells({
+        reachFeet: reactor.reachFeet,
+        cellSizeFeet: input.cellSizeFeet,
+      });
+      return reachDistance(input.mover, reactor) <= reach && reachDistance(moved, reactor) > reach;
+    })
+    .map((reactor) => reactor.id);
+}

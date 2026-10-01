@@ -8,6 +8,7 @@ import {
   initiativeOrder,
   movementCost,
   movesCloser,
+  opportunityReactors,
   reachDistance,
   reachInCells,
   weaponAttackBonus,
@@ -339,5 +340,43 @@ describe('movesCloser', () => {
     // До источника (7,0) от края LARGE (x=0..1) — 5; после шага на (1,0)
     // (край x=1..2) — 4: приближение.
     expect(movesCloser(largeMover, { x: 1, y: 0 }, { x: 7, y: 0, size: 'MEDIUM' })).toBe(true);
+  });
+});
+
+describe('opportunityReactors', () => {
+  const goblin = { id: 'goblin', x: 5, y: 5, size: 'MEDIUM' as const, reachFeet: 5 };
+  const ogre = { id: 'ogre', x: 8, y: 5, size: 'LARGE' as const, reachFeet: 10 };
+  const mover = { x: 4, y: 5, size: 'MEDIUM' as const };
+
+  it('шаг из досягаемости провоцирует, шаг вдоль неё — нет', () => {
+    expect(
+      opportunityReactors({ mover, to: { x: 3, y: 5 }, reactors: [goblin], cellSizeFeet: 5 }),
+    ).toEqual(['goblin']);
+    expect(
+      opportunityReactors({ mover, to: { x: 4, y: 6 }, reactors: [goblin], cellSizeFeet: 5 }),
+    ).toEqual([]);
+  });
+
+  it('досягаемость меряется от ближней клетки крупного и в его футах', () => {
+    // Огр 2×2 с x=8: ближняя его клетка — 8, до фишки на 6 — две
+    // клетки, то есть 10 футов его досягаемости.
+    const near = { x: 6, y: 5, size: 'MEDIUM' as const };
+    expect(
+      opportunityReactors({ mover: near, to: { x: 5, y: 5 }, reactors: [ogre], cellSizeFeet: 5 }),
+    ).toEqual(['ogre']);
+    expect(
+      opportunityReactors({ mover: near, to: { x: 6, y: 4 }, reactors: [ogre], cellSizeFeet: 5 }),
+    ).toEqual([]);
+  });
+
+  it('кто вне досягаемости с самого начала, не отвечает', () => {
+    expect(
+      opportunityReactors({
+        mover: { x: 0, y: 0, size: 'MEDIUM' },
+        to: { x: 0, y: 1 },
+        reactors: [goblin],
+        cellSizeFeet: 5,
+      }),
+    ).toEqual([]);
   });
 });
