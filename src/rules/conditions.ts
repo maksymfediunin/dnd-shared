@@ -149,8 +149,17 @@ function mergeAdvantage(values: AdvantageEffect[]): AdvantageEffect {
   return up ? 'ADVANTAGE' : 'DISADVANTAGE';
 }
 
-export function combineConditions(entries: ConditionEntry[]): ConditionEffects {
-  const all = entries.map(effectsOf);
+/**
+ * `extra` — следствия, пришедшие не из таблицы книги, а от заклинаний
+ * на носителе (`spellConditionEffects`): «Благословение» не состояние,
+ * но преимущество и помеха от «Размытого образа» и «Огня фей»
+ * складываются с состояниями тем же правилом — гасят друг друга.
+ */
+export function combineConditions(
+  entries: ConditionEntry[],
+  extra: readonly ConditionEffects[] = [],
+): ConditionEffects {
+  const all = [...entries.map(effectsOf), ...extra];
 
   return {
     cannotAct: all.some((e) => e.cannotAct),

@@ -268,17 +268,18 @@ export function spellEffectDuration(duration: string): 'INSTANT' | 'LONG' | numb
   return rounds <= ROUNDS_PER_MINUTE ? rounds : 'LONG';
 }
 
-export type CombatCastingTime = 'ACTION' | 'BONUS_ACTION';
+export type CombatCastingTime = 'ACTION' | 'BONUS_ACTION' | 'REACTION';
 
 /**
- * Чем сотворяется заклинание в бою. `null` — бой его не проводит:
- * реакция («Щит») и всё, что длится минуты. Бонусное действие тратит
- * своё, а не действие (§2 дизайна метки охотника).
+ * Чем сотворяется заклинание в бою. `null` — бой его не проводит: всё,
+ * что длится минуты. Бонусное действие тратит своё, а не действие (§2
+ * дизайна метки охотника); реакция («Щит») — свою, и в чужой ход.
  */
 export function combatCastingTime(castingTime: string): CombatCastingTime | null {
   const normalized = castingTime.trim().toLowerCase();
   if (normalized === '1 action') return 'ACTION';
   if (normalized === '1 bonus action') return 'BONUS_ACTION';
+  if (normalized.startsWith('1 reaction')) return 'REACTION';
   return null;
 }
 
