@@ -222,8 +222,21 @@ export const MODIFIER_SOURCES = [
   'dueling',
   'rage',
   'unarmed',
-  /** Кость заклинания на носителе («Благословение» +1к4, «Порча» −1к4) — код в `spellCode`. */
+  /**
+   * Кость заклинания на носителе («Благословение» +1к4, «Порча» −1к4) —
+   * код в `spellCode`. Им же — число в кости самого заклинания
+   * («Волшебная стрела» 1к4+1): то слагаемое ничьё, кроме заклинания.
+   */
   'spell',
+  /** Вторая порция мастерства у навыка с компетентностью. */
+  'expertise',
+  /** Мастер на все руки барда: половина мастерства к проверке без владения. */
+  'jackOfAllTrades',
+  /**
+   * Поправка руками к броску стола («+2 от зелья»): всё, чем присланный
+   * модификатор расходится с листом (docs/2026-10-02-roll-modifier-parts-design.md).
+   */
+  'custom',
 ] as const;
 
 export const modifierPartSchema = z.object({
@@ -237,10 +250,16 @@ export type ModifierPart = z.infer<typeof modifierPartSchema>;
  * Необязательный: у монстра частей нет (бестиарий даёт одно число), и
  * записи журнала, сделанные до расклада, его не несут.
  */
-const modifierPartsSchema = z.array(modifierPartSchema).max(10).optional();
+export const modifierPartsSchema = z.array(modifierPartSchema).max(10).optional();
 
 export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('INITIATIVE'), ...rollShape, total: z.number().int() }),
+  z.object({
+    kind: z.literal('INITIATIVE'),
+    ...rollShape,
+    total: z.number().int(),
+    /** Откуда модификатор; у ручной инициативы ведущего частей нет — никто не бросал. */
+    modifierParts: modifierPartsSchema,
+  }),
   z.object({
     kind: z.literal('MOVE'),
     from: z.object({ x: z.number().int(), y: z.number().int() }),
@@ -456,6 +475,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     /** Сложность заклинателя — без неё по броску нечего разбирать. */
     dc: z.number().int().min(1),
     outcome: savingThrowOutcomeSchema,
+    /** База спасброска — характеристика и мастерство; уже внутри `total`. */
+    modifierParts: modifierPartsSchema,
     /** Кости заклинаний на бросающем («Благословение», «Порча») — уже внутри `total`. */
     bonusParts: modifierPartsSchema,
     /** Преимущество или помеха от заклинаний («Ускорение» — Ловкость). */
@@ -475,6 +496,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     spellCode: z.string().min(1).max(64),
     ...rollShape,
     amount: z.number().int().min(0),
+    /** Откуда модификатор кости: характеристика заклинателя или само заклинание. */
+    modifierParts: modifierPartsSchema,
     /** Лечение не прошло: на цели «Леденящее прикосновение». */
     blocked: z.boolean().optional(),
   }),
@@ -495,6 +518,9 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     total: z.number().int().optional(),
     /** Сложность спасброска: `max(10, половина урона)`. */
     dc: z.number().int().min(1).optional(),
+    /** База спасброска Телосложения и кости заклинаний на носителе — как у `SAVE`. */
+    modifierParts: modifierPartsSchema,
+    bonusParts: modifierPartsSchema,
   }),
   z.object({
     kind: z.literal('HP_ADJUST'),

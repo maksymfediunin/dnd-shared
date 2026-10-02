@@ -1,4 +1,5 @@
-import type { ProficiencyLevel } from '../enums/character.js';
+import type { AbilityCode, ProficiencyLevel } from '../enums/character.js';
+import type { ModifierPart } from '../schemas/combat.js';
 
 /** Щит даёт два к классу доспеха независимо от прочей брони. */
 export const SHIELD_ARMOR_CLASS_BONUS = 2;
@@ -97,12 +98,28 @@ export interface SavingThrowInput {
   isProficient: boolean;
 }
 
-export function savingThrow({
-  abilityModifier,
-  proficiencyBonus,
-  isProficient,
-}: SavingThrowInput): number {
-  return abilityModifier + (isProficient ? proficiencyBonus : 0);
+export function savingThrow(input: SavingThrowInput): number {
+  return sumParts(savingThrowParts('strength', input));
+}
+
+/**
+ * Слагаемые модификатора — то, из чего сложено число листа. Само число
+ * считается их суммой, а не рядом с ними: иначе расклад, который видит
+ * стол, однажды разошёлся бы с броском. Нулевые части не отбрасываются
+ * — это решение показа, а не правил.
+ */
+export function sumParts(parts: readonly ModifierPart[]): number {
+  return parts.reduce((sum, part) => sum + part.value, 0);
+}
+
+export function savingThrowParts(
+  ability: AbilityCode,
+  { abilityModifier, proficiencyBonus, isProficient }: SavingThrowInput,
+): ModifierPart[] {
+  return [
+    { source: ability, value: abilityModifier },
+    ...(isProficient ? [{ source: 'proficiency' as const, value: proficiencyBonus }] : []),
+  ];
 }
 
 export interface SkillBonusInput {
@@ -114,15 +131,30 @@ export interface SkillBonusInput {
   halfProficiency?: boolean;
 }
 
-export function skillBonus({
-  abilityModifier,
-  proficiencyBonus,
-  proficiency,
-  halfProficiency = false,
-}: SkillBonusInput): number {
-  if (proficiency === 'EXPERTISE') return abilityModifier + proficiencyBonus * 2;
-  if (proficiency === 'PROFICIENT') return abilityModifier + proficiencyBonus;
-  return abilityModifier + (halfProficiency ? Math.floor(proficiencyBonus / 2) : 0);
+export function skillBonus(input: SkillBonusInput): number {
+  return sumParts(skillParts('strength', input));
+}
+
+export function skillParts(
+  ability: AbilityCode,
+  { abilityModifier, proficiencyBonus, proficiency, halfProficiency = false }: SkillBonusInput,
+): ModifierPart[] {
+  const base: ModifierPart = { source: ability, value: abilityModifier };
+  // Компетентность — мастерство дважды, но на экране это две строки:
+  // «мастерство +2, компетентность +2» объясняет, откуда вторые два.
+  if (proficiency === 'EXPERTISE') {
+    return [
+      base,
+      { source: 'proficiency', value: proficiencyBonus },
+      { source: 'expertise', value: proficiencyBonus },
+    ];
+  }
+  if (proficiency === 'PROFICIENT') {
+    return [base, { source: 'proficiency', value: proficiencyBonus }];
+  }
+  return halfProficiency
+    ? [base, { source: 'jackOfAllTrades', value: Math.floor(proficiencyBonus / 2) }]
+    : [base];
 }
 
 /** Считается от готового бонуса навыка Внимательность. */
@@ -135,5 +167,13 @@ export function passivePerception(perceptionBonus: number): number {
  * прибавляет к ней половину мастерства (`bonus`).
  */
 export function initiative(dexterityModifier: number, bonus = 0): number {
-  return dexterityModifier + bonus;
+  return sumParts(initiativeParts(dexterityModifier, bonus));
+}
+
+/** `bonus` — та же половина мастерства от мастера на все руки, что и у `initiative`. */
+export function initiativeParts(dexterityModifier: number, bonus = 0): ModifierPart[] {
+  return [
+    { source: 'dexterity', value: dexterityModifier },
+    ...(bonus !== 0 ? [{ source: 'jackOfAllTrades' as const, value: bonus }] : []),
+  ];
 }

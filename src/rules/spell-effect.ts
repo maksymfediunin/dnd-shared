@@ -50,6 +50,8 @@ export type SpellDamagePlan =
       kind: 'DAMAGE';
       dice: string | null;
       modifier: number;
+      /** Прибавка — модификатор заклинателя, а не число заклинания (`parseSpellDice`). */
+      fromCaster?: true;
       type: string;
       /** Второй и дальше виды урона («Удар пламени» — огонь и излучение). */
       extra?: { dice: string; type: string }[];

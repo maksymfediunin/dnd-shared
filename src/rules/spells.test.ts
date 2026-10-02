@@ -196,7 +196,9 @@ describe('запись броска SRD', () => {
   it('разбирает кости, прибавку числом и прибавку модификатором', () => {
     expect(parseSpellDice('8d6', 3)).toEqual({ dice: '8d6', modifier: 0 });
     expect(parseSpellDice('3d4 + 3', 3)).toEqual({ dice: '3d4', modifier: 3 });
-    expect(parseSpellDice('1d8 + MOD', 4)).toEqual({ dice: '1d8', modifier: 4 });
+    // Модификатор помечен: на экране он — характеристика заклинателя, а
+    // число «+3» выше — прибавка самого заклинания.
+    expect(parseSpellDice('1d8 + MOD', 4)).toEqual({ dice: '1d8', modifier: 4, fromCaster: true });
   });
 
   // Голое число — не бросок вовсе: так в SRD записано лечение высоких
