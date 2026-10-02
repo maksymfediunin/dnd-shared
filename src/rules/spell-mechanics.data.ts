@@ -19,6 +19,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'animal-friendship': {
     conditions: ['charmed'],
     gm: 'Только зверь с Интеллектом 3 и ниже; он должен видеть и слышать заклинателя; вред цели прекращает заклинание',
+    endsOnDamage: true,
   },
   'animal-messenger': { gm: 'Зверь-посыльный доставляет сообщение — сюжетное' },
   'animal-shapes': { gm: 'Превращает согласных существ в зверей CR ≤4 — ведущий' },
@@ -62,14 +63,27 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     targets: { base: 12 },
   },
   'bestow-curse': {
-    gm: 'Ведущий применяет выбранное проклятие (помеха по характеристике / по атакам в заклинателя / потеря действия / +1d8 некротического от заклинателя)',
+    gm: 'Варианты «действие» (спасбросок Мдр или потеря хода) и «некротический урон» (+1к8 от заклинателя) — ведущий',
+    variants: [
+      { key: 'str', modifiers: { saveDisadvantage: ['strength'] } },
+      { key: 'dex', modifiers: { saveDisadvantage: ['dexterity'] } },
+      { key: 'con', modifiers: { saveDisadvantage: ['constitution'] } },
+      { key: 'int', modifiers: { saveDisadvantage: ['intelligence'] } },
+      { key: 'wis', modifiers: { saveDisadvantage: ['wisdom'] } },
+      { key: 'cha', modifiers: { saveDisadvantage: ['charisma'] } },
+      { key: 'attacks', modifiers: { ownAttacks: 'DISADVANTAGE' } },
+      { key: 'action' },
+      { key: 'necrotic' },
+    ],
   },
   'black-tentacles': {
     conditions: ['restrained'],
-    gm: 'Зона 20 фт — сложная местность; 3d6 урона при входе или в начале хода; захваченный освобождается проверкой Силы или Ловкости против сложности',
+    gm: 'Вырваться — проверка Силы или Ловкости действием; клетки труднопроходимые',
+    zone: { on: ['ENTER', 'START'], conditions: ['restrained'] },
   },
   'blade-barrier': {
     gm: 'Стена клинков даёт укрытие три четверти и труднопроходима; 6d10 рубящего при первом входе за ход или в начале хода — ведущий',
+    zone: { on: ['ENTER', 'START'] },
   },
   bless: { targets: { base: 3, perSlot: 1 }, modifiers: { attackDice: '1d4', saveDice: '1d4' } },
   blight: {
@@ -79,7 +93,10 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     targets: { base: 1, perSlot: 1 },
     conditions: ['blinded'],
     repeatSave: true,
-    gm: 'Вместо ослепления заклинатель может выбрать оглушение (deafened)',
+    variants: [
+      { key: 'blinded', conditions: ['blinded'] },
+      { key: 'deafened', conditions: ['deafened'] },
+    ],
   },
   blink: { gm: 'Бросок d20 в конце хода: при 11+ уходит в Эфирный план до начала следующего хода' },
   blur: {
@@ -110,6 +127,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     targets: { base: 1, perSlot: 1 },
     conditions: ['charmed'],
     gm: 'Только гуманоид; спасбросок с преимуществом, если заклинатель или союзники с ним сражаются; вред цели прекращает очарование; цели в пределах 30 футов друг от друга',
+    endsOnDamage: true,
   },
   'chill-touch': {
     gm: 'У нежити — помеха на атаки по заклинателю до конца его следующего хода',
@@ -119,7 +137,8 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   clairvoyance: { gm: 'Невидимый сенсор для зрения или слуха — разведка, решает ведущий' },
   clone: { gm: 'Создаёт инертный клон на случай смерти — вне боя' },
   cloudkill: {
-    gm: 'Туман тяжело заслоняет обзор; 5d8 яда (спасбросок Телосложения) при первом входе за ход или в начале хода; облако смещается на 10 фт в начале каждого хода заклинателя — ведущий',
+    gm: 'Облако смещается на 10 футов от заклинателя в начале каждого его хода — ведущий',
+    zone: { on: ['ENTER', 'START'] },
   },
   'color-spray': {
     conditions: ['blinded'],
@@ -227,14 +246,17 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'dominate-beast': {
     conditions: ['charmed'],
     gm: 'Зверь повинуется заклинателю; преимущество на спасбросок при драке с заклинателем; новый спасбросок при каждом уроне; полный контроль действием',
+    saveOnDamage: true,
   },
   'dominate-monster': {
     conditions: ['charmed'],
     gm: 'Телепатическое управление очарованным; повторный Мдр-спасбросок при каждом полученном уроне; при спасброске с преимуществом, если заклинатель или союзники сражаются с целью; полный контроль действием до конца следующего хода',
+    saveOnDamage: true,
   },
   'dominate-person': {
     conditions: ['charmed'],
     gm: 'Гуманоид очарован; после каждого получения урона новый спасбросок Мудрости, успех снимает; действием полный контроль до конца следующего хода; преимущество на спасбросок, если с ним сражаются',
+    saveOnDamage: true,
   },
   dream: {
     gm: 'Сон-послание, цель должна спать; при кошмаре спасбросок Мудрости, на провале нет пользы от отдыха и 3d6 психического урона при пробуждении',
@@ -248,11 +270,33 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'enhance-ability': {
     targets: { base: 1, perSlot: 1 },
     temporaryHitPoints: { dice: '2d6' },
-    gm: 'Выбор эффекта: Bear (преимущество на проверки Телосложения + 2d6 врем. хитов — размечен), Bull, Cat, Eagle, Fox, Owl — преимущество на проверки соответствующей характеристики',
+    gm: 'Преимущество на проверки выбранной характеристики — ведущий',
+    variants: [
+      { key: 'bear', temporaryHitPoints: { dice: '2d6' } },
+      { key: 'bull' },
+      { key: 'cat' },
+      { key: 'eagle' },
+      { key: 'fox' },
+      { key: 'owl' },
+    ],
   },
   'enlarge-reduce': {
     modifiers: { saveAdvantage: ['strength'] },
-    gm: 'Выбор Enlarge/Reduce: Enlarge — размер ×2, преимущество на Силу, оружие +1d4 урона; Reduce — помеха на Силу и −1d4 урона (мин. 1); размечен Enlarge без прибавки урона; спасбросок только у непокорной цели',
+    gm: 'Размер фишки на карте ведущий меняет руками',
+    willingAllies: true,
+    variants: [
+      {
+        key: 'enlarge',
+        modifiers: { saveAdvantage: ['strength'], weaponDamage: { dice: '1d4', type: 'WEAPON' } },
+      },
+      {
+        key: 'reduce',
+        modifiers: {
+          saveDisadvantage: ['strength'],
+          weaponDamage: { dice: '-1d4', type: 'WEAPON' },
+        },
+      },
+    ],
   },
   entangle: {
     conditions: ['restrained'],
@@ -265,8 +309,14 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'expeditious-retreat': { gm: 'Рывок бонусным действием каждый ход, пока длится заклинание' },
   eyebite: {
     conditions: ['frightened'],
-    gm: 'Выбор эффекта: Asleep (без сознания), Panicked (испуг, бегство) или Sickened (помеха к атакам и проверкам, повторный спасбросок); действием можно сменить цель каждый ход',
+    gm: 'Каждый ход действием — новая цель в 60 футах; паника — бегство от заклинателя',
     override: { range: '60 feet' },
+    variants: [
+      { key: 'asleep', conditions: ['unconscious'] },
+      { key: 'panicked', conditions: ['frightened'] },
+      { key: 'sickened', modifiers: { ownAttacks: 'DISADVANTAGE' } },
+    ],
+    endsOnDamage: true,
   },
   fabricate: { gm: 'Превращает сырьё в изделия — вне боя' },
   'faerie-fire': {
@@ -303,8 +353,12 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'fire-bolt': { gm: 'Горючий предмет загорается' },
   'fire-shield': {
     modifiers: { resistances: ['cold'] },
-    gm: 'Выбор щита: тёплый — сопротивление холоду, холодный — огню; атакующий вблизи получает 2d8 огня или холода',
+    gm: 'Атакующий вблизи получает 2к8 огня (тёплый щит) или холода (холодный) — ведущий',
     override: { damage: false, area: null },
+    variants: [
+      { key: 'warm', modifiers: { resistances: ['cold'] } },
+      { key: 'chill', modifiers: { resistances: ['fire'] } },
+    ],
   },
   'fire-storm': {
     gm: 'Область — до десяти 10-футовых кубов по выбору заклинателя; поджигает предметы',
@@ -315,8 +369,13 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   'flame-strike': { override: { damageTypes: ['fire', 'radiant'] } },
   'flaming-sphere': {
-    gm: 'Сфера в 5 фт: существо, закончившее ход рядом, делает спасбросок Ловкости (2d6 огнём, половина при успехе); бонусным действием двигается на 30 фт, таран — тоже спасбросок',
-    override: { saveAbility: 'dexterity', saveHalfOnSuccess: true },
+    gm: 'Сферу двигают бонусным действием на 30 футов, таран — 2к6 сразу — ведущий',
+    override: {
+      saveAbility: 'dexterity',
+      saveHalfOnSuccess: true,
+      area: { shape: 'SPHERE', size: 5 },
+    },
+    zone: { on: ['END'] },
   },
   'flesh-to-stone': {
     conditions: ['restrained'],
@@ -377,7 +436,8 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   goodberry: { gm: 'До десяти ягод, каждая восстанавливает 1 хит при съедении действием' },
   grease: {
     conditions: ['prone'],
-    gm: 'Область — труднопроходимая местность; входящие и заканчивающие ход в области делают спасбросок Ловкости, иначе падают ничком',
+    gm: 'Клетки — труднопроходимые',
+    zone: { on: ['ENTER', 'END'], onCast: true, conditions: ['prone'] },
   },
   'greater-invisibility': {
     conditions: ['invisible'],
@@ -389,6 +449,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   'guardian-of-faith': {
     gm: 'Страж остаётся, пока не нанесёт 60 урона суммарно; 20 излучения при первом входе в 10 фт на ходу',
+    zone: { on: ['ENTER', 'START'], hostileOnly: true },
   },
   'guards-and-wards': {
     gm: 'Охрана здания: туман в коридорах, запертые двери, паутина на лестницах и доп. эффект; сюжетное',
@@ -434,14 +495,16 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Пир на час; до двенадцати существ получают иммунитет к яду и испугу, преимущество на спасброски Мудрости и +2d10 к максимуму хитов на 24 часа',
   },
   heroism: {
-    gm: 'Временные хиты в начале каждого хода цели и иммунитет к испугу на время — ведущий; система даёт их при сотворении',
     temporaryHitPoints: { addModifier: true },
     removesConditions: ['frightened'],
+    temporaryHitPointsEachTurn: { addModifier: true },
+    conditionImmunities: ['frightened'],
   },
   'hideous-laughter': {
     conditions: ['prone', 'incapacitated'],
     repeatSave: true,
     gm: 'Цель не может встать; спасбросок также при получении урона (с преимуществом); не действует на Интеллект 4 и ниже',
+    saveOnDamage: 'ADVANTAGE',
   },
   'hold-monster': {
     targets: { base: 1, perSlot: 1 },
@@ -474,8 +537,9 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'hypnotic-pattern': {
     conditions: ['charmed', 'incapacitated'],
     modifiers: { speedMultiplier: 0 },
-    gm: 'Эффект на тех, кто видит узор; кончается при уроне или если цель встряхнули действием',
+    gm: 'Очнуться можно и встряской союзника — действием; ведущий снимает руками',
     override: { area: { shape: 'CUBE', size: 30 } },
+    endsOnDamage: true,
   },
   'ice-storm': {
     gm: 'Два вида урона (дробящий 2d8 и холод 4d6); область — сложная местность до конца следующего хода',
@@ -489,9 +553,11 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   'incendiary-cloud': {
     gm: 'Облако сильно заслоняет обзор; повторный Лов-спасбросок и урон при входе/конце хода в зоне; облако сдвигается на 10 фт в начале хода заклинателя; рассеивается ветром',
+    zone: { on: ['ENTER', 'END'] },
   },
   'insect-plague': {
     gm: 'Сфера лёгкого заслонения обзора и труднопроходимая местность; повторный спасбросок и урон при входе за ход или конце хода в области — ведущий',
+    zone: { on: ['ENTER', 'END'], onCast: true },
   },
   'instant-summons': { gm: 'Вызов отмеченного предмета в руку; сюжетное' },
   invisibility: {
@@ -561,6 +627,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'mass-suggestion': {
     targets: { base: 12 },
     gm: 'Внушение на 1–2 фразы; отыгрывает ведущий; кончается, если цели нанесли урон',
+    endsOnDamage: true,
   },
   maze: {
     gm: 'Изгнание в лабиринт, цель действием пытается сбежать: проверка Инт СЛ 20 — ведущий',
@@ -596,7 +663,8 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Изменение памяти о событии за последние 24 часа; урон или другое заклинание на цель прекращает; преимущество на спасбросок, если с целью сражаются',
   },
   moonbeam: {
-    gm: 'Столб на 1 минуту: спасбросок при первом входе за ход или в начале хода в области; действием двигается на 60 фт; оборотни проходят с помехой и возвращаются в истинный облик',
+    gm: 'Луч можно двигать действием на 60 футов — ведущий',
+    zone: { on: ['ENTER', 'START'] },
   },
   'move-earth': {
     gm: 'Переформирование земли вне боя, 10 минут на изменение',
@@ -649,7 +717,13 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'project-image': { gm: 'Иллюзорная копия на расстоянии 500 миль — вне боя' },
   'protection-from-energy': {
     modifiers: { resistances: ['fire'] },
-    gm: 'Выбирается один вид урона: кислота, холод, огонь, молния или гром',
+    variants: [
+      { key: 'acid', modifiers: { resistances: ['acid'] } },
+      { key: 'cold', modifiers: { resistances: ['cold'] } },
+      { key: 'fire', modifiers: { resistances: ['fire'] } },
+      { key: 'lightning', modifiers: { resistances: ['lightning'] } },
+      { key: 'thunder', modifiers: { resistances: ['thunder'] } },
+    ],
   },
   'protection-from-evil-and-good': {
     modifiers: {
@@ -737,7 +811,9 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   simulacrum: { gm: 'Создаёт копию существа с половиной хитов — ведущий' },
   'sleet-storm': {
-    gm: 'Концентрация в зоне — спасбросок Телосложения против сложности заклинателя',
+    gm: 'Концентрация внутри — спасбросок Телосложения; клетки труднопроходимые',
+    override: { saveAbility: 'dexterity' },
+    zone: { on: ['ENTER', 'START'], conditions: ['prone'] },
   },
   slow: {
     targets: { base: 6 },
@@ -754,7 +830,22 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Область 20 фт — труднопроходимая местность; 2d4 колющего за каждые 5 фт перемещения внутри',
   },
   'spirit-guardians': {
-    gm: 'Зона 15 фт: скорость врагов вдвое меньше; урон при входе и в начале хода; излучение или некротика по мировоззрению',
+    gm: 'Скорость врагов в зоне вдвое меньше — ведущий',
+    override: {
+      saveAbility: 'wisdom',
+      saveHalfOnSuccess: true,
+      damageType: 'radiant',
+      damageAtSlotLevel: {
+        '3': '3d8',
+        '4': '4d8',
+        '5': '5d8',
+        '6': '6d8',
+        '7': '7d8',
+        '8': '8d8',
+        '9': '9d8',
+      },
+    },
+    zone: { on: ['ENTER', 'START'], aura: 15, hostileOnly: true },
   },
   'spiritual-weapon': {
     gm: 'Оружие держится 1 минуту; бонусным действием двигается на 20 фт и повторяет атаку заклинанием 1d8 + мод. силой',
@@ -770,6 +861,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   suggestion: {
     gm: 'Внушение действия на длительность; ведущий следит за выполнением и прекращением; вред цели заклинателем и союзниками прерывает',
+    endsOnDamage: true,
   },
   sunbeam: {
     conditions: ['blinded'],
@@ -832,6 +924,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   'wall-of-fire': {
     gm: 'Стена огня непрозрачна; 5d8 огня тому, кто оканчивает ход в 10 фт от выбранной стороны или в стене, либо впервые входит в неё за ход — ведущий',
+    zone: { on: ['ENTER', 'END'], onCast: true },
   },
   'wall-of-force': {
     gm: 'Невидимая стена силы, неуязвима для урона; ведущий отслеживает форму и положение',
@@ -844,6 +937,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   'wall-of-thorns': {
     gm: 'Стена блокирует обзор, движение сквозь неё x4 цена; повторный урон 7d8 колющий-рубящий при входе/конце хода (Лов) — ведущий',
+    zone: { on: ['ENTER'], onCast: true },
   },
   'warding-bond': {
     modifiers: {
@@ -870,9 +964,10 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'water-breathing': { targets: { base: 10 }, gm: 'Дыхание под водой, сюжетное' },
   'water-walk': { targets: { base: 10 }, gm: 'Хождение по жидкости, сюжетное' },
   web: {
-    gm: 'Куб 20 фт — труднопроходимая местность и лёгкая заслонка; спасбросок Ловкости при входе/в начале хода (провал — restrained, освобождение проверкой Силы против СЛ); паутина горит, 2d4 огнём',
+    gm: 'Опутанный вырывается проверкой Силы действием; клетки — труднопроходимые',
     override: { saveAbility: 'dexterity' },
     conditions: ['restrained'],
+    zone: { on: ['ENTER', 'START'], onCast: true, conditions: ['restrained'] },
   },
   weird: {
     conditions: ['frightened'],

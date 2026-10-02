@@ -43,7 +43,9 @@ export interface SpellModifiers {
   incomingFrom?: string[];
   /**
    * Прибавка к урону попаданий оружием носителя («Божественное
-   * благоволение»); `perSlot` — костей за круг ячейки выше.
+   * благоволение»); `perSlot` — костей за круг ячейки выше. Вид
+   * `WEAPON` — того же вида, что и удар («Увеличение»); кости со знаком
+   * минус вычитаются («Уменьшение»).
    */
   weaponDamage?: { dice: string; type: string; perSlot?: number };
   noReactions?: boolean;
@@ -70,6 +72,9 @@ export interface SpellFieldOverride {
   damageTypes?: string[];
   /** Дистанция по тексту, когда SRD пишет «Self», а бьют по другому («Сглаз» — 60 футов). */
   range?: string;
+  /** Кости урона по кругу ячейки, которых SRD не несёт («Духовные стражи» — 3к8). */
+  damageAtSlotLevel?: Record<string, string>;
+  damageType?: string;
 }
 
 /** До начала или конца следующего хода заклинателя или цели. */
@@ -131,12 +136,85 @@ export interface SpellMechanic {
   reaction?: boolean;
   /** Эффект считает сервер своим кодом («Цветной шарик» — запас хитов, как у «Сна»). */
   scripted?: boolean;
+  /** Кончается, когда носитель получает урон («Гипнотический узор», «Очарование личности»). */
+  endsOnDamage?: boolean;
+  /**
+   * Получив урон, носитель повторяет спасбросок («Подчинение личности»);
+   * `'ADVANTAGE'` — с преимуществом («Жуткий смех Таши»).
+   */
+  saveOnDamage?: boolean | 'ADVANTAGE';
+  /** Временные хиты в начале каждого хода носителя («Героизм»). */
+  temporaryHitPointsEachTurn?: { flat?: number; addModifier?: boolean };
+  /** Пока держится — эти состояния на носителя не ложатся («Героизм» — испуг). */
+  conditionImmunities?: ConditionCode[];
+  /**
+   * Союзник заклинателя спасброска не бросает — он согласен
+   * («Увеличение/уменьшение»: спасбросок только у несогласного).
+   */
+  willingAllies?: boolean;
+  /**
+   * Варианты на выбор заклинателя («Защита от энергии» — вид урона,
+   * «Сглаз» — сон, паника или тошнота). Выбранный вариант дополняет
+   * запись: его поля перекрывают общие. Первый — по умолчанию.
+   */
+  variants?: SpellVariant[];
+  /**
+   * Зона на карте («Духовные стражи», «Лунный луч», «Облачко смерти»):
+   * держится, пока держится заклинание, и срабатывает на тех, кто в неё
+   * входит, начинает или кончает в ней ход. Урон и спасбросок — из
+   * полей SRD; `onCast` — срабатывает и при сотворении на тех, кто уже
+   * внутри. `aura` — зона идёт с заклинателем, радиус в футах.
+   * `hostileOnly` — только по врагам заклинателя.
+   */
+  zone?: {
+    on: ('ENTER' | 'START' | 'END')[];
+    onCast?: boolean;
+    aura?: number;
+    hostileOnly?: boolean;
+    /** Что накладывает зона на провале — сверх урона («Паутина» — опутан). */
+    conditions?: ConditionCode[];
+  };
   /** Что остаётся ведущему, словами. */
   gm?: string;
 }
 
+/** Вариант заклинания с выбором: ключ для входа сотворения и следствие. */
+export interface SpellVariant {
+  key: string;
+  conditions?: ConditionCode[];
+  modifiers?: SpellModifiers;
+  temporaryHitPoints?: SpellMechanic['temporaryHitPoints'];
+}
+
 export function spellMechanic(code: string): SpellMechanic | null {
   return SPELL_MECHANICS[code] ?? null;
+}
+
+/**
+ * Механика с выбранным вариантом: следствие целиком берётся из варианта
+ * — у «Сглаза» тошнота не пугает, хоть паника и пугает. Ключ не назван
+ * или не найден — первый вариант: заклинание с выбором без выбора не
+ * сотворяют, и молча остаться без следствия хуже.
+ */
+export function spellMechanicFor(code: string, variant?: string | null): SpellMechanic | null {
+  const base = spellMechanic(code);
+  if (!base?.variants?.length) return base;
+  const chosen = base.variants.find((v) => v.key === variant) ?? base.variants[0];
+  if (!chosen) return base;
+  const { conditions: _c, modifiers: _m, temporaryHitPoints: _t, ...rest } = base;
+  return {
+    ...rest,
+    ...(chosen.conditions ? { conditions: chosen.conditions } : {}),
+    ...(chosen.modifiers ? { modifiers: chosen.modifiers } : {}),
+    ...(chosen.temporaryHitPoints ? { temporaryHitPoints: chosen.temporaryHitPoints } : {}),
+  };
+}
+
+/** Ключ выбранного варианта: названный, если он есть у заклинания, иначе первый. */
+export function spellVariantKey(code: string, variant?: string | null): string | null {
+  const variants = spellMechanic(code)?.variants;
+  if (!variants?.length) return null;
+  return (variants.find((v) => v.key === variant) ?? variants[0])?.key ?? null;
 }
 
 /** Оставляет ли заклинание на цели что-то, что система считает сама. */
@@ -145,7 +223,11 @@ export function hasSpellEffect(mechanic: SpellMechanic | null): boolean {
     mechanic !== null &&
     ((mechanic.conditions?.length ?? 0) > 0 ||
       (mechanic.modifiers !== undefined && Object.keys(mechanic.modifiers).length > 0) ||
-      mechanic.repeatSave === true)
+      mechanic.repeatSave === true ||
+      mechanic.repeatSave !== undefined ||
+      mechanic.temporaryHitPointsEachTurn !== undefined ||
+      (mechanic.conditionImmunities?.length ?? 0) > 0 ||
+      (mechanic.variants?.length ?? 0) > 0)
   );
 }
 
@@ -187,9 +269,14 @@ interface ActiveModifiers {
 export function activeSpellModifiers(effects: readonly SpellEffectRow[]): ActiveModifiers[] {
   return effects.flatMap((effect) => {
     if (effect.code !== SPELL_EFFECT_CODE || !effect.spellCode) return [];
-    const modifiers = spellMechanic(effect.spellCode)?.modifiers;
+    const data = (effect.data ?? null) as {
+      acMinimum?: unknown;
+      weaponDice?: unknown;
+      variant?: unknown;
+    } | null;
+    const variant = typeof data?.variant === 'string' ? data.variant : null;
+    const modifiers = spellMechanicFor(effect.spellCode, variant)?.modifiers;
     if (!modifiers) return [];
-    const data = (effect.data ?? null) as { acMinimum?: unknown; weaponDice?: unknown } | null;
     const computed: SpellModifiers = {};
     if (typeof data?.acMinimum === 'number') computed.acMinimum = data.acMinimum;
     if (typeof data?.weaponDice === 'string' && modifiers.weaponDamage) {
@@ -348,7 +435,8 @@ export type SpellEffectSummaryItem =
   | { key: 'noReactions' | 'noHealing' | 'repeatSave' | 'endsWhenBearerAttacks' };
 
 export function spellEffectSummary(spellCode: string, data?: unknown): SpellEffectSummaryItem[] {
-  const mechanic = spellMechanic(spellCode);
+  const variant = (data as { variant?: unknown } | null | undefined)?.variant;
+  const mechanic = spellMechanicFor(spellCode, typeof variant === 'string' ? variant : null);
   if (!mechanic) return [];
   const [active] = activeSpellModifiers([{ code: SPELL_EFFECT_CODE, spellCode, data }]);
   const m = active?.modifiers ?? {};
@@ -424,6 +512,10 @@ export function withSpellOverride<
     next.damageAtLevel = null;
   }
   if (override.heal === false) next.healAtSlotLevel = null;
+  if (override.damageAtSlotLevel) next.damageAtSlotLevel = override.damageAtSlotLevel;
+  if (override.damageType && 'damageType' in spell) {
+    (next as { damageType?: string }).damageType = override.damageType;
+  }
   if (override.range !== undefined && 'range' in spell)
     (next as { range?: string }).range = override.range;
   if (override.area !== undefined && 'areaShape' in spell) {

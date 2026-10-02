@@ -113,6 +113,11 @@ export const castInputSchema = z
      * сам заклинатель, а куда он встанет, задаёт эта клетка.
      */
     destination: targetCellSchema.optional(),
+    /**
+     * Вариант заклинания с выбором («Защита от энергии» — вид урона,
+     * «Сглаз» — сон, паника, тошнота): ключ из `SpellMechanic.variants`.
+     */
+    variant: z.string().trim().min(1).max(32).optional(),
     /** Ход властью ведущего — та же дверь, что и у удара. */
     override: z.boolean().optional(),
   })
@@ -271,7 +276,7 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
       .array(
         z.object({
           spellCode: z.string().min(1).max(64),
-          dice: z.string().regex(/^\d+d\d+$/),
+          dice: z.string().regex(/^-?\d+d\d+$/),
           type: z.string().min(1).max(40),
         }),
       )
@@ -336,7 +341,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
           spellCode: z.string().min(1).max(64),
           notation: rollShape.notation,
           results: z.array(z.number().int().min(1).max(100)).max(20),
-          amount: z.number().int().min(0),
+          // Со знаком: «Уменьшение» отнимает 1к4 от удара.
+          amount: z.number().int(),
           type: z.string().min(1).max(40),
         }),
       )
@@ -427,6 +433,13 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     reaction: z.boolean().optional(),
     /** «Щит» превратил незакрытое попадание в промах. */
     turnedHitIntoMiss: z.boolean().optional(),
+    /**
+     * «Святилище» на цели: заклинатель провалил спасбросок Мудрости, и
+     * против этой цели заклинание потеряно.
+     */
+    sanctuaryBlocked: z.array(z.uuid()).max(40).optional(),
+    /** Выбранный вариант («Защита от энергии» — какой вид урона). */
+    variant: z.string().min(1).max(32).optional(),
   }),
   z.object({
     kind: z.literal('SAVE'),
@@ -449,6 +462,10 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     advantageMode: advantageModeSchema.optional(),
     /** Повторный спасбросок в конце хода цели: успех снимает наложенное. */
     repeat: z.boolean().optional(),
+    /** Спасбросок от урона по носителю («Подчинение личности»). */
+    onDamage: z.boolean().optional(),
+    /** Сработала зона заклинания: вошёл, начал или кончил в ней ход. */
+    trigger: z.enum(['ENTER', 'START', 'END']).optional(),
     /** Заклинатель, чья это сложность, — если не он сейчас ходит («Святилище»). */
     casterParticipantId: z.uuid().optional(),
   }),

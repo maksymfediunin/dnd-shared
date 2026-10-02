@@ -5,6 +5,7 @@ import { SPELL_MECHANICS } from './spell-mechanics.data.js';
 import {
   armorClassWithEffects,
   attackDiceFrom,
+  resistancesWithEffects,
   rollSignedDice,
   SPELL_EFFECT_CODE,
   saveAdvantageFrom,
@@ -12,8 +13,10 @@ import {
   speedWithEffects,
   spellConditionEffects,
   spellEffectSummary,
+  spellMechanicFor,
   spellRayCount,
   spellTargetLimit,
+  spellVariantKey,
   weaponDamageFrom,
   weaponDiceAtSlot,
 } from './spell-mechanics.js';
@@ -172,5 +175,42 @@ describe('механика заклинаний', () => {
         expect(conditions.has(c), `${code}: ${c}`).toBe(true);
       }
     }
+  });
+});
+
+describe('варианты, зоны и следствия урона', () => {
+  it('вариант целиком задаёт следствие', () => {
+    expect(spellMechanicFor('eyebite', 'sickened')?.conditions).toBeUndefined();
+    expect(spellMechanicFor('eyebite', 'sickened')?.modifiers?.ownAttacks).toBe('DISADVANTAGE');
+    expect(spellMechanicFor('eyebite', 'asleep')?.conditions).toEqual(['unconscious']);
+    expect(spellMechanicFor('protection-from-energy', 'cold')?.modifiers?.resistances).toEqual([
+      'cold',
+    ]);
+    // Без выбора — первый вариант.
+    expect(spellVariantKey('fire-shield', null)).toBe('warm');
+    expect(spellVariantKey('fire-shield', 'nonsense')).toBe('warm');
+    expect(spellVariantKey('bless', 'x')).toBeNull();
+  });
+
+  it('эффект помнит вариант: «Защита от энергии» от холода режет холод', () => {
+    const effects = [on('protection-from-energy', { variant: 'cold' })];
+    expect(resistancesWithEffects([], effects)).toEqual(['cold']);
+  });
+
+  it('«Духовные стражи» получили урон и спасбросок, которых нет в SRD', () => {
+    const plan = spellDamagePlan(
+      {
+        code: 'spirit-guardians',
+        level: 3,
+        attackType: null,
+        saveAbility: null,
+        damageType: null,
+        damageAtSlotLevel: null,
+        damageAtLevel: null,
+        healAtSlotLevel: null,
+      },
+      { slotLevel: 4 },
+    );
+    expect(plan).toEqual({ kind: 'DAMAGE', dice: '4d8', modifier: 0, type: 'radiant' });
   });
 });
