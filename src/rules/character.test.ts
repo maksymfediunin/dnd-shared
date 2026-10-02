@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   armorClass,
   initiative,
+  initiativeParts,
   maxHitPoints,
   passivePerception,
   savingThrow,
+  savingThrowParts,
   skillBonus,
+  skillParts,
+  sumParts,
 } from './character.js';
 
 /** Профили из справочника: кольчуга, кожаная броня, кольчужная рубаха. */
@@ -88,5 +92,52 @@ describe('пассивная Внимательность и инициатив�
   it('инициатива — модификатор Ловкости', () => {
     expect(initiative(3)).toBe(3);
     expect(initiative(-2)).toBe(-2);
+  });
+});
+
+// Число листа — сумма частей, и расклад, который видит стол, не может с
+// ним разойтись ни при каком сочетании владения.
+describe('части модификатора', () => {
+  it('навык: сумма частей — бонус навыка при любом владении', () => {
+    for (const proficiency of [null, 'PROFICIENT', 'EXPERTISE'] as const) {
+      for (const halfProficiency of [false, true]) {
+        const input = { abilityModifier: 3, proficiencyBonus: 3, proficiency, halfProficiency };
+        expect(sumParts(skillParts('wisdom', input))).toBe(skillBonus(input));
+      }
+    }
+  });
+
+  it('компетентность — отдельной частью рядом с мастерством', () => {
+    expect(
+      skillParts('dexterity', {
+        abilityModifier: 2,
+        proficiencyBonus: 2,
+        proficiency: 'EXPERTISE',
+      }),
+    ).toEqual([
+      { source: 'dexterity', value: 2 },
+      { source: 'proficiency', value: 2 },
+      { source: 'expertise', value: 2 },
+    ]);
+  });
+
+  it('спасбросок: характеристика и мастерство только при владении', () => {
+    expect(
+      savingThrowParts('wisdom', { abilityModifier: 1, proficiencyBonus: 2, isProficient: true }),
+    ).toEqual([
+      { source: 'wisdom', value: 1 },
+      { source: 'proficiency', value: 2 },
+    ]);
+    expect(
+      savingThrowParts('wisdom', { abilityModifier: 1, proficiencyBonus: 2, isProficient: false }),
+    ).toEqual([{ source: 'wisdom', value: 1 }]);
+  });
+
+  it('инициатива: Ловкость и мастер на все руки', () => {
+    expect(initiativeParts(2, 1)).toEqual([
+      { source: 'dexterity', value: 2 },
+      { source: 'jackOfAllTrades', value: 1 },
+    ]);
+    expect(sumParts(initiativeParts(-1))).toBe(initiative(-1));
   });
 });

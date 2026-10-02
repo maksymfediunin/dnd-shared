@@ -210,6 +210,13 @@ export interface SpellDiceRoll {
   /** `null` — броска нет, есть только число прибавки. */
   dice: string | null;
   modifier: number;
+  /**
+   * Прибавка — модификатор заклинателя («+ MOD» записи SRD), а не число
+   * самого заклинания: стол видит её как «Мудрость +3», а не «+3»
+   * (docs/2026-10-02-roll-modifier-parts-design.md). Только `true` —
+   * чтобы прочие разборы оставались прежней формы.
+   */
+  fromCaster?: true;
 }
 
 /**
@@ -233,9 +240,9 @@ export function parseSpellDice(
   const [, dice, bonus, flat] = match;
   if (flat !== undefined) return { dice: null, modifier: Number(flat) };
 
-  const modifier =
-    bonus === undefined ? 0 : bonus.toLowerCase() === 'mod' ? spellcastingModifier : Number(bonus);
-  return { dice: dice as string, modifier };
+  const fromCaster = bonus?.toLowerCase() === 'mod';
+  const modifier = bonus === undefined ? 0 : fromCaster ? spellcastingModifier : Number(bonus);
+  return { dice: dice as string, modifier, ...(fromCaster ? { fromCaster: true as const } : {}) };
 }
 
 /** Дистанция «касание» — соседняя клетка, как у ближнего оружия (PHB). */
