@@ -176,6 +176,32 @@ describe('механика заклинаний', () => {
       }
     }
   });
+
+  // Точка — это клетка без существа: цели-фишки у такого заклинания нет,
+  // и всё, что ложится на цель или требует её, с точкой спорит.
+  it('заклинание в точку не ждёт фишки-цели и не несёт на неё следствий', () => {
+    const points = Object.entries(SPELL_MECHANICS).filter(([, mechanic]) => mechanic.point);
+    expect(points.map(([code]) => code)).toEqual(
+      expect.arrayContaining(['dancing-lights', 'mage-hand', 'minor-illusion', 'wall-of-stone']),
+    );
+    for (const [code, m] of points) {
+      const clash = {
+        teleportFeet: m.teleportFeet,
+        selfOnly: m.selfOnly,
+        notSelf: m.notSelf,
+        targets: m.targets,
+        rays: m.rays,
+        bearer: m.bearer,
+        conditions: m.conditions,
+        modifiers: m.modifiers,
+        variants: m.variants,
+      };
+      expect(
+        Object.fromEntries(Object.entries(clash).filter(([, value]) => value !== undefined)),
+        code,
+      ).toEqual({});
+    }
+  });
 });
 
 describe('варианты, зоны и следствия урона', () => {
