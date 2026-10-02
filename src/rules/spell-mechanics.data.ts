@@ -24,9 +24,11 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'animal-messenger': { gm: 'Зверь-посыльный доставляет сообщение — сюжетное' },
   'animal-shapes': { gm: 'Превращает согласных существ в зверей CR ≤4 — ведущий' },
   'animate-dead': {
+    point: true,
     gm: 'Поднимает скелета или зомби под контроль заклинателя — ведущий добавляет вручную',
   },
   'animate-objects': {
+    point: true,
     gm: 'Оживляет до десяти предметов как существ под контролем заклинателя — ведущий добавляет их по таблице размеров',
   },
   'antilife-shell': {
@@ -40,6 +42,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   'arcane-eye': { gm: 'Невидимое магическое око для разведки' },
   'arcane-hand': {
+    point: true,
     gm: 'Рука силы (КД 20, хиты = макс. хитам заклинателя): бонусным действием кулак (атака заклинанием, 4d8 силы), толчок, захват (удар 2d6+мод.) или заслон; ведущий управляет вручную',
   },
   'arcane-lock': { gm: 'Запирает вход, СЛ взлома +10 — сюжетное' },
@@ -134,7 +137,10 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     modifiers: { noHealing: true },
     until: { who: 'CASTER', at: 'START' },
   },
-  clairvoyance: { gm: 'Невидимый сенсор для зрения или слуха — разведка, решает ведущий' },
+  clairvoyance: {
+    point: true,
+    gm: 'Невидимый сенсор для зрения или слуха — разведка, решает ведущий',
+  },
   clone: { gm: 'Создаёт инертный клон на случай смерти — вне боя' },
   cloudkill: {
     gm: 'Облако смещается на 10 футов от заклинателя в начале каждого его хода — ведущий',
@@ -162,18 +168,23 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     repeatSave: true,
     gm: 'В начале хода цель бросает d10: случайное движение, бездействие, атака ближнего боя по случайной цели или обычные действия',
   },
-  'conjure-animals': { gm: 'Призывает зверей (феи) — ведущий добавляет их вручную' },
+  'conjure-animals': { point: true, gm: 'Призывает зверей (феи) — ведущий добавляет их вручную' },
   'conjure-celestial': {
+    point: true,
     gm: 'Призывает небожителя CR 4 (CR 5 на 9-м круге) — ведущий добавляет вручную',
   },
   'conjure-elemental': {
     gm: 'Призывает элементаля CR 5 — ведущий добавляет его; при потере концентрации тот становится враждебным',
   },
   'conjure-fey': {
+    point: true,
     gm: 'Призывает фею CR 6 — ведущий добавляет её; при потере концентрации становится враждебной',
   },
-  'conjure-minor-elementals': { gm: 'Призывает элементалей — ведущий добавляет их вручную' },
-  'conjure-woodland-beings': { gm: 'Призывает фей — ведущий добавляет их вручную' },
+  'conjure-minor-elementals': {
+    point: true,
+    gm: 'Призывает элементалей — ведущий добавляет их вручную',
+  },
+  'conjure-woodland-beings': { point: true, gm: 'Призывает фей — ведущий добавляет их вручную' },
   'contact-other-plane': {
     gm: 'Заклинатель сам делает спасбросок Интеллекта СЛ 15: на провале 6d6 психического урона и безумие до долгого отдыха, иначе пять вопросов; решает ведущий',
     override: { saveAbility: null },
@@ -189,16 +200,18 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Прерывает чужое заклинание; проверка заклинательной характеристики против 10 + круг — решает ведущий',
     reaction: true,
   },
-  'create-food-and-water': { gm: 'Создаёт еду и воду — вне боя' },
+  'create-food-and-water': { point: true, gm: 'Создаёт еду и воду — вне боя' },
   'create-or-destroy-water': { gm: 'Создание или уничтожение воды, решает ведущий' },
   'create-undead': {
+    point: true,
     gm: 'Превращает до трёх трупов в упырей под контролем заклинателя на 24 часа; только ночью',
   },
   creation: {
+    point: true,
     gm: 'Создаёт неживой предмет не больше куба 5 фт; сюжетное',
     override: { area: null },
   },
-  'dancing-lights': { gm: 'Световые огни, перемещаются бонусным действием' },
+  'dancing-lights': { point: true, gm: 'Световые огни, перемещаются бонусным действием' },
   darkvision: { gm: 'Тёмное зрение 60 фт на 8 часов — решает ведущий' },
   daylight: {
     gm: 'Свет: яркий в 60 фт и тусклый ещё 60; рассеивает тьму заклинаний 3-го круга и ниже',
@@ -209,7 +222,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'delayed-blast-fireball': {
     gm: 'Урон при окончании заклинания, а не при сотворении: база 12d6 (+1d6 за каждый конец хода заклинателя без взрыва); бусину можно коснуться/бросить на 40 фт',
   },
-  demiplane: { gm: 'Дверь в карманное измерение — ведущий' },
+  demiplane: { point: true, gm: 'Дверь в карманное измерение — ведущий' },
   'detect-evil-and-good': { gm: 'Обнаружение существ и мест в 30 футах, сообщает ведущий' },
   'detect-magic': { gm: 'Обнаружение магии в 30 футах, сообщает ведущий' },
   'detect-poison-and-disease': { gm: 'Обнаружение ядов и болезней в 30 футах, сообщает ведущий' },
@@ -262,7 +275,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Сон-послание, цель должна спать; при кошмаре спасбросок Мудрости, на провале нет пользы от отдыха и 3d6 психического урона при пробуждении',
     override: { damage: false, saveAbility: null },
   },
-  druidcraft: { gm: 'Мелкие природные эффекты, решает ведущий' },
+  druidcraft: { point: true, gm: 'Мелкие природные эффекты, решает ведущий' },
   earthquake: {
     gm: 'Зона 100 фт — труднопроходимая; на земле существа: Тел-спасбросок на сброс концентрации, Лов-спасбросок на сбивание с ног (при сотворении и в конце хода заклинателя); трещины, обрушение построек (50 дробящего) — ведущий',
   },
@@ -318,12 +331,13 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     ],
     endsOnDamage: true,
   },
-  fabricate: { gm: 'Превращает сырьё в изделия — вне боя' },
+  fabricate: { point: true, gm: 'Превращает сырьё в изделия — вне боя' },
   'faerie-fire': {
     modifiers: { incoming: 'ADVANTAGE' },
     gm: 'Объекты тоже подсвечиваются; подсвеченные не получают выгоды от невидимости и светят тусклым светом',
   },
   'faithful-hound': {
+    point: true,
     gm: 'Пёс невидим и неуязвим, лает на приближение, в начале хода заклинателя кусает врага рядом: 4d8 колющего',
     override: { attackType: null, damage: false },
   },
@@ -345,10 +359,10 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   feeblemind: {
     gm: 'Провал Инт-спасброска: Инт и Хар становятся 1, не может колдовать и говорить; повтор спасброска раз в 30 дней',
   },
-  'find-familiar': { gm: 'Призывает фамильяра — ведущий добавляет его вручную' },
-  'find-steed': { gm: 'Призывает скакуна — ведущий добавляет его вручную' },
+  'find-familiar': { point: true, gm: 'Призывает фамильяра — ведущий добавляет его вручную' },
+  'find-steed': { point: true, gm: 'Призывает скакуна — ведущий добавляет его вручную' },
   'find-the-path': { gm: 'Находит кратчайший путь к известному месту; сюжетное' },
-  'find-traps': { gm: 'Обнаруживает ловушки — решает ведущий' },
+  'find-traps': { selfOnly: true, gm: 'Обнаруживает ловушки — решает ведущий' },
   'finger-of-death': { gm: 'Гуманоид, убитый заклинанием, встаёт зомби под контролем заклинателя' },
   'fire-bolt': { gm: 'Горючий предмет загорается' },
   'fire-shield': {
@@ -381,7 +395,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     conditions: ['restrained'],
     gm: 'В конце каждого хода цели спасбросок Телосложения: три успеха снимают, три провала — окаменение (petrified) на срок; счёт ведёт ведущий',
   },
-  'floating-disk': { gm: 'Парящий диск для груза, решает ведущий' },
+  'floating-disk': { point: true, gm: 'Парящий диск для груза, решает ведущий' },
   fly: {
     targets: { base: 1, perSlot: 1 },
     gm: 'Цель получает скорость полёта 60 фт; по окончании падает',
@@ -418,13 +432,16 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     modifiers: { saveAdvantage: ['strength', 'dexterity', 'constitution'] },
     gm: 'Туманное облако: полёт 10 фт, сопротивление немагическому урону, не может атаковать и колдовать',
   },
-  gate: { gm: 'Портал на другой план, может притянуть названное существо — ведущий' },
+  gate: { point: true, gm: 'Портал на другой план, может притянуть названное существо — ведущий' },
   geas: {
     conditions: ['charmed'],
     gm: 'Очарованная цель получает 5d10 психического урона, действуя прямо против приказа (не чаще раза в день); самоубийственный приказ прекращает заклинание',
   },
   'gentle-repose': { gm: 'Защищает труп от разложения — сюжетное' },
-  'giant-insect': { gm: 'Превращает насекомых в гигантских — ведущий добавляет их вручную' },
+  'giant-insect': {
+    point: true,
+    gm: 'Превращает насекомых в гигантских — ведущий добавляет их вручную',
+  },
   glibness: { gm: 'В проверках Харизмы можно заменить бросок на 15; ложь не определяется магией' },
   'globe-of-invulnerability': {
     selfOnly: true,
@@ -492,6 +509,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     reaction: true,
   },
   'heroes-feast': {
+    point: true,
     gm: 'Пир на час; до двенадцати существ получают иммунитет к яду и испугу, преимущество на спасброски Мудрости и +2d10 к максимуму хитов на 24 часа',
   },
   heroism: {
@@ -574,7 +592,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Цель тратит всё движение на танец, не покидая клетки; действием делает спасбросок Мудрости, успех кончает заклинание; не действует на тех, кого нельзя очаровать',
   },
   jump: { gm: 'Дальность прыжка утраивается' },
-  knock: { gm: 'Открывает замок или засов — сюжетное' },
+  knock: { point: true, gm: 'Открывает замок или засов — сюжетное' },
   'legend-lore': { gm: 'Сведения о предании; решает ведущий' },
   'lesser-restoration': {
     removesConditions: ['blinded', 'deafened', 'paralyzed', 'poisoned'],
@@ -595,7 +613,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     modifiers: { acBase: 13 },
     gm: 'Только на существо без доспехов; кончается, если цель надела доспех',
   },
-  'mage-hand': { gm: 'Призрачная рука, управляется действием' },
+  'mage-hand': { point: true, gm: 'Призрачная рука, управляется действием' },
   'magic-circle': {
     gm: 'Круг против выбранного типа существ: не входят, помеха атакам по целям внутри, нельзя очаровать/испугать',
     override: { saveAbility: null },
@@ -607,12 +625,15 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     targets: { base: 3, perSlot: 1 },
     rays: { base: 3, perSlot: 1, dice: '1d4 + 1' },
   },
-  'magic-mouth': { gm: 'Говорящий рот по условию — сюжетное' },
+  'magic-mouth': { point: true, gm: 'Говорящий рот по условию — сюжетное' },
   'magic-weapon': {
     gm: 'Оружие становится магическим с +1 к атаке и урону (+2 с 4-го круга, +3 с 6-го) — применяет ведущий',
   },
   'magnificent-mansion': { gm: 'Экстрапланарное жилище на 24 часа — вне боя' },
-  'major-image': { gm: 'Иллюзия размером до куба 20 фт — ведущий решает, кто её распознал' },
+  'major-image': {
+    point: true,
+    gm: 'Иллюзия размером до куба 20 фт — ведущий решает, кто её распознал',
+  },
   'mass-cure-wounds': {
     targets: { base: 6 },
     gm: 'Не действует на нежить и конструктов',
@@ -645,6 +666,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Иммунитет к психическому урону, чтению мыслей, предсказаниям и очарованию на 24 часа',
   },
   'minor-illusion': {
+    point: true,
     gm: 'Иллюзия звука или образа; проверка Расследования против СЛ заклинателя',
   },
   'mirage-arcane': { gm: 'Иллюзия местности на милю — вне боя' },
@@ -667,6 +689,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     zone: { on: ['ENTER', 'START'] },
   },
   'move-earth': {
+    point: true,
     gm: 'Переформирование земли вне боя, 10 минут на изменение',
     override: { area: null },
   },
@@ -674,22 +697,28 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'pass-without-trace': {
     gm: '+10 к Скрытности и нет следов для союзников в 30 фт — решает ведущий',
   },
-  passwall: { gm: 'Проход в стене 5×8×20 фт; сюжетное' },
+  passwall: { point: true, gm: 'Проход в стене 5×8×20 фт; сюжетное' },
   'phantasmal-killer': {
     conditions: ['frightened'],
     repeatSave: true,
     gm: 'Каждый ход цели: спасбросок Мудрости, на провале 4d10 психического урона (+1d10 за круг выше 4-го), на успехе заклинание кончается',
     override: { damage: false },
   },
-  'phantom-steed': { gm: 'Призрачный конь (скорость 100 фт) — ведущий добавляет вручную' },
-  'planar-ally': { gm: 'Призыв потустороннего существа за плату — ведущий' },
+  'phantom-steed': {
+    point: true,
+    gm: 'Призрачный конь (скорость 100 фт) — ведущий добавляет вручную',
+  },
+  'planar-ally': { point: true, gm: 'Призыв потустороннего существа за плату — ведущий' },
   'planar-binding': {
     gm: 'Связывает небожителя, элементаля, фею или исчадие на срок; цель на провале служит заклинателю — ведущий',
   },
   'plane-shift': {
     gm: 'Перенос на другой план; на недобровольную цель — атака заклинанием ближнего боя, при попадании Хар-спасбросок и изгнание на выбранный план',
   },
-  'plant-growth': { gm: 'Заросли: движение через область стоит вдвое дороже — ведущий' },
+  'plant-growth': {
+    point: true,
+    gm: 'Заросли: движение через область стоит вдвое дороже — ведущий',
+  },
   polymorph: {
     gm: 'Превращение в зверя: ведущий подменяет статы и хиты цели вручную; при 0 хитов форма спадает',
   },
@@ -699,7 +728,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     targets: { base: 6 },
     gm: 'Время сотворения 10 минут — вне боя; не действует на нежить и конструктов',
   },
-  prestidigitation: { gm: 'Мелкие фокусы по выбору, решает ведущий' },
+  prestidigitation: { point: true, gm: 'Мелкие фокусы по выбору, решает ведущий' },
   'prismatic-spray': {
     gm: 'Для каждой цели d8 определяет луч: 1 огонь, 2 кислота, 3 электричество, 4 яд, 5 холод — по 10d6 (Лов, половина); 6 Индиго — опутана, 3 Тел-спасброска до окаменения/снятия; 7 Фиолетовый — ослеплена, Мдр-спасбросок, перенос на другой план; 8 — два луча',
   },
@@ -714,7 +743,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     override: { range: '30 feet' },
   },
   'programmed-illusion': { gm: 'Иллюзия по условию-триггеру — ведущий' },
-  'project-image': { gm: 'Иллюзорная копия на расстоянии 500 миль — вне боя' },
+  'project-image': { point: true, gm: 'Иллюзорная копия на расстоянии 500 миль — вне боя' },
   'protection-from-energy': {
     modifiers: { resistances: ['fire'] },
     variants: [
@@ -737,7 +766,10 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     modifiers: { resistances: ['poison'] },
     gm: 'Нейтрализует один яд; на 1 час преимущество на спасброски от отравления',
   },
-  'purify-food-and-drink': { gm: 'Очищает еду и питьё от яда и болезней — решает ведущий' },
+  'purify-food-and-drink': {
+    point: true,
+    gm: 'Очищает еду и питьё от яда и болезней — решает ведущий',
+  },
   'raise-dead': {
     gm: 'Возвращает мёртвого к жизни с 1 хитом, штраф −4 ко всем броскам, убывает с долгим отдыхом',
   },
@@ -823,7 +855,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     override: { area: null },
   },
   'speak-with-animals': { gm: 'Понимание зверей — разговорный эффект, решает ведущий' },
-  'speak-with-dead': { gm: 'Труп отвечает на пять вопросов — сюжетное' },
+  'speak-with-dead': { point: true, gm: 'Труп отвечает на пять вопросов — сюжетное' },
   'speak-with-plants': { gm: 'Растения общаются; меняют проходимость местности — ведущий' },
   'spider-climb': { gm: 'Лазание по стенам и потолку — решает ведущий' },
   'spike-growth': {
@@ -885,14 +917,15 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     override: { area: null },
   },
   'teleportation-circle': {
+    point: true,
     gm: 'Портал к постоянному кругу телепортации; сюжетное',
     override: { area: null },
   },
-  thaumaturgy: { gm: 'Мелкие знамения, решает ведущий' },
+  thaumaturgy: { point: true, gm: 'Мелкие знамения, решает ведущий' },
   'time-stop': { gm: 'Заклинатель берёт 1d4+1 хода подряд — ведущий' },
   'tiny-hut': { gm: 'Неподвижный купол силового поля, пропускает только внутренних — ведущий' },
   tongues: { gm: 'Понимание любого языка — сюжетное' },
-  'transport-via-plants': { gm: 'Портал между растениями — ведущий' },
+  'transport-via-plants': { point: true, gm: 'Портал между растениями — ведущий' },
   'tree-stride': {
     gm: 'Перемещение через деревья одного вида в пределах 500 фт; ведущий разруливает',
   },
@@ -909,6 +942,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     until: { who: 'CASTER', at: 'END' },
   },
   'unseen-servant': {
+    point: true,
     gm: 'Призывает невидимого слугу для простых дел — ведущий ведёт его вручную',
   },
   'vampiric-touch': {
@@ -927,12 +961,14 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     zone: { on: ['ENTER', 'END'], onCast: true },
   },
   'wall-of-force': {
+    point: true,
     gm: 'Невидимая стена силы, неуязвима для урона; ведущий отслеживает форму и положение',
   },
   'wall-of-ice': {
     gm: 'Стена льда (КД 12, 30 хп на секцию, уязвима к огню); холодный воздух при проходе — Тел-спасбросок, 5d6 холода; ведущий',
   },
   'wall-of-stone': {
+    point: true,
     gm: 'Каменная стена (КД 15, 30 хитов за дюйм толщины); существо в замкнутом пространстве делает спасбросок Ловкости и реакцией выходит; ведущий',
   },
   'wall-of-thorns': {
