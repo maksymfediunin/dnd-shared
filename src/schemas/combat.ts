@@ -16,6 +16,7 @@ import {
 } from '../enums/conditions.js';
 import { advantageModeSchema } from '../enums/dice.js';
 import { localeSchema } from '../enums/locale.js';
+import { MAP_MAX_GRID } from '../enums/map.js';
 import { spellSlotLevelSchema } from '../enums/spells.js';
 
 /**
@@ -99,14 +100,36 @@ export const castInputSchema = z
     spellCode: z.string().trim().min(1).max(64),
     slotLevel: spellSlotLevelSchema.optional(),
     targetId: z.uuid().optional(),
+    /**
+     * Несколько фишек: «Благословение» на троих, лучи «Палящего луча»
+     * по разным целям. Для лучей фишка может повторяться — два луча в
+     * одну цель. Сколько можно, проверяет служба (`spellTargetLimit`,
+     * `spellRayCount`): число зависит от круга ячейки.
+     */
+    targetIds: z.array(z.uuid()).min(1).max(20).optional(),
     cell: targetCellSchema.optional(),
+    /**
+     * Клетка переноса — «Туманный шаг», «Переносящая дверь»: цель —
+     * сам заклинатель, а куда он встанет, задаёт эта клетка.
+     */
+    destination: targetCellSchema.optional(),
+    /**
+     * Вариант заклинания с выбором («Защита от энергии» — вид урона,
+     * «Сглаз» — сон, паника, тошнота): ключ из `SpellMechanic.variants`.
+     */
+    variant: z.string().trim().min(1).max(32).optional(),
     /** Ход властью ведущего — та же дверь, что и у удара. */
     override: z.boolean().optional(),
   })
-  .refine((v) => (v.targetId === undefined) !== (v.cell === undefined), {
-    path: ['targetId'],
-    message: 'Заклинание бьёт либо по фишке, либо по клетке',
-  });
+  .refine(
+    (v) =>
+      [v.targetId, v.cell, v.targetIds, v.destination].filter((aim) => aim !== undefined).length ===
+      1,
+    {
+      path: ['targetId'],
+      message: 'Заклинание бьёт либо по фишке, либо по фишкам, либо по клетке',
+    },
+  );
 export type CastInput = z.infer<typeof castInputSchema>;
 
 /** Перенос метки охотника на новую цель — бонусным действием, без ячейки. */
@@ -199,11 +222,14 @@ export const MODIFIER_SOURCES = [
   'dueling',
   'rage',
   'unarmed',
+  /** Кость заклинания на носителе («Благословение» +1к4, «Порча» −1к4) — код в `spellCode`. */
+  'spell',
 ] as const;
 
 export const modifierPartSchema = z.object({
   source: z.enum(MODIFIER_SOURCES),
   value: z.number().int(),
+  spellCode: z.string().min(1).max(64).optional(),
 });
 export type ModifierPart = z.infer<typeof modifierPartSchema>;
 
@@ -241,6 +267,34 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     canSmite: z.boolean().optional(),
     /** Цель под меткой охотника бьющего: урон добавит 1к6 (на крите 2к6). */
     huntersMarkDice: z.number().int().min(1).max(2).optional(),
+    /**
+     * Прибавки заклинаний к урону этого удара («Божественное
+     * благоволение» 1к4 излучением, «Клеймящая кара» 2к6) — каждая
+     * ляжет своей строкой урона своего вида.
+     */
+    spellDamage: z
+      .array(
+        z.object({
+          spellCode: z.string().min(1).max(64),
+          dice: z.string().regex(/^-?\d+d\d+$/),
+          type: z.string().min(1).max(40),
+        }),
+      )
+      .max(5)
+      .optional(),
+    /**
+     * «Святилище» на цели: атакующий провалил спасбросок Мудрости, и
+     * атака потеряна — бросок попадания не делался.
+     */
+    sanctuary: z
+      .object({
+        ...rollShape,
+        total: z.number().int(),
+        dc: z.number().int().min(1),
+      })
+      .optional(),
+    /** Атака заклинанием — каким. */
+    spellCode: z.string().min(1).max(64).optional(),
     /** Атака при отходе — реакция, брошенная сервером сама (§6 дизайна доработок). */
     opportunity: z.boolean().optional(),
     /** Из чего сложен бонус к попаданию; сумма частей — модификатор броска. */
@@ -276,6 +330,24 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     sneakAttackDice: z.number().int().min(1).max(20).optional(),
     smiteDice: z.number().int().min(1).max(20).optional(),
     huntersMarkDice: z.number().int().min(1).max(2).optional(),
+    /**
+     * Прибавки заклинаний к урону удара («Божественное благоволение»
+     * 1к4 излучением) — уже внутри `amount`, каждая со своим видом:
+     * сопротивление режет их порознь.
+     */
+    spellBonus: z
+      .array(
+        z.object({
+          spellCode: z.string().min(1).max(64),
+          notation: rollShape.notation,
+          results: z.array(z.number().int().min(1).max(100)).max(20),
+          // Со знаком: «Уменьшение» отнимает 1к4 от удара.
+          amount: z.number().int(),
+          type: z.string().min(1).max(40),
+        }),
+      )
+      .max(5)
+      .optional(),
     /** Из чего сложен модификатор урона; нет у ручного урона ведущего. */
     damageParts: modifierPartsSchema,
     temporaryAbsorbed: z.number().int().min(0),
@@ -303,11 +375,13 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
      * Клетки области теми же ключами, какие складывает `cellKey` и
      * возвращает `cellsInArea`: подсветка на карте и разбор строки
      * журнала обязаны видеть одни и те же клетки. Пусто у заклинания
-     * по фишке — области у него нет.
+     * по фишке — области у него нет. Потолок — вся сетка: прежние 400
+     * клеток роняли сотворение «Дневного света» и «Солнечного взрыва»
+     * отказом проверки, а область больше сетки не бывает.
      */
     areaCells: z
       .array(z.string().regex(/^\d+:\d+$/))
-      .max(400)
+      .max(MAP_MAX_GRID * MAP_MAX_GRID)
       .optional(),
     /**
      * Почему машинного расчёта не вышло, хотя машинные поля у
@@ -334,6 +408,38 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
       .array(z.object({ participantId: z.uuid(), x: z.number().int(), y: z.number().int() }))
       .max(40)
       .optional(),
+    /** Куда перенёсся заклинатель («Туманный шаг»). */
+    teleported: z.object({ x: z.number().int(), y: z.number().int() }).optional(),
+    /** На кого легло следствие заклинания (провалившие спасбросок, задетые атакой). */
+    affectedIds: z.array(z.uuid()).max(40).optional(),
+    /** Временные хиты («Ложная жизнь») — кому и сколько. */
+    temporaryHitPoints: z
+      .array(z.object({ participantId: z.uuid(), amount: z.number().int().min(0) }))
+      .max(40)
+      .optional(),
+    /** Прибавка к пределу хитов («Подмога»). */
+    hitPointBonus: z
+      .array(z.object({ participantId: z.uuid(), amount: z.number().int().min(0) }))
+      .max(40)
+      .optional(),
+    /** Снятые состояния («Малое восстановление»). */
+    removedConditions: z
+      .array(z.object({ participantId: z.uuid(), code: conditionCodeSchema }))
+      .max(40)
+      .optional(),
+    /** Убитые словом силы. */
+    killed: z.array(z.uuid()).max(40).optional(),
+    /** Сотворено реакцией — вне своего хода. */
+    reaction: z.boolean().optional(),
+    /** «Щит» превратил незакрытое попадание в промах. */
+    turnedHitIntoMiss: z.boolean().optional(),
+    /**
+     * «Святилище» на цели: заклинатель провалил спасбросок Мудрости, и
+     * против этой цели заклинание потеряно.
+     */
+    sanctuaryBlocked: z.array(z.uuid()).max(40).optional(),
+    /** Выбранный вариант («Защита от энергии» — какой вид урона). */
+    variant: z.string().min(1).max(32).optional(),
   }),
   z.object({
     kind: z.literal('SAVE'),
@@ -350,6 +456,18 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     /** Сложность заклинателя — без неё по броску нечего разбирать. */
     dc: z.number().int().min(1),
     outcome: savingThrowOutcomeSchema,
+    /** Кости заклинаний на бросающем («Благословение», «Порча») — уже внутри `total`. */
+    bonusParts: modifierPartsSchema,
+    /** Преимущество или помеха от заклинаний («Ускорение» — Ловкость). */
+    advantageMode: advantageModeSchema.optional(),
+    /** Повторный спасбросок в конце хода цели: успех снимает наложенное. */
+    repeat: z.boolean().optional(),
+    /** Спасбросок от урона по носителю («Подчинение личности»). */
+    onDamage: z.boolean().optional(),
+    /** Сработала зона заклинания: вошёл, начал или кончил в ней ход. */
+    trigger: z.enum(['ENTER', 'START', 'END']).optional(),
+    /** Заклинатель, чья это сложность, — если не он сейчас ходит («Святилище»). */
+    casterParticipantId: z.uuid().optional(),
   }),
   z.object({
     kind: z.literal('HEAL'),
@@ -357,6 +475,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     spellCode: z.string().min(1).max(64),
     ...rollShape,
     amount: z.number().int().min(0),
+    /** Лечение не прошло: на цели «Леденящее прикосновение». */
+    blocked: z.boolean().optional(),
   }),
   z.object({
     kind: z.literal('CONCENTRATION'),

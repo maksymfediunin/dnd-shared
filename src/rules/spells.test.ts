@@ -215,10 +215,15 @@ describe('запись броска SRD', () => {
 });
 
 describe('время сотворения в бою', () => {
-  it('действие и бонусное действие бой проводит, реакцию и минуты — нет', () => {
+  it('действие, бонусное действие и реакцию бой проводит, минуты — нет', () => {
     expect(combatCastingTime('1 action')).toBe('ACTION');
     expect(combatCastingTime('1 bonus action')).toBe('BONUS_ACTION');
-    expect(combatCastingTime('1 reaction')).toBeNull();
+    expect(combatCastingTime('1 reaction')).toBe('REACTION');
+    expect(
+      combatCastingTime(
+        '1 reaction, which you take when you are hit by an attack or targeted by the magic missile spell',
+      ),
+    ).toBe('REACTION');
     expect(combatCastingTime('1 minute')).toBeNull();
   });
 });

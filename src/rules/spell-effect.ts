@@ -1,4 +1,5 @@
 import type { SpellUnresolvedReason } from '../enums/combat.js';
+import { spellMechanic, splitDamageByType, withSpellOverride } from './spell-mechanics.js';
 import { type DiceByLevel, damageDiceFor, healDiceFor, parseSpellDice } from './spells.js';
 
 /**
@@ -45,20 +46,39 @@ export interface SpellResolutionInput {
  * момента упирался в неё (§5.2 дизайна куска 8).
  */
 export type SpellDamagePlan =
-  | { kind: 'DAMAGE'; dice: string | null; modifier: number; type: string }
+  | {
+      kind: 'DAMAGE';
+      dice: string | null;
+      modifier: number;
+      type: string;
+      /** Второй и дальше виды урона («Удар пламени» — огонь и излучение). */
+      extra?: { dice: string; type: string }[];
+    }
   | { kind: 'NONE' }
   | { kind: 'UNRESOLVED'; reason: SpellUnresolvedReason };
 
 export function spellDamagePlan(
-  spell: SpellResolutionFields,
+  rawSpell: SpellResolutionFields,
   { slotLevel, casterLevel, spellcastingModifier = 0 }: SpellResolutionInput = {},
 ): SpellDamagePlan {
+  const spell = withSpellOverride(rawSpell);
   // Уровень заклинателя не назван — считаем первым: нижняя ступень
   // таблицы кантрипа в SRD всегда «1», поэтому наличие костей от уровня
   // не зависит, а меняется от него только сама запись броска.
   const notation = damageDiceFor({ spell, slotLevel, casterLevel: casterLevel ?? 1 });
 
   if (!notation) return { kind: 'NONE' };
+
+  const damageTypes = spell.code ? spellMechanic(spell.code)?.override?.damageTypes : undefined;
+  if (damageTypes) {
+    const parts = splitDamageByType(notation, damageTypes);
+    if (!parts) return { kind: 'UNRESOLVED', reason: 'UNPARSED_DICE' };
+    const [first, ...extra] = parts as [
+      { dice: string; type: string },
+      ...{ dice: string; type: string }[],
+    ];
+    return { kind: 'DAMAGE', dice: first.dice, modifier: 0, type: first.type, extra };
+  }
   // Кости есть, а вида урона нет — придумать его нельзя, и схема
   // строки `DAMAGE` без него запись не пропустит.
   if (!spell.damageType) return { kind: 'UNRESOLVED', reason: 'NO_DAMAGE_TYPE' };
@@ -110,7 +130,12 @@ export type SpellResolution =
  * сентября). «Уход за умирающим» стабилизирует — полей для этого в SRD
  * нет вовсе. Разрешает их сервер, каждое своим кодом.
  */
-export const SCRIPTED_SPELL_CODES: readonly string[] = ['sleep', 'spare-the-dying', 'hunters-mark'];
+export const SCRIPTED_SPELL_CODES: readonly string[] = [
+  'sleep',
+  'spare-the-dying',
+  'hunters-mark',
+  'color-spray',
+];
 
 /**
  * «Метка охотника»: эффект на цели (+1к6 к урону оружием наложившего),
@@ -119,10 +144,13 @@ export const SCRIPTED_SPELL_CODES: readonly string[] = ['sleep', 'spare-the-dyin
 export const HUNTERS_MARK = 'hunters-mark';
 
 export function spellResolution(
-  spell: SpellResolutionFields,
+  rawSpell: SpellResolutionFields,
   input: SpellResolutionInput = {},
 ): SpellResolution {
-  if (spell.code !== undefined && SCRIPTED_SPELL_CODES.includes(spell.code)) return 'SCRIPTED';
+  if (rawSpell.code !== undefined && SCRIPTED_SPELL_CODES.includes(rawSpell.code))
+    return 'SCRIPTED';
+  // Поля SRD — с поправкой по тексту описания (`SpellMechanic.override`).
+  const spell = withSpellOverride(rawSpell);
   const damage = spellDamagePlan(spell, input);
 
   if (spell.attackType !== null) return 'ATTACK';
