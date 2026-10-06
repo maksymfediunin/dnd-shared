@@ -1,7 +1,27 @@
 import { z } from 'zod';
 
-/** Четыре встроенных фона из ТЗ и CUSTOM — картинка, загруженная ведущим. */
-export const MAP_BACKGROUNDS = ['FOREST', 'TAVERN', 'DUNGEON', 'RUINS', 'CUSTOM'] as const;
+/**
+ * Встроенные фоны — четыре из ТЗ и десять локаций второго набора — и
+ * CUSTOM, картинка, загруженная ведущим. CUSTOM последним: порядок
+ * повторяет выбор фона в редакторе.
+ */
+export const MAP_BACKGROUNDS = [
+  'FOREST',
+  'TAVERN',
+  'DUNGEON',
+  'RUINS',
+  'CAVE',
+  'SWAMP',
+  'SNOW',
+  'DESERT',
+  'COAST',
+  'MEADOW',
+  'CASTLE',
+  'TEMPLE',
+  'GRAVEYARD',
+  'SHIP',
+  'CUSTOM',
+] as const;
 export const mapBackgroundSchema = z.enum(MAP_BACKGROUNDS);
 export type MapBackground = (typeof MAP_BACKGROUNDS)[number];
 
@@ -37,6 +57,36 @@ export const MAP_OBSTACLE_KINDS = [
   'ROCKS_3',
   'THICKET_H',
   'THICKET_V',
+  // Второй набор: природа новых локаций, погост и храм, лагерь и дорога,
+  // покои и корабль.
+  'TREE',
+  'DEAD_TREE',
+  'PALM',
+  'STALAGMITE',
+  'CRYSTAL',
+  'REEDS',
+  'CACTUS',
+  'ICE_BLOCK',
+  'SNOWDRIFT_2',
+  'STATUE',
+  'ALTAR',
+  'SARCOPHAGUS_H',
+  'SARCOPHAGUS_V',
+  'TOMBSTONE',
+  'CHEST',
+  'WELL',
+  'CAMPFIRE',
+  'TENT',
+  'CART_H',
+  'CART_V',
+  'FENCE_H',
+  'FENCE_V',
+  'BOOKSHELF_H',
+  'BOOKSHELF_V',
+  'BED_H',
+  'BED_V',
+  'MAST',
+  'CANNON',
 ] as const;
 export const mapObstacleKindSchema = z.enum(MAP_OBSTACLE_KINDS);
 export type MapObstacleKind = (typeof MAP_OBSTACLE_KINDS)[number];

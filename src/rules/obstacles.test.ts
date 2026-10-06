@@ -36,6 +36,18 @@ describe('MAP_OBSTACLE_FOOTPRINT', () => {
     expect(MAP_OBSTACLE_FOOTPRINT.THICKET_H).toEqual({ w: 3, h: 2 });
     expect(MAP_OBSTACLE_FOOTPRINT.THICKET_V).toEqual({ w: 2, h: 3 });
   });
+
+  it('у каждого _H есть _V с переставленными сторонами', () => {
+    const kinds = Object.keys(MAP_OBSTACLE_FOOTPRINT) as (keyof typeof MAP_OBSTACLE_FOOTPRINT)[];
+    for (const kind of kinds.filter((k) => k.endsWith('_H'))) {
+      const mirror = kind.replace(/_H$/, '_V') as keyof typeof MAP_OBSTACLE_FOOTPRINT;
+      const { w, h } = MAP_OBSTACLE_FOOTPRINT[kind];
+      expect({ kind, footprint: MAP_OBSTACLE_FOOTPRINT[mirror] }).toEqual({
+        kind,
+        footprint: { w: h, h: w },
+      });
+    }
+  });
 });
 
 describe('obstacleCells', () => {
