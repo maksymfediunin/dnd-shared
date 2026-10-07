@@ -4,7 +4,12 @@ import {
   MAP_MAX_MONSTER_QUANTITY,
   MAP_MAX_OBSTACLES,
 } from '../enums/map.js';
-import { battleMapSaveSchema, conditionApplySchema, participantUpdateSchema } from './map.js';
+import {
+  battleMapSaveSchema,
+  conditionApplySchema,
+  encounterTerrainSaveSchema,
+  participantUpdateSchema,
+} from './map.js';
 
 const validMap = {
   name: 'Лесное святилище',
@@ -270,5 +275,32 @@ describe('conditionApplySchema', () => {
   // темнотой, а не перед фишкой), а не то, что схема должна отвергать.
   it('испуг без источника по-прежнему допустим', () => {
     expect(conditionApplySchema.safeParse({ code: 'frightened' }).success).toBe(true);
+  });
+});
+
+describe('местность в схеме заготовки', () => {
+  const base = { name: 'Брод', gridWidth: 10, gridHeight: 10 };
+
+  it('без поля — пустой слой', () => {
+    expect(battleMapSaveSchema.parse(base).terrain).toEqual({});
+  });
+
+  it('клетка за краем сетки — отказ с путём до ключа', () => {
+    const result = battleMapSaveSchema.safeParse({ ...base, terrain: { '10:0': 'WALL' } });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(['terrain', '10:0']);
+  });
+
+  it('неизвестный вид и кривой ключ — отказ', () => {
+    expect(battleMapSaveSchema.safeParse({ ...base, terrain: { '1:1': 'ICE' } }).success).toBe(
+      false,
+    );
+    expect(battleMapSaveSchema.safeParse({ ...base, terrain: { a: 'WALL' } }).success).toBe(false);
+  });
+
+  it('слой живой сцены — та же форма без сетки', () => {
+    expect(encounterTerrainSaveSchema.parse({ terrain: { '3:4': 'MUD' } })).toEqual({
+      terrain: { '3:4': 'MUD' },
+    });
   });
 });
