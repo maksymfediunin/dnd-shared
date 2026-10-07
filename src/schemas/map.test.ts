@@ -298,6 +298,17 @@ describe('местность в схеме заготовки', () => {
     expect(battleMapSaveSchema.safeParse({ ...base, terrain: { a: 'WALL' } }).success).toBe(false);
   });
 
+  // "05:3" — та же клетка (5,3) для глаз, но не для cellKey: стена
+  // рисовалась бы, а ход её не видел, и у клетки оказалось бы два вида.
+  it('ключ с ведущим нулём — отказ', () => {
+    expect(battleMapSaveSchema.safeParse({ ...base, terrain: { '05:3': 'WALL' } }).success).toBe(
+      false,
+    );
+    expect(encounterTerrainSaveSchema.safeParse({ terrain: { '1:00': 'MUD' } }).success).toBe(
+      false,
+    );
+  });
+
   it('слой живой сцены — та же форма без сетки', () => {
     expect(encounterTerrainSaveSchema.parse({ terrain: { '3:4': 'MUD' } })).toEqual({
       terrain: { '3:4': 'MUD' },

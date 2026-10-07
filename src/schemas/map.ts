@@ -54,10 +54,12 @@ export type MapMonsterPresetInput = z.infer<typeof mapMonsterPresetInputSchema>;
 /**
  * Слой местности. Лежит ли ключ в сетке, знает только тот, кому
  * известна сетка: `battleMapSaveSchema` ниже и сервис живой сцены.
- * Две цифры на координату — потолок сетки 30.
+ * Две цифры на координату — потолок сетки 30. Без ведущих нулей: ключ
+ * обязан совпадать с `cellKey`, иначе «05:3» рисовалась бы клеткой
+ * (5,3), а правила хода её не видели бы.
  */
 export const mapTerrainSchema: z.ZodType<MapTerrain> = z
-  .record(z.string().regex(/^\d{1,2}:\d{1,2}$/), mapTerrainKindSchema)
+  .record(z.string().regex(/^(0|[1-9]\d?):(0|[1-9]\d?)$/), mapTerrainKindSchema)
   .refine((terrain) => Object.keys(terrain).length <= MAP_MAX_GRID * MAP_MAX_GRID, {
     message: 'Местности больше, чем клеток',
   });
