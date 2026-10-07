@@ -171,29 +171,37 @@ export interface ReachInput {
   walls: Set<string>;
   /** Проходимое, но не для остановки: чужие живые фишки. */
   tokens: Set<string>;
+  /** Трудная местность: шаг, задевающий её отпечатком, стоит две клетки. */
+  difficult?: Set<string>;
+  /** Бюджет в клетках: трудный шаг тратит из него две. */
   maxSteps: number;
 }
 
 /**
- * Куда фишка дойдёт и во сколько шагов. Обход в ширину, а не круг по
- * расстоянию Чебышёва: круг считает клетку за стеной соседней, и до
+ * Куда фишка дойдёт и во сколько клеток хода. Обход по цене, а не круг
+ * по расстоянию Чебышёва: круг считает клетку за стеной соседней, и до
  * этой функции сервер списывал за такой шаг цену прямой, а подсветка
  * на фронте уже вела фишку в обход — два правила на одно движение
  * (хвост 21 волны «а»).
  *
- * Шаг стоит одну клетку в любую из восьми сторон: диагональ на сетке
- * D&D не дороже прямой. Футы здесь не считаются — цена клетки в футах
- * зависит от сцены, а не от сетки, и живёт в правилах боя.
+ * Шаг стоит одну клетку в любую из восьми сторон — диагональ на сетке
+ * D&D не дороже прямой, — и две, если отпечаток в точке назначения
+ * задевает трудную местность (дизайн местности 7 октября). Цена
+ * зависит только от клетки назначения, поэтому корзины по цене
+ * разбираются по возрастанию, и первая найденная цена клетки — уже
+ * лучшая: ни кучи, ни пересмотра не нужно.
+ *
+ * Футы здесь не считаются — цена клетки в футах зависит от сцены, а не
+ * от сетки, и живёт в правилах боя.
  */
 export function reachableCells(input: ReachInput): Map<string, number> {
+  const difficult = input.difficult ?? new Set<string>();
   const reached = new Map<string, number>();
   const seen = new Set([cellKey(input.from)]);
-  let frontier: Cell[] = [input.from];
+  const buckets: Cell[][] = [[input.from]];
 
-  for (let step = 1; step <= input.maxSteps && frontier.length > 0; step += 1) {
-    const next: Cell[] = [];
-
-    for (const from of frontier) {
+  for (let cost = 0; cost <= input.maxSteps && cost < buckets.length; cost += 1) {
+    for (const from of buckets[cost] ?? []) {
       for (let dy = -1; dy <= 1; dy += 1) {
         for (let dx = -1; dx <= 1; dx += 1) {
           if (dx === 0 && dy === 0) continue;
@@ -203,17 +211,19 @@ export function reachableCells(input: ReachInput): Map<string, number> {
           if (seen.has(key)) continue;
           if (!isFree(cell, input.span, input.grid, input.walls)) continue;
 
+          const hard = cellsOf(cell, input.span).some((c) => difficult.has(cellKey(c)));
+          const next = cost + (hard ? 2 : 1);
+          if (next > input.maxSteps) continue;
+
           seen.add(key);
-          next.push(cell);
+          (buckets[next] ??= []).push(cell);
           // Дорога и остановка — разные вопросы: сквозь союзника
           // проходят, а встать на него нельзя. Поэтому занятая клетка
-          // остаётся во фронтире, но в ответ не попадает.
-          if (isFree(cell, input.span, input.grid, input.tokens)) reached.set(key, step);
+          // остаётся в обходе, но в ответ не попадает.
+          if (isFree(cell, input.span, input.grid, input.tokens)) reached.set(key, next);
         }
       }
     }
-
-    frontier = next;
   }
 
   return reached;

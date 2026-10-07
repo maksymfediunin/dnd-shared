@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MAP_TERRAIN_KINDS } from '../enums/map.js';
 import {
   MAP_TERRAIN_RULES,
+  sceneBlockedCells,
   terrainCells,
   terrainKeyInGrid,
   terrainOutsideGrid,
@@ -47,5 +48,29 @@ describe('terrainOutsideGrid', () => {
   it('всё в сетке — null', () => {
     expect(terrainOutsideGrid({ '9:4': 'WALL' }, grid)).toBeNull();
     expect(terrainKeyInGrid('0:0', grid)).toBe(true);
+  });
+});
+
+describe('sceneBlockedCells', () => {
+  it('стены — препятствия с blocksMovement и непроходимая местность; трудное — отдельно', () => {
+    const { walls, difficult } = sceneBlockedCells({
+      obstacles: [
+        { kind: 'LOG_H', x: 0, y: 0, blocksMovement: true },
+        { kind: 'BARREL', x: 5, y: 5, blocksMovement: false },
+      ],
+      terrain: { '7:7': 'CHASM', '8:8': 'MUD' },
+    });
+
+    expect([...walls].sort()).toEqual(['0:0', '1:0', '2:0', '7:7']);
+    expect([...difficult]).toEqual(['8:8']);
+  });
+
+  it('без слоя — как раньше, одни препятствия', () => {
+    const { walls, difficult } = sceneBlockedCells({
+      obstacles: [{ kind: 'BARREL', x: 1, y: 1, blocksMovement: true }],
+      terrain: null,
+    });
+    expect([...walls]).toEqual(['1:1']);
+    expect(difficult.size).toBe(0);
   });
 });

@@ -196,4 +196,69 @@ describe('reachableCells', () => {
 
     expect(reach.get(cellKey({ x: 1, y: 0 }))).toBe(1);
   });
+
+  describe('трудная местность', () => {
+    it('шаг в трудную клетку стоит две', () => {
+      const reach = reachableCells({
+        from: { x: 0, y: 0 },
+        span: 1,
+        grid,
+        walls: empty,
+        tokens: empty,
+        difficult: new Set(['1:0']),
+        maxSteps: 5,
+      });
+
+      expect(reach.get('1:0')).toBe(2);
+      // В обход по диагонали — две обычных, а не трудная плюс обычная.
+      expect(reach.get('2:0')).toBe(2);
+    });
+
+    it('брод поперёк всей сетки — переход дороже на клетку', () => {
+      const difficult = new Set(Array.from({ length: grid.height }, (_, y) => `1:${y}`));
+      const reach = reachableCells({
+        from: { x: 0, y: 0 },
+        span: 1,
+        grid,
+        walls: empty,
+        tokens: empty,
+        difficult,
+        maxSteps: 3,
+      });
+
+      expect(reach.get('2:0')).toBe(3);
+      expect(reach.has('3:0')).toBe(false);
+    });
+
+    it('бюджета не хватает на трудный шаг — клетки нет', () => {
+      const reach = reachableCells({
+        from: { x: 0, y: 0 },
+        span: 1,
+        grid,
+        walls: empty,
+        tokens: empty,
+        difficult: new Set(['1:0', '1:1', '0:1']),
+        maxSteps: 1,
+      });
+
+      expect(reach.size).toBe(0);
+    });
+
+    // Правило 5e для крупных: трудная клетка под любой частью отпечатка
+    // в точке назначения делает шаг трудным.
+    it('огру хватает задеть трудную клетку краем отпечатка', () => {
+      const reach = reachableCells({
+        from: { x: 0, y: 0 },
+        span: 2,
+        grid,
+        walls: empty,
+        tokens: empty,
+        difficult: new Set(['2:1']),
+        maxSteps: 4,
+      });
+
+      expect(reach.get('1:0')).toBe(2);
+      expect(reach.get('0:1')).toBe(1);
+    });
+  });
 });

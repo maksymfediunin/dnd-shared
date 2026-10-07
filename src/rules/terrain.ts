@@ -1,5 +1,6 @@
 import type { MapTerrainKind } from '../enums/map.js';
 import type { Grid } from './grid.js';
+import { type ObstaclePlacement, obstacleBlockedCells } from './obstacles.js';
 
 /**
  * Слой местности: ключ клетки (`cellKey`) → вид. Словарь, а не список:
@@ -57,4 +58,30 @@ export function terrainCells(
     if (test(MAP_TERRAIN_RULES[kind])) set.add(key);
   }
   return set;
+}
+
+export interface SceneMap {
+  obstacles: readonly (ObstaclePlacement & { blocksMovement: boolean })[];
+  /** Нет — пустой слой: строки и снимки до появления местности. */
+  terrain?: MapTerrain | null;
+}
+
+/**
+ * Непроходимое и трудное на сцене — препятствия и местность разом.
+ * До местности стены собирались одним и тем же фильтром в шести
+ * местах (ход, развёртывание, добавление монстра, толчок, телепорт,
+ * подсветка); добавлять слой в каждое — значит однажды забыть одно.
+ */
+export function sceneBlockedCells(scene: SceneMap): {
+  walls: Set<string>;
+  difficult: Set<string>;
+} {
+  const terrain = scene.terrain ?? {};
+  return {
+    walls: new Set([
+      ...obstacleBlockedCells(scene.obstacles.filter((o) => o.blocksMovement)),
+      ...terrainCells(terrain, (rule) => rule.blocksMovement),
+    ]),
+    difficult: terrainCells(terrain, (rule) => rule.difficult),
+  };
 }
