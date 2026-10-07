@@ -13,8 +13,10 @@ import {
   MAP_OBSTACLE_MIN_SCALE,
   mapBackgroundSchema,
   mapObstacleKindSchema,
+  mapTerrainKindSchema,
 } from '../enums/map.js';
 import { firstObstacleOverlap, obstacleFitsInGrid } from '../rules/obstacles.js';
+import { type MapTerrain, terrainOutsideGrid } from '../rules/terrain.js';
 
 /**
  * Потолок координаты — предельная сетка, а не сетка этой карты: о ней
@@ -50,6 +52,22 @@ export const mapMonsterPresetInputSchema = z.object({
 export type MapMonsterPresetInput = z.infer<typeof mapMonsterPresetInputSchema>;
 
 /**
+ * Слой местности. Лежит ли ключ в сетке, знает только тот, кому
+ * известна сетка: `battleMapSaveSchema` ниже и сервис живой сцены.
+ * Две цифры на координату — потолок сетки 30. Без ведущих нулей: ключ
+ * обязан совпадать с `cellKey`, иначе «05:3» рисовалась бы клеткой
+ * (5,3), а правила хода её не видели бы.
+ */
+export const mapTerrainSchema: z.ZodType<MapTerrain> = z
+  .record(z.string().regex(/^(0|[1-9]\d?):(0|[1-9]\d?)$/), mapTerrainKindSchema)
+  .refine((terrain) => Object.keys(terrain).length <= MAP_MAX_GRID * MAP_MAX_GRID, {
+    message: 'Местности больше, чем клеток',
+  });
+
+export const encounterTerrainSaveSchema = z.object({ terrain: mapTerrainSchema });
+export type EncounterTerrainSaveInput = z.infer<typeof encounterTerrainSaveSchema>;
+
+/**
  * Одна схема на создание и на сохранение: `POST` заводит заготовку с
  * пустыми списками, `PUT` заменяет содержимое целиком. Две почти
  * одинаковые схемы разъехались бы на первой же правке.
@@ -68,6 +86,7 @@ export const battleMapSaveSchema = z
       .default(MAP_DEFAULT_CELL_SIZE_FEET),
     obstacles: z.array(mapObstacleInputSchema).max(MAP_MAX_OBSTACLES).default([]),
     monsters: z.array(mapMonsterPresetInputSchema).max(MAP_MAX_MONSTER_PRESETS).default([]),
+    terrain: mapTerrainSchema.default({}),
   })
   .superRefine((value, ctx) => {
     const grid = { width: value.gridWidth, height: value.gridHeight };
@@ -95,6 +114,11 @@ export const battleMapSaveSchema = z
         ctx.addIssue({ code: 'custom', path: ['monsters', i], message: 'Монстр вне сетки' });
       }
     });
+
+    const outside = terrainOutsideGrid(value.terrain, grid);
+    if (outside !== null) {
+      ctx.addIssue({ code: 'custom', path: ['terrain', outside], message: 'Местность вне сетки' });
+    }
   });
 export type BattleMapSaveInput = z.infer<typeof battleMapSaveSchema>;
 

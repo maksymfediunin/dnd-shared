@@ -11,3 +11,4 @@ export * from './progression.js';
 export * from './spell-effect.js';
 export * from './spell-mechanics.js';
 export * from './spells.js';
+export * from './terrain.js';

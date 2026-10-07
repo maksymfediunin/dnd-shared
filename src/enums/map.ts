@@ -91,6 +91,24 @@ export const MAP_OBSTACLE_KINDS = [
 export const mapObstacleKindSchema = z.enum(MAP_OBSTACLE_KINDS);
 export type MapObstacleKind = (typeof MAP_OBSTACLE_KINDS)[number];
 
+/**
+ * Местность — то, что ведущий рисует кистью по клеткам (дизайн 7
+ * октября): не предмет на клетке, а сама клетка. Порядок — как в
+ * палитре: сначала то, что не пройти, потом то, что съедает ход.
+ */
+export const MAP_TERRAIN_KINDS = [
+  'WALL',
+  'DEEP_WATER',
+  'CHASM',
+  'LAVA',
+  'SHALLOW_WATER',
+  'MUD',
+  'RUBBLE',
+  'UNDERBRUSH',
+] as const;
+export const mapTerrainKindSchema = z.enum(MAP_TERRAIN_KINDS);
+export type MapTerrainKind = (typeof MAP_TERRAIN_KINDS)[number];
+
 /** PREPARED — развёрнута, но игрокам не видна; ACTIVE — на столе. */
 export const ENCOUNTER_STATUSES = ['PREPARED', 'ACTIVE', 'FINISHED'] as const;
 export const encounterStatusSchema = z.enum(ENCOUNTER_STATUSES);
