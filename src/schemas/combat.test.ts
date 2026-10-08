@@ -5,6 +5,7 @@ import {
   damageInputSchema,
   encounterEventPayloadSchema,
   initiativeInputSchema,
+  startCombatInputSchema,
 } from './combat.js';
 
 describe('attackInputSchema', () => {
@@ -475,5 +476,19 @@ describe('castInputSchema', () => {
 
   it('заклинание без кода не сотворяется', () => {
     expect(castInputSchema.safeParse({ spellCode: '  ', targetId }).success).toBe(false);
+  });
+});
+
+describe('startCombatInputSchema', () => {
+  it('пустое тело — обычный бой: старые клиенты шлют POST без тела', () => {
+    expect(startCombatInputSchema.parse({})).toEqual({ simplified: false });
+  });
+
+  it('упрощённый бой', () => {
+    expect(startCombatInputSchema.parse({ simplified: true })).toEqual({ simplified: true });
+  });
+
+  it('не булево — отказ', () => {
+    expect(startCombatInputSchema.safeParse({ simplified: 'yes' }).success).toBe(false);
   });
 });

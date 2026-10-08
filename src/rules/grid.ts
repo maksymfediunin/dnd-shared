@@ -228,3 +228,53 @@ export function reachableCells(input: ReachInput): Map<string, number> {
 
   return reached;
 }
+
+/**
+ * Цена шага по прямой, в футах, — для упрощённого боя, где обхода
+ * препятствий нет и круг скорости — подсказка масштаба, а не путь
+ * (дизайн 8 октября). Левые верхние углы, а не центры: размер фишки на
+ * ходу не меняется, и разница углов равна разнице центров. Вверх, а не
+ * к ближнему: иначе клетка за краем круга проходила бы по округлению.
+ */
+export function radiusCostFeet(from: Cell, to: Cell, cellSizeFeet: number): number {
+  return Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) * cellSizeFeet);
+}
+
+export interface RadiusInput {
+  from: Cell;
+  span: number;
+  grid: Grid;
+  /** Сюда не встают: стены, препятствия, непроходимая местность. */
+  walls: Set<string>;
+  /** Сюда тоже не встают: чужие живые фишки. */
+  tokens: Set<string>;
+  budgetFeet: number;
+  cellSizeFeet: number;
+}
+
+/**
+ * Куда фишка встанет в пределах круга скорости. Ответ той же формы,
+ * что у `reachableCells` (ключ клетки → цена), чтобы `reachableCellsFor`
+ * брал любое из двух правил, не зная, какое из них сработало; цена
+ * здесь в футах, а не в клетках — читают из неё только ключи.
+ */
+export function cellsInRadius(input: RadiusInput): Map<string, number> {
+  const reached = new Map<string, number>();
+  const radius = Math.floor(input.budgetFeet / input.cellSizeFeet);
+
+  for (let dy = -radius; dy <= radius; dy += 1) {
+    for (let dx = -radius; dx <= radius; dx += 1) {
+      if (dx === 0 && dy === 0) continue;
+
+      const cell = { x: input.from.x + dx, y: input.from.y + dy };
+      const feet = radiusCostFeet(input.from, cell, input.cellSizeFeet);
+      if (feet > input.budgetFeet) continue;
+      if (!isFree(cell, input.span, input.grid, input.walls)) continue;
+      if (!isFree(cell, input.span, input.grid, input.tokens)) continue;
+
+      reached.set(cellKey(cell), feet);
+    }
+  }
+
+  return reached;
+}

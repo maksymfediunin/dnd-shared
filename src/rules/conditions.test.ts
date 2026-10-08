@@ -229,6 +229,26 @@ describe('reachableCellsFor', () => {
     expect(fromAnchor.has(cellKey({ x: 0, y: 0 }))).toBe(false);
   });
 
+  it('straight меряет по прямой, сквозь стену', () => {
+    const input = {
+      mover: { x: 10, y: 10, size: 'MEDIUM' as const },
+      conditions: [],
+      speed: 30,
+      movementLeftFeet: 30,
+      cellSizeFeet: 5,
+      grid: { width: 30, height: 30 },
+      walls: new Set(['11:9', '11:10', '11:11']),
+      tokens: empty,
+      fearSources: [],
+    };
+    // Обходом стена отнимает шаг, по прямой — нет.
+    expect(reachableCellsFor(input).has('16:10')).toBe(false);
+    expect(reachableCellsFor({ ...input, straight: true }).has('16:10')).toBe(true);
+    // Диагональ по прямой дороже.
+    expect(reachableCellsFor(input).has('15:15')).toBe(true);
+    expect(reachableCellsFor({ ...input, straight: true }).has('15:15')).toBe(false);
+  });
+
   it('клетка за стеной стоит обхода, а не двух шагов по прямой', () => {
     const walls = blockedCells([
       { origin: { x: 1, y: 0 }, span: 1 },

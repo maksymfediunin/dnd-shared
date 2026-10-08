@@ -30,6 +30,16 @@ export const initiativeInputSchema = z.object({
 export type InitiativeInput = z.infer<typeof initiativeInputSchema>;
 
 /**
+ * Начало боя. Пустое тело — обычный бой: маршрут годами принимал POST
+ * без тела, и клиент, не знающий упрощённого режима, обязан начинать
+ * бой по-прежнему.
+ */
+export const startCombatInputSchema = z.object({
+  simplified: z.boolean().default(false),
+});
+export type StartCombatInput = z.infer<typeof startCombatInputSchema>;
+
+/**
  * Атака. Чем бьют — ровно одно из двух: предмет из инвентаря персонажа
  * или действие монстра из бестиария. Ни то, ни другое — нечем бить;
  * и то, и другое — служба выбирала бы за игрока.
