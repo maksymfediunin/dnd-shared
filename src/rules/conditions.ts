@@ -4,6 +4,7 @@ import { movesCloser, type Placed, reachDistance, reachInCells } from './combat.
 import {
   type Cell,
   cellKey,
+  cellsInRadius,
   cellsOf,
   footprint,
   type Grid,
@@ -210,6 +211,12 @@ export interface ReachableCellsInput {
   tokens: Set<string>;
   /** Источники испуга, ещё стоящие на сцене — фишку-источник могли снять со стола, и тогда бояться уже некого. */
   fearSources: Placed[];
+  /**
+   * Упрощённый бой: круг по прямой вместо обхода в ширину, трудная
+   * местность не в счёт (дизайн 8 октября). Возврат на якорь и испуг
+   * остаются общими — у сервера они те же в обоих режимах.
+   */
+  straight?: boolean;
 }
 
 /**
@@ -229,15 +236,27 @@ export function reachableCellsFor(input: ReachableCellsInput): Set<string> {
   const effects = combineConditions(input.conditions);
   const budgetFeet = Math.min(input.movementLeftFeet, effectiveSpeed(input.speed, effects));
 
-  const reach = reachableCells({
-    from: input.from ?? { x: input.mover.x, y: input.mover.y },
-    span: footprint(input.mover.size),
-    grid: input.grid,
-    walls: input.walls,
-    difficult: input.difficult,
-    tokens: input.tokens,
-    maxSteps: Math.floor(budgetFeet / input.cellSizeFeet),
-  });
+  const from = input.from ?? { x: input.mover.x, y: input.mover.y };
+  const span = footprint(input.mover.size);
+  const reach = input.straight
+    ? cellsInRadius({
+        from,
+        span,
+        grid: input.grid,
+        walls: input.walls,
+        tokens: input.tokens,
+        budgetFeet,
+        cellSizeFeet: input.cellSizeFeet,
+      })
+    : reachableCells({
+        from,
+        span,
+        grid: input.grid,
+        walls: input.walls,
+        difficult: input.difficult,
+        tokens: input.tokens,
+        maxSteps: Math.floor(budgetFeet / input.cellSizeFeet),
+      });
   // Сам якорь обход не возвращает — с него он начинает. Но фишка,
   // ушедшая с якоря, обязана суметь на него вернуться: это и есть
   // «передумал» (§4 дизайна доработок).

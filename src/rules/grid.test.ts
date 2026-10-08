@@ -3,11 +3,13 @@ import {
   blockedCells,
   bottomEdgeStart,
   cellKey,
+  cellsInRadius,
   cellsOf,
   findFreeCell,
   fitsInGrid,
   footprint,
   isFree,
+  radiusCostFeet,
   reachableCells,
 } from './grid.js';
 
@@ -260,5 +262,64 @@ describe('reachableCells', () => {
       expect(reach.get('1:0')).toBe(2);
       expect(reach.get('0:1')).toBe(1);
     });
+  });
+});
+
+describe('radiusCostFeet', () => {
+  it('прямая — клетки на размер клетки', () => {
+    expect(radiusCostFeet({ x: 0, y: 0 }, { x: 6, y: 0 }, 5)).toBe(30);
+  });
+
+  it('египетский треугольник даёт ровное число', () => {
+    expect(radiusCostFeet({ x: 0, y: 0 }, { x: 3, y: 4 }, 5)).toBe(25);
+  });
+
+  it('диагональ дороже прямой и округляется вверх', () => {
+    expect(radiusCostFeet({ x: 0, y: 0 }, { x: 1, y: 1 }, 5)).toBe(8);
+    expect(radiusCostFeet({ x: 0, y: 0 }, { x: 5, y: 5 }, 5)).toBe(36);
+  });
+});
+
+describe('cellsInRadius', () => {
+  const base = {
+    from: { x: 10, y: 10 },
+    span: 1,
+    grid: { width: 30, height: 30 },
+    walls: new Set<string>(),
+    tokens: new Set<string>(),
+    budgetFeet: 30,
+    cellSizeFeet: 5,
+  };
+
+  it('граница круга входит, за ней — нет', () => {
+    const reach = cellsInRadius(base);
+    expect(reach.get('16:10')).toBe(30);
+    expect(reach.has('17:10')).toBe(false);
+    expect(reach.get('13:14')).toBe(25);
+    // По Чебышёву это пять клеток и 25 футов — по прямой уже 36.
+    expect(reach.has('15:15')).toBe(false);
+  });
+
+  it('стартовая клетка в ответ не входит — как у reachableCells', () => {
+    expect(cellsInRadius(base).has('10:10')).toBe(false);
+  });
+
+  it('сквозь стену меряется по прямой, на стену встать нельзя', () => {
+    const walls = new Set(['11:9', '11:10', '11:11']);
+    const reach = cellsInRadius({ ...base, walls });
+    expect(reach.has('11:10')).toBe(false);
+    expect(reach.get('12:10')).toBe(10);
+  });
+
+  it('на чужую фишку встать нельзя', () => {
+    const reach = cellsInRadius({ ...base, tokens: new Set(['12:10']) });
+    expect(reach.has('12:10')).toBe(false);
+    expect(reach.has('13:10')).toBe(true);
+  });
+
+  it('крупная фишка не вылезает за край карты', () => {
+    const reach = cellsInRadius({ ...base, from: { x: 27, y: 10 }, span: 2 });
+    expect(reach.has('28:10')).toBe(true);
+    expect(reach.has('29:10')).toBe(false);
   });
 });

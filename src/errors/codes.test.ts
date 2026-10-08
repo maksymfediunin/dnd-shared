@@ -10,6 +10,10 @@ describe('коды ошибок', () => {
     expect(ERROR_CODES.MAX_LEVEL_REACHED).toBe('MAX_LEVEL_REACHED');
   });
 
+  it('знает код упрощённого боя', () => {
+    expect(ERROR_CODES.COMBAT_SIMPLIFIED).toBe('COMBAT_SIMPLIFIED');
+  });
+
   it('знает коды заклинаний', () => {
     expect(ERROR_CODES.SPELL_NOT_PREPARED).toBe('SPELL_NOT_PREPARED');
     expect(ERROR_CODES.NO_SPELL_SLOT).toBe('NO_SPELL_SLOT');
