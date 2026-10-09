@@ -6,6 +6,7 @@ export * from './conditions.js';
 export * from './dice.js';
 export * from './equipment.js';
 export * from './grid.js';
+export * from './grow.js';
 export * from './obstacles.js';
 export * from './progression.js';
 export * from './spell-effect.js';
