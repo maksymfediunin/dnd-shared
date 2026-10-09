@@ -55,6 +55,8 @@ export const ERROR_CODES = {
   COMBAT_NO_PARTICIPANTS: 'COMBAT_NO_PARTICIPANTS',
   /** Атака, заклинание или умение в упрощённом бою — их ведут вживую. */
   COMBAT_SIMPLIFIED: 'COMBAT_SIMPLIFIED',
+  /** Тело запроса больше предела сервера — например, слой рисунков. */
+  PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
   NOT_YOUR_TURN: 'NOT_YOUR_TURN',
   ACTION_ALREADY_USED: 'ACTION_ALREADY_USED',
   NOT_ENOUGH_MOVEMENT: 'NOT_ENOUGH_MOVEMENT',

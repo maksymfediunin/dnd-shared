@@ -3,6 +3,7 @@ import { conditionCodeSchema, exhaustionLevelSchema } from '../enums/conditions.
 import {
   MAP_DEFAULT_CELL_SIZE_FEET,
   MAP_MAX_CELL_SIZE_FEET,
+  MAP_MAX_DRAWING_POINTS,
   MAP_MAX_GRID,
   MAP_MAX_MONSTER_PRESETS,
   MAP_MAX_MONSTER_QUANTITY,
@@ -88,7 +89,14 @@ export const mapStrokeSchema = z.object({
 });
 export type MapStroke = z.infer<typeof mapStrokeSchema>;
 
-export const mapDrawingsSchema = z.array(mapStrokeSchema).max(MAP_MAX_STROKES);
+export const mapDrawingsSchema = z
+  .array(mapStrokeSchema)
+  .max(MAP_MAX_STROKES)
+  .refine(
+    (drawings) =>
+      drawings.reduce((sum, stroke) => sum + stroke.points.length / 2, 0) <= MAP_MAX_DRAWING_POINTS,
+    { message: 'Слишком много точек в рисунках' },
+  );
 export type MapDrawings = z.infer<typeof mapDrawingsSchema>;
 
 export const encounterDrawingsSaveSchema = z.object({ drawings: mapDrawingsSchema });

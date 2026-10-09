@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAP_MAX_DRAWING_POINTS,
   MAP_MAX_MONSTER_PRESETS,
   MAP_MAX_MONSTER_QUANTITY,
   MAP_MAX_OBSTACLES,
@@ -345,6 +346,14 @@ describe('mapStrokeSchema', () => {
   it('толщина в пределах', () => {
     expect(mapStrokeSchema.safeParse({ ...stroke, width: 0 }).success).toBe(false);
     expect(mapStrokeSchema.safeParse({ ...stroke, width: 2 }).success).toBe(false);
+  });
+
+  // Весь слой едет в каждом снимке сцены каждому зрителю — общий бюджет
+  // точек держит его в сотнях килобайт, а не в мегабайтах (ревью 9 октября).
+  it(`слой — не больше ${MAP_MAX_DRAWING_POINTS} точек всего`, () => {
+    const long = { ...stroke, points: Array(2000).fill(1) };
+    const layer = Array(Math.ceil(MAP_MAX_DRAWING_POINTS / 1000) + 1).fill(long);
+    expect(mapDrawingsSchema.safeParse(layer).success).toBe(false);
   });
 
   it(`слой — не больше ${MAP_MAX_STROKES} линий`, () => {
