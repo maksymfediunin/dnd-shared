@@ -122,6 +122,27 @@ export type EncounterStatus = (typeof ENCOUNTER_STATUSES)[number];
 export const MAP_MIN_GRID = 5;
 export const MAP_MAX_GRID = 30;
 export const MAP_DEFAULT_CELL_SIZE_FEET = 5;
+
+/**
+ * Рисунки кистью ведущего (дизайн 9 октября). Весь слой уходит каждому
+ * зрителю в каждом снимке сцены, поэтому кроме пределов на линию есть
+ * общий бюджет точек: 20 тысяч точек — около трёхсот килобайт JSON, а
+ * не мегабайты, которые давали бы три сотни линий по две тысячи точек
+ * (и упирались бы в предел тела запроса, ревью 9 октября). Фронт к тому
+ * же прореживает линию — прямой отрезок стоит двух точек.
+ */
+export const MAP_MAX_STROKES = 300;
+export const MAP_MAX_STROKE_POINTS = 2000;
+export const MAP_MAX_DRAWING_POINTS = 20_000;
+export const MAP_MIN_STROKE_WIDTH = 0.02;
+export const MAP_MAX_STROKE_WIDTH = 1;
+
+/**
+ * Чьи хиты и КД видит игрок (дизайн 9 октября): только своей фишки,
+ * героев или всех, включая монстров. Задаёт ведущий на всю сцену.
+ */
+export const STATS_VISIBILITIES = ['OWN', 'PARTY', 'ALL'] as const;
+export type StatsVisibility = (typeof STATS_VISIBILITIES)[number];
 /**
  * Сторона клетки в футах. Пять — правило D&D, но карта таверны бывает
  * и мельче, а карта осады крепости — крупнее; предел сверху держит

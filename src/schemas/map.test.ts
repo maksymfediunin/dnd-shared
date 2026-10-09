@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAP_MAX_DRAWING_POINTS,
   MAP_MAX_MONSTER_PRESETS,
   MAP_MAX_MONSTER_QUANTITY,
   MAP_MAX_OBSTACLES,
+  MAP_MAX_STROKES,
+  STATS_VISIBILITIES,
 } from '../enums/map.js';
 import {
   battleMapSaveSchema,
   conditionApplySchema,
+  encounterSettingsSchema,
   encounterTerrainSaveSchema,
+  mapDrawingsSchema,
+  mapStrokeSchema,
   participantUpdateSchema,
 } from './map.js';
 
@@ -313,5 +319,69 @@ describe('местность в схеме заготовки', () => {
     expect(encounterTerrainSaveSchema.parse({ terrain: { '3:4': 'MUD' } })).toEqual({
       terrain: { '3:4': 'MUD' },
     });
+  });
+});
+
+// Линия кисти — в клетках: масштабируется с картой и поворачивается на
+// объёмном виде (дизайн 9 октября).
+describe('mapStrokeSchema', () => {
+  const stroke = { color: '#c0392b', width: 0.1, points: [0.5, 0.5, 3.25, 4] };
+
+  it('принимает линию', () => {
+    expect(mapStrokeSchema.parse(stroke)).toEqual(stroke);
+  });
+
+  it('цвет — только #rrggbb', () => {
+    expect(mapStrokeSchema.safeParse({ ...stroke, color: 'red' }).success).toBe(false);
+  });
+
+  it('нечётное число координат — отказ', () => {
+    expect(mapStrokeSchema.safeParse({ ...stroke, points: [1, 2, 3] }).success).toBe(false);
+  });
+
+  it('меньше двух точек — отказ', () => {
+    expect(mapStrokeSchema.safeParse({ ...stroke, points: [1, 2] }).success).toBe(false);
+  });
+
+  it('толщина в пределах', () => {
+    expect(mapStrokeSchema.safeParse({ ...stroke, width: 0 }).success).toBe(false);
+    expect(mapStrokeSchema.safeParse({ ...stroke, width: 2 }).success).toBe(false);
+  });
+
+  // Весь слой едет в каждом снимке сцены каждому зрителю — общий бюджет
+  // точек держит его в сотнях килобайт, а не в мегабайтах (ревью 9 октября).
+  it(`слой — не больше ${MAP_MAX_DRAWING_POINTS} точек всего`, () => {
+    const long = { ...stroke, points: Array(2000).fill(1) };
+    const layer = Array(Math.ceil(MAP_MAX_DRAWING_POINTS / 1000) + 1).fill(long);
+    expect(mapDrawingsSchema.safeParse(layer).success).toBe(false);
+  });
+
+  it(`слой — не больше ${MAP_MAX_STROKES} линий`, () => {
+    expect(mapDrawingsSchema.safeParse(Array(MAP_MAX_STROKES + 1).fill(stroke)).success).toBe(
+      false,
+    );
+  });
+});
+
+describe('рисунки заготовки', () => {
+  const base = { name: 'Карта', gridWidth: 10, gridHeight: 10 };
+
+  it('по умолчанию пусто', () => {
+    expect(battleMapSaveSchema.parse(base).drawings).toEqual([]);
+  });
+
+  it('точка за краем сетки — отказ', () => {
+    const drawings = [{ color: '#000000', width: 0.1, points: [1, 1, 11, 2] }];
+    expect(battleMapSaveSchema.safeParse({ ...base, drawings }).success).toBe(false);
+  });
+});
+
+describe('настройки сцены', () => {
+  it('видимость чисел — одна из трёх', () => {
+    expect(encounterSettingsSchema.parse({ statsVisibility: 'ALL' })).toEqual({
+      statsVisibility: 'ALL',
+    });
+    expect(encounterSettingsSchema.safeParse({ statsVisibility: 'NONE' }).success).toBe(false);
+    expect([...STATS_VISIBILITIES]).toEqual(['OWN', 'PARTY', 'ALL']);
   });
 });

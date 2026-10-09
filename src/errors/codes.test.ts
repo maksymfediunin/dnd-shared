@@ -10,6 +10,10 @@ describe('коды ошибок', () => {
     expect(ERROR_CODES.MAX_LEVEL_REACHED).toBe('MAX_LEVEL_REACHED');
   });
 
+  it('знает код слишком большого запроса', () => {
+    expect(ERROR_CODES.PAYLOAD_TOO_LARGE).toBe('PAYLOAD_TOO_LARGE');
+  });
+
   it('знает код упрощённого боя', () => {
     expect(ERROR_CODES.COMBAT_SIMPLIFIED).toBe('COMBAT_SIMPLIFIED');
   });

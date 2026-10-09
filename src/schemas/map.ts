@@ -3,17 +3,23 @@ import { conditionCodeSchema, exhaustionLevelSchema } from '../enums/conditions.
 import {
   MAP_DEFAULT_CELL_SIZE_FEET,
   MAP_MAX_CELL_SIZE_FEET,
+  MAP_MAX_DRAWING_POINTS,
   MAP_MAX_GRID,
   MAP_MAX_MONSTER_PRESETS,
   MAP_MAX_MONSTER_QUANTITY,
   MAP_MAX_OBSTACLES,
+  MAP_MAX_STROKE_POINTS,
+  MAP_MAX_STROKE_WIDTH,
+  MAP_MAX_STROKES,
   MAP_MIN_CELL_SIZE_FEET,
   MAP_MIN_GRID,
+  MAP_MIN_STROKE_WIDTH,
   MAP_OBSTACLE_MAX_SCALE,
   MAP_OBSTACLE_MIN_SCALE,
   mapBackgroundSchema,
   mapObstacleKindSchema,
   mapTerrainKindSchema,
+  STATS_VISIBILITIES,
 } from '../enums/map.js';
 import { firstObstacleOverlap, obstacleFitsInGrid } from '../rules/obstacles.js';
 import { type MapTerrain, terrainOutsideGrid } from '../rules/terrain.js';
@@ -65,6 +71,53 @@ export const mapTerrainSchema: z.ZodType<MapTerrain> = z
   });
 
 export const encounterTerrainSaveSchema = z.object({ terrain: mapTerrainSchema });
+
+/**
+ * Линия кисти ведущего: координаты и толщина — в клетках, а не в
+ * пикселях, чтобы линия масштабировалась с картой и поворачивалась на
+ * объёмном виде. Точки — плоским массивом [x1, y1, x2, y2, …]: так слой
+ * весит вдвое меньше, чем массивом пар.
+ */
+export const mapStrokeSchema = z.object({
+  color: z.string().regex(/^#[0-9a-f]{6}$/i),
+  width: z.number().min(MAP_MIN_STROKE_WIDTH).max(MAP_MAX_STROKE_WIDTH),
+  points: z
+    .array(z.number().min(0).max(MAP_MAX_GRID))
+    .min(4)
+    .max(MAP_MAX_STROKE_POINTS * 2)
+    .refine((points) => points.length % 2 === 0, { message: 'Координаты — парами' }),
+});
+export type MapStroke = z.infer<typeof mapStrokeSchema>;
+
+export const mapDrawingsSchema = z
+  .array(mapStrokeSchema)
+  .max(MAP_MAX_STROKES)
+  .refine(
+    (drawings) =>
+      drawings.reduce((sum, stroke) => sum + stroke.points.length / 2, 0) <= MAP_MAX_DRAWING_POINTS,
+    { message: 'Слишком много точек в рисунках' },
+  );
+export type MapDrawings = z.infer<typeof mapDrawingsSchema>;
+
+export const encounterDrawingsSaveSchema = z.object({ drawings: mapDrawingsSchema });
+export type EncounterDrawingsSaveInput = z.infer<typeof encounterDrawingsSaveSchema>;
+
+/** Настройки сцены, которые ведущий меняет по ходу игры. */
+export const encounterSettingsSchema = z.object({
+  statsVisibility: z.enum(STATS_VISIBILITIES),
+});
+export type EncounterSettingsInput = z.infer<typeof encounterSettingsSchema>;
+
+/** Первая линия, выходящая за сетку, или `null`. */
+export function drawingOutsideGrid(
+  drawings: MapDrawings,
+  grid: { width: number; height: number },
+): number | null {
+  const index = drawings.findIndex((stroke) =>
+    stroke.points.some((value, i) => value > (i % 2 === 0 ? grid.width : grid.height)),
+  );
+  return index === -1 ? null : index;
+}
 export type EncounterTerrainSaveInput = z.infer<typeof encounterTerrainSaveSchema>;
 
 /**
@@ -87,6 +140,7 @@ export const battleMapSaveSchema = z
     obstacles: z.array(mapObstacleInputSchema).max(MAP_MAX_OBSTACLES).default([]),
     monsters: z.array(mapMonsterPresetInputSchema).max(MAP_MAX_MONSTER_PRESETS).default([]),
     terrain: mapTerrainSchema.default({}),
+    drawings: mapDrawingsSchema.default([]),
   })
   .superRefine((value, ctx) => {
     const grid = { width: value.gridWidth, height: value.gridHeight };
@@ -118,6 +172,11 @@ export const battleMapSaveSchema = z
     const outside = terrainOutsideGrid(value.terrain, grid);
     if (outside !== null) {
       ctx.addIssue({ code: 'custom', path: ['terrain', outside], message: 'Местность вне сетки' });
+    }
+
+    const stroke = drawingOutsideGrid(value.drawings, grid);
+    if (stroke !== null) {
+      ctx.addIssue({ code: 'custom', path: ['drawings', stroke], message: 'Рисунок вне сетки' });
     }
   });
 export type BattleMapSaveInput = z.infer<typeof battleMapSaveSchema>;
