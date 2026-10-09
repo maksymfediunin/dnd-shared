@@ -377,11 +377,14 @@ describe('рисунки заготовки', () => {
 });
 
 describe('настройки сцены', () => {
-  it('видимость чисел — одна из трёх', () => {
-    expect(encounterSettingsSchema.parse({ statsVisibility: 'ALL' })).toEqual({
-      statsVisibility: 'ALL',
-    });
-    expect(encounterSettingsSchema.safeParse({ statsVisibility: 'NONE' }).success).toBe(false);
+  it('видимость хитов и КД — порознь, каждая одна из трёх', () => {
+    expect(encounterSettingsSchema.parse({ hpVisibility: 'ALL' })).toEqual({ hpVisibility: 'ALL' });
+    expect(encounterSettingsSchema.parse({ acVisibility: 'OWN' })).toEqual({ acVisibility: 'OWN' });
+    expect(encounterSettingsSchema.safeParse({ hpVisibility: 'NONE' }).success).toBe(false);
     expect([...STATS_VISIBILITIES]).toEqual(['OWN', 'PARTY', 'ALL']);
+  });
+
+  it('пустая правка — отказ', () => {
+    expect(encounterSettingsSchema.safeParse({}).success).toBe(false);
   });
 });
