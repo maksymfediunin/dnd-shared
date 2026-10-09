@@ -51,11 +51,22 @@ export const mapObstacleInputSchema = z.object({
 });
 export type MapObstacleInput = z.infer<typeof mapObstacleInputSchema>;
 
+/**
+ * Свои хиты и КД монстра — ведущий подгоняет силу под партию. Нет поля —
+ * берётся справочное значение; пределы с запасом на эпических монстров.
+ */
+export const MONSTER_MAX_HIT_POINTS = 999;
+export const MONSTER_MAX_ARMOR_CLASS = 40;
+const monsterHitPointsSchema = z.number().int().min(1).max(MONSTER_MAX_HIT_POINTS);
+const monsterArmorClassSchema = z.number().int().min(1).max(MONSTER_MAX_ARMOR_CLASS);
+
 export const mapMonsterPresetInputSchema = z.object({
   monsterCode: monsterCodeSchema,
   x: coordinateSchema,
   y: coordinateSchema,
   quantity: z.number().int().min(1).max(MAP_MAX_MONSTER_QUANTITY).default(1),
+  hitPoints: monsterHitPointsSchema.optional(),
+  armorClass: monsterArmorClassSchema.optional(),
 });
 export type MapMonsterPresetInput = z.infer<typeof mapMonsterPresetInputSchema>;
 
@@ -213,6 +224,9 @@ export const participantUpdateSchema = z
     isVisibleToPlayers: z.boolean().optional(),
     currentHitPoints: z.number().int().min(0).optional(),
     temporaryHitPoints: z.number().int().min(0).optional(),
+    /** Ведущий подгоняет силу фишки посреди сцены; текущие хиты сервис прижмёт к новому максимуму. */
+    maxHitPoints: monsterHitPointsSchema.optional(),
+    armorClass: monsterArmorClassSchema.optional(),
     displayName: z.string().trim().min(1).max(60).optional(),
     /**
      * Ход властью ведущего, вне правил очереди и бюджета футов. Раньше
