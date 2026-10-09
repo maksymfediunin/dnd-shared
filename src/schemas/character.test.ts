@@ -7,6 +7,7 @@ import {
   customWeaponProfileSchema,
   levelUpSchema,
   restSchema,
+  roomRestSchema,
 } from './character.js';
 
 const VALID_ABILITIES = {
@@ -260,5 +261,17 @@ describe('restSchema', () => {
     expect(restSchema.safeParse({ kind: 'SHORT' }).success).toBe(true);
     expect(restSchema.safeParse({}).success).toBe(false);
     expect(restSchema.safeParse({ kind: 'NAP' }).success).toBe(false);
+  });
+});
+
+describe('roomRestSchema', () => {
+  it('без списка — весь загон, со списком — только выбранные', () => {
+    expect(roomRestSchema.parse({ kind: 'SHORT' })).toEqual({ kind: 'SHORT' });
+    const id = '123e4567-e89b-12d3-a456-426614174000';
+    expect(roomRestSchema.parse({ kind: 'LONG', characterIds: [id] }).characterIds).toEqual([id]);
+  });
+
+  it('пустой список — отказ: отдыхать некому', () => {
+    expect(roomRestSchema.safeParse({ kind: 'LONG', characterIds: [] }).success).toBe(false);
   });
 });

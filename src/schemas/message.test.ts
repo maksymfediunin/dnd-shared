@@ -11,10 +11,10 @@ describe('создание сообщения комнаты', () => {
     expect(result.success).toBe(true);
   });
 
-  it('принимает личное сообщение с адресатом', () => {
+  it('принимает личное сообщение с адресатами', () => {
     const result = roomMessageCreateSchema.safeParse({
       kind: 'GM_PRIVATE',
-      targetUserId: '123e4567-e89b-12d3-a456-426614174000',
+      targetUserIds: ['123e4567-e89b-12d3-a456-426614174000'],
       body: 'Ты замечаешь тайник',
     });
     expect(result.success).toBe(true);
@@ -31,10 +31,29 @@ describe('создание сообщения комнаты', () => {
   it('отвергает объявление с адресатом: это личное под чужим именем', () => {
     const result = roomMessageCreateSchema.safeParse({
       kind: 'GM_BROADCAST',
-      targetUserId: '123e4567-e89b-12d3-a456-426614174000',
+      targetUserIds: ['123e4567-e89b-12d3-a456-426614174000'],
       body: 'Привал у реки',
     });
     expect(result.success).toBe(false);
+  });
+
+  it('повтор адресата снимается: письмо не уйдёт ему дважды', () => {
+    const parsed = roomMessageCreateSchema.parse({
+      kind: 'GM_PRIVATE',
+      targetUserIds: [
+        '123e4567-e89b-12d3-a456-426614174000',
+        '123e4567-e89b-12d3-a456-426614174000',
+      ],
+      body: 'Тайник',
+    });
+    expect(parsed.targetUserIds).toEqual(['123e4567-e89b-12d3-a456-426614174000']);
+  });
+
+  it('пустой список адресатов — отказ', () => {
+    expect(
+      roomMessageCreateSchema.safeParse({ kind: 'GM_PRIVATE', targetUserIds: [], body: 'x' })
+        .success,
+    ).toBe(false);
   });
 
   it('отвергает пустое тело и тело длиннее 4000 знаков', () => {

@@ -102,10 +102,19 @@ export type MapDrawings = z.infer<typeof mapDrawingsSchema>;
 export const encounterDrawingsSaveSchema = z.object({ drawings: mapDrawingsSchema });
 export type EncounterDrawingsSaveInput = z.infer<typeof encounterDrawingsSaveSchema>;
 
-/** Настройки сцены, которые ведущий меняет по ходу игры. */
-export const encounterSettingsSchema = z.object({
-  statsVisibility: z.enum(STATS_VISIBILITIES),
-});
+/**
+ * Настройки сцены, которые ведущий меняет по ходу игры. Хиты и КД —
+ * порознь: КД чужого героя секретом не считают, а хиты монстра — да.
+ * Приходит то, что меняется, — хотя бы одно поле.
+ */
+export const encounterSettingsSchema = z
+  .object({
+    hpVisibility: z.enum(STATS_VISIBILITIES).optional(),
+    acVisibility: z.enum(STATS_VISIBILITIES).optional(),
+  })
+  .refine((v) => v.hpVisibility !== undefined || v.acVisibility !== undefined, {
+    message: 'Нечего менять',
+  });
 export type EncounterSettingsInput = z.infer<typeof encounterSettingsSchema>;
 
 /** Первая линия, выходящая за сетку, или `null`. */

@@ -184,6 +184,17 @@ export const characterUpdateSchema = z
  */
 export const restSchema = z.object({ kind: z.enum(['SHORT', 'LONG']) }).strict();
 
+/**
+ * Отдых загона от ведущего. Без `characterIds` — все персонажи комнаты;
+ * со списком — только они: часть отряда стоит в дозоре или ушла вперёд.
+ */
+export const roomRestSchema = z
+  .object({
+    kind: z.enum(['SHORT', 'LONG']),
+    characterIds: z.array(z.uuid()).min(1).max(50).optional(),
+  })
+  .strict();
+
 export const levelChoiceSchema = z.object({
   choiceType: levelChoiceTypeSchema,
   choiceValue: z.string().trim().min(1).max(100),
@@ -202,6 +213,7 @@ export type CharacterItemInput = z.infer<typeof characterItemInputSchema>;
 export type CustomWeaponProfile = z.infer<typeof customWeaponProfileSchema>;
 export type CustomArmorProfile = z.infer<typeof customArmorProfileSchema>;
 export type RestInput = z.infer<typeof restSchema>;
+export type RoomRestInput = z.infer<typeof roomRestSchema>;
 
 /** Трата (+) или возврат (−) ресурса класса вне боя: ци, ярость, вдохновение. */
 export const resourceSpendSchema = z.object({
