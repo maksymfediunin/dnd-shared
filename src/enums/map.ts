@@ -122,6 +122,23 @@ export type EncounterStatus = (typeof ENCOUNTER_STATUSES)[number];
 export const MAP_MIN_GRID = 5;
 export const MAP_MAX_GRID = 30;
 export const MAP_DEFAULT_CELL_SIZE_FEET = 5;
+
+/**
+ * Рисунки кистью ведущего (дизайн 9 октября). Пределы держат слой сцены,
+ * который целиком уходит каждому зрителю при каждой правке, в разумном
+ * весе: три сотни линий по паре тысяч точек — уже десятки килобайт.
+ */
+export const MAP_MAX_STROKES = 300;
+export const MAP_MAX_STROKE_POINTS = 2000;
+export const MAP_MIN_STROKE_WIDTH = 0.02;
+export const MAP_MAX_STROKE_WIDTH = 1;
+
+/**
+ * Чьи хиты и КД видит игрок (дизайн 9 октября): только своей фишки,
+ * героев или всех, включая монстров. Задаёт ведущий на всю сцену.
+ */
+export const STATS_VISIBILITIES = ['OWN', 'PARTY', 'ALL'] as const;
+export type StatsVisibility = (typeof STATS_VISIBILITIES)[number];
 /**
  * Сторона клетки в футах. Пять — правило D&D, но карта таверны бывает
  * и мельче, а карта осады крепости — крупнее; предел сверху держит
