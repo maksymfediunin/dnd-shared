@@ -1,18 +1,26 @@
-import type { MapGridSide } from '../enums/map.js';
+import type { MapGridChange, MapGridSide } from '../enums/map.js';
+import type { Grid } from './grid.js';
 import type { MapTerrain } from './terrain.js';
 
 /**
- * Ряд клеток с одного края: на сколько растёт сетка и на сколько
- * сдвигается всё, что на ней стоит. Справа и снизу ряд пристраивается
- * за краем — содержимое на месте; слева и сверху новые клетки встают
- * в начало, и всё прежнее съезжает на одну.
+ * Ряд клеток с одного края: насколько меняется сетка и насколько
+ * съезжает всё, что на ней стоит. Справа и снизу ряд пристраивается или
+ * снимается за краем — содержимое на месте; слева и сверху меняется
+ * начало сетки, и всё прежнее съезжает на клетку (наружу при добавлении,
+ * внутрь при удалении). Что после сдвига оказалось за краем, отсекает
+ * вызывающий — по своим правилам: на живой сцене фишку молча не убрать.
  */
-export function growShift(side: MapGridSide): { dx: number; dy: number; dw: number; dh: number } {
+export function resizeShift(
+  side: MapGridSide,
+  change: MapGridChange,
+): { dx: number; dy: number; dw: number; dh: number } {
+  const step = change === 'ADD' ? 1 : -1;
+  const horizontal = side === 'LEFT' || side === 'RIGHT';
   return {
-    dx: side === 'LEFT' ? 1 : 0,
-    dy: side === 'TOP' ? 1 : 0,
-    dw: side === 'LEFT' || side === 'RIGHT' ? 1 : 0,
-    dh: side === 'TOP' || side === 'BOTTOM' ? 1 : 0,
+    dx: side === 'LEFT' ? step : 0,
+    dy: side === 'TOP' ? step : 0,
+    dw: horizontal ? step : 0,
+    dh: horizontal ? 0 : step,
   };
 }
 
@@ -22,20 +30,42 @@ export function shiftCellKey(key: string, dx: number, dy: number): string {
   return `${(x ?? 0) + dx}:${(y ?? 0) + dy}`;
 }
 
-export function shiftTerrain(terrain: MapTerrain, dx: number, dy: number): MapTerrain {
-  return Object.fromEntries(
-    Object.entries(terrain).map(([key, kind]) => [shiftCellKey(key, dx, dy), kind]),
+/** Клетка ключа внутри сетки — с обеих сторон, а не только справа и снизу. */
+export function cellKeyInGrid(key: string, grid: Grid): boolean {
+  const [x, y] = key.split(':').map(Number);
+  return (
+    x !== undefined && y !== undefined && x >= 0 && y >= 0 && x < grid.width && y < grid.height
   );
 }
 
-/** Точки линии плоским списком `[x1, y1, x2, y2, …]` — чётные по x, нечётные по y. */
+/** Местность, сдвинутая и обрезанная по новой сетке. */
+export function shiftTerrain(terrain: MapTerrain, dx: number, dy: number, grid: Grid): MapTerrain {
+  return Object.fromEntries(
+    Object.entries(terrain)
+      .map(([key, kind]) => [shiftCellKey(key, dx, dy), kind] as const)
+      .filter(([key]) => cellKeyInGrid(key, grid)),
+  );
+}
+
+/**
+ * Линии, сдвинутые на (dx, dy); линия, хоть одной точкой ушедшая за
+ * новый край, убирается целиком — резать её на куски незачем, это
+ * пометка, а не стена. Точки плоским списком: чётные по x, нечётные по y.
+ */
 export function shiftDrawings<T extends { points: number[] }>(
   drawings: T[],
   dx: number,
   dy: number,
+  grid: Grid,
 ): T[] {
-  return drawings.map((stroke) => ({
-    ...stroke,
-    points: stroke.points.map((value, i) => value + (i % 2 === 0 ? dx : dy)),
-  }));
+  return drawings
+    .map((stroke) => ({
+      ...stroke,
+      points: stroke.points.map((value, i) => value + (i % 2 === 0 ? dx : dy)),
+    }))
+    .filter((stroke) =>
+      stroke.points.every(
+        (value, i) => value >= 0 && value <= (i % 2 === 0 ? grid.width : grid.height),
+      ),
+    );
 }

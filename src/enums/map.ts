@@ -122,9 +122,12 @@ export type EncounterStatus = (typeof ENCOUNTER_STATUSES)[number];
 export const MAP_MIN_GRID = 5;
 export const MAP_MAX_GRID = 30;
 
-/** Край сетки, к которому ведущий пристраивает ряд клеток. */
+/** Край сетки, у которого ведущий пристраивает или снимает ряд клеток. */
 export const MAP_GRID_SIDES = ['TOP', 'RIGHT', 'BOTTOM', 'LEFT'] as const;
 export type MapGridSide = (typeof MAP_GRID_SIDES)[number];
+/** Ряд пристроить или снять. */
+export const MAP_GRID_CHANGES = ['ADD', 'REMOVE'] as const;
+export type MapGridChange = (typeof MAP_GRID_CHANGES)[number];
 export const MAP_DEFAULT_CELL_SIZE_FEET = 5;
 
 /**

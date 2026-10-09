@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { conditionCodeSchema, exhaustionLevelSchema } from '../enums/conditions.js';
 import {
   MAP_DEFAULT_CELL_SIZE_FEET,
+  MAP_GRID_CHANGES,
   MAP_GRID_SIDES,
   MAP_MAX_CELL_SIZE_FEET,
   MAP_MAX_DRAWING_POINTS,
@@ -118,9 +119,12 @@ export const encounterSettingsSchema = z
   });
 export type EncounterSettingsInput = z.infer<typeof encounterSettingsSchema>;
 
-/** Ряд клеток к живой сцене — с одного края за раз. */
-export const encounterGrowSchema = z.object({ side: z.enum(MAP_GRID_SIDES) });
-export type EncounterGrowInput = z.infer<typeof encounterGrowSchema>;
+/** Ряд клеток живой сцены — пристроить или снять, с одного края за раз. */
+export const encounterResizeSchema = z.object({
+  side: z.enum(MAP_GRID_SIDES),
+  change: z.enum(MAP_GRID_CHANGES),
+});
+export type EncounterResizeInput = z.infer<typeof encounterResizeSchema>;
 
 /** Первая линия, выходящая за сетку, или `null`. */
 export function drawingOutsideGrid(
