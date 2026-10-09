@@ -13,6 +13,7 @@ import {
   encounterSettingsSchema,
   encounterTerrainSaveSchema,
   mapDrawingsSchema,
+  mapMonsterPresetInputSchema,
   mapStrokeSchema,
   participantUpdateSchema,
 } from './map.js';
@@ -185,6 +186,25 @@ describe('battleMapSaveSchema', () => {
     expect(battleMapSaveSchema.safeParse({ ...validMap, cellSizeFeet: 0 }).success).toBe(false);
     expect(battleMapSaveSchema.safeParse({ ...validMap, cellSizeFeet: 21 }).success).toBe(false);
     expect(battleMapSaveSchema.parse({ ...validMap, cellSizeFeet: 10 }).cellSizeFeet).toBe(10);
+  });
+});
+
+describe('свои хиты и КД монстра', () => {
+  it('у пресета — необязательны и в пределах', () => {
+    const base = { monsterCode: 'goblin', x: 1, y: 1 };
+    expect(mapMonsterPresetInputSchema.parse(base).hitPoints).toBeUndefined();
+    expect(
+      mapMonsterPresetInputSchema.parse({ ...base, hitPoints: 12, armorClass: 16 }),
+    ).toMatchObject({ hitPoints: 12, armorClass: 16 });
+    expect(mapMonsterPresetInputSchema.safeParse({ ...base, hitPoints: 0 }).success).toBe(false);
+    expect(mapMonsterPresetInputSchema.safeParse({ ...base, armorClass: 41 }).success).toBe(false);
+  });
+
+  it('у фишки сцены — максимум хитов и КД правятся', () => {
+    expect(participantUpdateSchema.parse({ maxHitPoints: 20, armorClass: 14 })).toEqual({
+      maxHitPoints: 20,
+      armorClass: 14,
+    });
   });
 });
 
