@@ -1,5 +1,5 @@
 import type { WeaponCategory, WeaponProperty, WeaponRangeType } from '../enums/character.js';
-import type { DeathSaveOutcome } from '../enums/combat.js';
+import type { DeathSaveOutcome, ParticipantSide } from '../enums/combat.js';
 import type { AdvantageMode } from '../enums/dice.js';
 import type { SizeCategory } from '../enums/size.js';
 import { diceNotation, keptDie, type RandomSource, rollDice } from './dice.js';
@@ -334,6 +334,25 @@ export interface OpportunityReactor extends Placed {
  * Кто враг и не потрачена ли реакция, решает вызывающий: у сервера это
  * строки базы, у фронта — снимок, где реакция монстра скрыта.
  */
+interface Sided {
+  id: string;
+  side: ParticipantSide;
+}
+
+/**
+ * Союзник ли это — единственный ответ на вопрос для всех правил
+ * (скрытая атака, согласные цели, зоны «только по врагам»). Себе всякий
+ * союзник, даже нейтральный.
+ */
+export function isAlly(a: Sided, b: Sided): boolean {
+  return a.id === b.id || (a.side === b.side && a.side !== 'NEUTRAL');
+}
+
+/** Враг — другая сторона, и ни одна из двух не нейтральная. */
+export function isEnemy(a: Sided, b: Sided): boolean {
+  return a.side !== b.side && a.side !== 'NEUTRAL' && b.side !== 'NEUTRAL';
+}
+
 export function opportunityReactors(input: {
   mover: Placed;
   to: Cell;

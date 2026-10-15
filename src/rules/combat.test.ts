@@ -7,6 +7,8 @@ import {
   damageRoll,
   deathSave,
   initiativeOrder,
+  isAlly,
+  isEnemy,
   movementCost,
   movesCloser,
   opportunityReactors,
@@ -402,5 +404,28 @@ describe('opportunityReactors', () => {
         cellSizeFeet: 5,
       }),
     ).toEqual([]);
+  });
+});
+
+describe('стороны участников', () => {
+  const party = { id: 'a', side: 'PARTY' as const };
+  const friend = { id: 'b', side: 'PARTY' as const };
+  const goblin = { id: 'g', side: 'HOSTILE' as const };
+  const villager = { id: 'v', side: 'NEUTRAL' as const };
+
+  it('союзник — та же сторона; враг — другая; нейтральный — ни то ни другое', () => {
+    expect(isAlly(party, friend)).toBe(true);
+    expect(isEnemy(party, friend)).toBe(false);
+    expect(isAlly(party, goblin)).toBe(false);
+    expect(isEnemy(party, goblin)).toBe(true);
+    expect(isEnemy(goblin, party)).toBe(true);
+    expect(isAlly(villager, { id: 'w', side: 'NEUTRAL' })).toBe(false);
+    expect(isEnemy(villager, goblin)).toBe(false);
+    expect(isEnemy(party, villager)).toBe(false);
+  });
+
+  it('себе всякий союзник — и нейтральный тоже', () => {
+    expect(isAlly(villager, villager)).toBe(true);
+    expect(isAlly(goblin, { ...goblin })).toBe(true);
   });
 });

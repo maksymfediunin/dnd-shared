@@ -408,3 +408,10 @@ describe('настройки сцены', () => {
     expect(encounterSettingsSchema.safeParse({}).success).toBe(false);
   });
 });
+
+describe('сторона фишки в правке участника', () => {
+  it('принимает одну из трёх сторон и отвергает прочее', () => {
+    expect(participantUpdateSchema.parse({ side: 'NEUTRAL' })).toEqual({ side: 'NEUTRAL' });
+    expect(() => participantUpdateSchema.parse({ side: 'ALLY' })).toThrow();
+  });
+});

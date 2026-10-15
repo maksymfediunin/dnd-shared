@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { participantSideSchema } from '../enums/combat.js';
 import { conditionCodeSchema, exhaustionLevelSchema } from '../enums/conditions.js';
 import {
   MAP_DEFAULT_CELL_SIZE_FEET,
@@ -228,6 +229,8 @@ export const participantUpdateSchema = z
     maxHitPoints: monsterHitPointsSchema.optional(),
     armorClass: monsterArmorClassSchema.optional(),
     displayName: z.string().trim().min(1).max(60).optional(),
+    /** Сторона фишки — правит только ведущий (союзный NPC, очарованный враг). */
+    side: participantSideSchema.optional(),
     /**
      * Ход властью ведущего, вне правил очереди и бюджета футов. Раньше
      * ведущий был вне правил всегда — и за столом это выходило боком:
