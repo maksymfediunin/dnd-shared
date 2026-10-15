@@ -1,6 +1,11 @@
-import type { AbilityCode } from '../../enums/character.js';
+import type { AbilityCode, CharacterResourceCode } from '../../enums/character.js';
 import type { AdvantageMode } from '../../enums/dice.js';
-import type { ModifierPart } from '../../schemas/combat.js';
+import type {
+  ActionEconomy,
+  ActionUnavailableReason,
+  AvailableAction,
+  ModifierPart,
+} from '../../schemas/combat.js';
 import {
   martialArtsDie,
   rageDamageBonus,
@@ -234,4 +239,72 @@ export function onHitDiceCount(
 
 export function hasRule(h: MechanicsHolder, rule: RuleFacet['rule']): boolean {
   return facetsOf(h).some(({ facet }) => facet.kind === 'rule' && facet.rule === rule);
+}
+
+export interface AvailableActionsInput {
+  holder: MechanicsHolder;
+  /** Максимум по классу и уровню и сколько потрачено. */
+  resources: readonly { code: CharacterResourceCode; max: number; used: number }[];
+  economy: { hasUsedAction: boolean; hasUsedBonusAction: boolean; hasUsedReaction: boolean };
+  isTurn: boolean;
+}
+
+const ECONOMY_REASON: Partial<Record<ActionEconomy, ActionUnavailableReason>> = {
+  ACTION: 'ACTION_ALREADY_USED',
+  BONUS_ACTION: 'BONUS_ACTION_ALREADY_USED',
+  REACTION: 'REACTION_ALREADY_USED',
+};
+
+/**
+ * Действия умений, какие у носителя есть сейчас, — в порядке записей
+ * реестра. Действие с ресурсом открывается наличием ресурса (максимум
+ * больше нуля), а не строкой умения: ресурс выдаётся по классу и уровню
+ * вместе с умением, и так было до реестра (решение 2 плана волны 2).
+ * Причина недоступности — первая по порядку: чужой ход (кроме реакции),
+ * потраченный вид действия, исчерпанный ресурс.
+ */
+export function availableActions(input: AvailableActionsInput): AvailableAction[] {
+  const { holder: h, economy, isTurn } = input;
+  const used = {
+    ACTION: economy.hasUsedAction,
+    BONUS_ACTION: economy.hasUsedBonusAction,
+    REACTION: economy.hasUsedReaction,
+    FREE: false,
+  } satisfies Record<ActionEconomy, boolean>;
+  const out: AvailableAction[] = [];
+  for (const [code, record] of Object.entries(FEATURE_MECHANICS)) {
+    for (const facet of facetsOfRecord(record)) {
+      if (facet.kind !== 'action') continue;
+      const resource = facet.resource
+        ? input.resources.find((r) => r.code === facet.resource && r.max > 0)
+        : undefined;
+      const owned = facet.resource
+        ? resource !== undefined
+        : facet.requiresEffect
+          ? h.effects.includes(facet.requiresEffect)
+          : h.features.has(code);
+      if (!owned) continue;
+      if (facet.applies && h.effects.includes(facet.applies)) continue;
+      const left = resource ? Math.max(0, resource.max - resource.used) : null;
+      const reason: ActionUnavailableReason | null =
+        !isTurn && facet.economy !== 'REACTION'
+          ? 'NOT_YOUR_TURN'
+          : used[facet.economy]
+            ? (ECONOMY_REASON[facet.economy] ?? null)
+            : left === 0
+              ? 'RESOURCE_EXHAUSTED'
+              : null;
+      out.push({
+        kind: 'ABILITY',
+        ability: facet.ability,
+        featureCode: code,
+        economy: facet.economy,
+        resource:
+          resource && left !== null ? { code: resource.code, left, max: resource.max } : null,
+        available: reason === null,
+        reason,
+      });
+    }
+  }
+  return out;
 }

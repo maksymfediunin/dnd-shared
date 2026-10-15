@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   attacksPerActionOf,
+  availableActions,
   collectAcFormula,
   collectAdvantage,
   collectCrit,
@@ -226,5 +227,69 @@ describe('кости при попадании', () => {
     expect(collectOnHit(h, { weapon: rapier, roll: roll('NONE', false) })).toHaveLength(0);
     expect(collectOnHit(h, { weapon: rapier, roll: roll('DISADVANTAGE', true) })).toHaveLength(0);
     expect(collectOnHit(h, { weapon: weapon(), roll: roll('ADVANTAGE', true) })).toHaveLength(0);
+  });
+});
+
+describe('доступные действия', () => {
+  const economy = { hasUsedAction: false, hasUsedBonusAction: false, hasUsedReaction: false };
+  const list = (
+    resources: { code: 'RAGE' | 'SECOND_WIND' | 'ACTION_SURGE'; max: number; used: number }[],
+    patch: Partial<Parameters<typeof availableActions>[0]> = {},
+  ) => availableActions({ holder: holder(), resources, economy, isTurn: true, ...patch });
+
+  it('варвар: ярость бонусным действием с зарядами 2 из 2; на нуле — исчерпано', () => {
+    expect(list([{ code: 'RAGE', max: 2, used: 0 }])).toEqual([
+      {
+        kind: 'ABILITY',
+        ability: 'RAGE',
+        featureCode: 'rage',
+        economy: 'BONUS_ACTION',
+        resource: { code: 'RAGE', left: 2, max: 2 },
+        available: true,
+        reason: null,
+      },
+    ]);
+    expect(list([{ code: 'RAGE', max: 2, used: 2 }])[0]).toMatchObject({
+      resource: { left: 0 },
+      available: false,
+      reason: 'RESOURCE_EXHAUSTED',
+    });
+  });
+
+  it('в ярости — только снятие, даром', () => {
+    const actions = list([{ code: 'RAGE', max: 2, used: 1 }], {
+      holder: holder([], { effects: ['RAGE'] }),
+    });
+    expect(actions.map((a) => [a.ability, a.economy, a.resource, a.available])).toEqual([
+      ['END_RAGE', 'FREE', null, true],
+    ]);
+  });
+
+  it('потраченное бонусное действие — раньше исчерпанного ресурса; чужой ход — раньше всего', () => {
+    const spent = list([{ code: 'RAGE', max: 2, used: 2 }], {
+      economy: { ...economy, hasUsedBonusAction: true },
+    });
+    expect(spent[0]?.reason).toBe('BONUS_ACTION_ALREADY_USED');
+    const notMine = list([{ code: 'RAGE', max: 2, used: 2 }], {
+      economy: { ...economy, hasUsedBonusAction: true },
+      isTurn: false,
+    });
+    expect(notMine[0]?.reason).toBe('NOT_YOUR_TURN');
+  });
+
+  it('воин 1 — второе дыхание; воин 2 — и всплеск действий, в порядке реестра', () => {
+    expect(list([{ code: 'SECOND_WIND', max: 1, used: 0 }]).map((a) => a.ability)).toEqual([
+      'SECOND_WIND',
+    ]);
+    const two = list([
+      { code: 'ACTION_SURGE', max: 1, used: 0 },
+      { code: 'SECOND_WIND', max: 1, used: 0 },
+    ]);
+    expect(two.map((a) => a.ability)).toEqual(['SECOND_WIND', 'ACTION_SURGE']);
+    expect(two[1]).toMatchObject({ economy: 'FREE', featureCode: 'action-surge-1-use' });
+  });
+
+  it('волшебнику — пусто', () => {
+    expect(list([])).toEqual([]);
   });
 });
