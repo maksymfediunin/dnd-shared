@@ -20,6 +20,7 @@ import {
   spellSlots,
   spellsKnown,
   subclassUnlockLevel,
+  unarmoredMovementBonus,
 } from './progression.js';
 
 /**
@@ -325,5 +326,9 @@ describe('ресурсы классов', () => {
 
   it('воззвания колдуна', () => {
     expect(LEVELS.map(invocationsKnown)).toEqual([0, 2, 2, 2, 3, 3, 4, 4, 5, 5]);
+  });
+
+  it('движение без доспехов монаха: +10 со второго, +15 с шестого, +20 с десятого', () => {
+    expect(LEVELS.map(unarmoredMovementBonus)).toEqual([0, 10, 10, 10, 10, 15, 15, 15, 15, 20]);
   });
 });

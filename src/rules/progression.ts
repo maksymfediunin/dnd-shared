@@ -322,6 +322,7 @@ const BARDIC_INSPIRATION_DIE = [6, 6, 6, 6, 8, 8, 8, 8, 8, 10] as const;
 const MARTIAL_ARTS_DIE = [4, 4, 4, 4, 6, 6, 6, 6, 6, 6] as const;
 const SNEAK_ATTACK_DICE = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5] as const;
 const INVOCATIONS_KNOWN = [0, 2, 2, 2, 3, 3, 4, 4, 5, 5] as const;
+const UNARMORED_MOVEMENT = [0, 10, 10, 10, 10, 15, 15, 15, 15, 20] as const;
 
 /** Прибавка варвара к урону в ярости. */
 export function rageDamageBonus(level: number): number {
@@ -346,6 +347,11 @@ export function sneakAttackDice(level: number): number {
 /** Сколько воззваний знает колдун. */
 export function invocationsKnown(level: number): number {
   return atLevel(INVOCATIONS_KNOWN, level);
+}
+
+/** Прибавка к скорости монаха без доспеха и щита (столбец таблицы монаха). */
+export function unarmoredMovementBonus(level: number): number {
+  return atLevel(UNARMORED_MOVEMENT, level);
 }
 
 /**

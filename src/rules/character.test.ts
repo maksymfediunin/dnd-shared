@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   armorClass,
+  favoredEnemyLanguages,
   initiative,
   initiativeParts,
   maxHitPoints,
@@ -139,5 +140,22 @@ describe('части модификатора', () => {
       { source: 'jackOfAllTrades', value: 1 },
     ]);
     expect(sumParts(initiativeParts(-1))).toBe(initiative(-1));
+  });
+});
+
+describe('язык избранного врага', () => {
+  // Ожидания — по колонке «типичные носители» таблицы языков SRD.
+  it('у типа с языком — его языки', () => {
+    expect(favoredEnemyLanguages('dragons')).toEqual(['draconic']);
+    expect(favoredEnemyLanguages('fiends')).toEqual(['abyssal', 'infernal']);
+    expect(favoredEnemyLanguages('aberrations')).toEqual(['deep-speech']);
+    expect(favoredEnemyLanguages('humanoids')).toContain('common');
+  });
+
+  it('у безъязыких типов и незнакомого кода — пусто', () => {
+    for (const type of ['beasts', 'constructs', 'monstrosities', 'oozes', 'plants', 'undead']) {
+      expect(favoredEnemyLanguages(type)).toEqual([]);
+    }
+    expect(favoredEnemyLanguages('nonsense')).toEqual([]);
   });
 });

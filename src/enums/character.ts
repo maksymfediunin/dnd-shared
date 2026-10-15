@@ -114,6 +114,11 @@ export const LEVEL_CHOICE_TYPES = [
   'FEATURE_OPTION',
   'LANGUAGE',
   'TOOL',
+  // Замена известного при повышении (SRD разрешает барду, чародею,
+  // колдуну и следопыту). Значение — пара «старое:новое»: замена без
+  // одной из половин — уже не замена, а потеря или лишнее.
+  'SPELL_SWAP',
+  'INVOCATION_SWAP',
 ] as const;
 
 export const levelChoiceTypeSchema = z.enum(LEVEL_CHOICE_TYPES);

@@ -198,6 +198,22 @@ describe('levelUpSchema', () => {
     expect(levelUpSchema.parse({}).choices).toEqual([]);
   });
 
+  it('принимает замену заклинания и воззвания парой «старое:новое»', () => {
+    const parsed = levelUpSchema.parse({
+      choices: [
+        { choiceType: 'SPELL_SWAP', choiceValue: 'sleep:shield' },
+        {
+          choiceType: 'INVOCATION_SWAP',
+          choiceValue: 'eldritch-invocation-a:eldritch-invocation-b',
+        },
+      ],
+    });
+    expect(parsed.choices.map((choice) => choice.choiceType)).toEqual([
+      'SPELL_SWAP',
+      'INVOCATION_SWAP',
+    ]);
+  });
+
   it('отклоняет неизвестный вид выбора', () => {
     expect(
       levelUpSchema.safeParse({ choices: [{ choiceType: 'ЧЕРТА', choiceValue: 'x' }] }).success,
