@@ -240,3 +240,27 @@ describe('варианты, зоны и следствия урона', () => {
     expect(plan).toEqual({ kind: 'DAMAGE', dice: '4d8', modifier: 0, type: 'radiant' });
   });
 });
+
+describe('пустые записи', () => {
+  // Без записи тест полноты не отличил бы «считает SRD» от «забыли».
+  it('14 заклинаний, которые целиком считают поля SRD и код, — с записью {}', () => {
+    for (const code of [
+      'circle-of-death',
+      'cure-wounds',
+      'darkness',
+      'fireball',
+      'fog-cloud',
+      'healing-word',
+      'hunters-mark',
+      'inflict-wounds',
+      'lightning-bolt',
+      'poison-spray',
+      'sleep',
+      'spare-the-dying',
+      'stinking-cloud',
+      'thunderwave',
+    ]) {
+      expect(SPELL_MECHANICS[code], code).toEqual({});
+    }
+  });
+});

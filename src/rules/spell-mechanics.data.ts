@@ -1022,4 +1022,23 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'zone-of-truth': {
     gm: 'Сфера 15 фт: спасбросок Харизмы при входе/старте хода; на провале нельзя сознательно лгать',
   },
+  /*
+   * Всё боевое у этих заклинаний считают поля SRD или код службы («Сон» —
+   * пул хитов, «Метка охотника» — эффект, «Тьма» и «Туман» — зоны): запись
+   * пустая, но есть — тест полноты отличает её от забытой.
+   */
+  'circle-of-death': {},
+  'cure-wounds': {},
+  darkness: {},
+  fireball: {},
+  'fog-cloud': {},
+  'healing-word': {},
+  'hunters-mark': {},
+  'inflict-wounds': {},
+  'lightning-bolt': {},
+  'poison-spray': {},
+  sleep: {},
+  'spare-the-dying': {},
+  'stinking-cloud': {},
+  thunderwave: {},
 };
