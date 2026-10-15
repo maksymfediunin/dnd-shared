@@ -9,6 +9,7 @@ import {
   rollSignedDice,
   SPELL_EFFECT_CODE,
   saveAdvantageFrom,
+  saveAdvantageSources,
   saveBonusFrom,
   speedWithEffects,
   spellConditionEffects,
@@ -262,5 +263,18 @@ describe('пустые записи', () => {
     ]) {
       expect(SPELL_MECHANICS[code], code).toEqual({});
     }
+  });
+});
+
+describe('источники преимущества спасброска', () => {
+  // Сведённый режим терял бы источники: «и то и другое» плюс ещё одно
+  // преимущество со стороны дали бы преимущество вместо обычного броска.
+  it('по источнику на эффект, а не сведённым режимом', () => {
+    const effects = [
+      { code: SPELL_EFFECT_CODE, spellCode: 'enlarge-reduce', data: { variant: 'enlarge' } },
+      { code: SPELL_EFFECT_CODE, spellCode: 'bestow-curse', data: { variant: 'str' } },
+    ];
+    expect(saveAdvantageSources(effects, 'strength').sort()).toEqual(['ADVANTAGE', 'DISADVANTAGE']);
+    expect(saveAdvantageFrom(effects, 'strength')).toBe('NONE');
   });
 });

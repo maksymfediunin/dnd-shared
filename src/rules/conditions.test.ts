@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   attackAdvantage,
   autoCritOn,
+  combineAdvantage,
   combineConditions,
   derivedConditions,
   effectiveSpeed,
@@ -393,5 +394,15 @@ describe('видимость сквозь туман и тьму', () => {
     expect(
       attackAdvantage({ ...base, sight: { attackerSeesTarget: false, targetSeesAttacker: true } }),
     ).toBe('DISADVANTAGE');
+  });
+});
+
+describe('сведение преимущества', () => {
+  // PHB: сколько бы ни было источников того и другого — обычный бросок.
+  it('и то и другое — обычный бросок; только одно — оно', () => {
+    expect(combineAdvantage([])).toBe('NONE');
+    expect(combineAdvantage(['ADVANTAGE', 'ADVANTAGE'])).toBe('ADVANTAGE');
+    expect(combineAdvantage(['DISADVANTAGE', 'NONE'])).toBe('DISADVANTAGE');
+    expect(combineAdvantage(['ADVANTAGE', 'DISADVANTAGE', 'ADVANTAGE'])).toBe('NONE');
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  advantageSources,
   attacksPerActionOf,
   availableActions,
   collectAcFormula,
@@ -194,6 +195,9 @@ describe('ярость', () => {
     expect(collectAdvantage(raging(), { kind: 'check', ability: 'strength' }, unarmored)).toBe(
       'ADVANTAGE',
     );
+    expect(advantageSources(raging(), { kind: 'save', ability: 'strength' }, unarmored)).toEqual([
+      'ADVANTAGE',
+    ]);
     expect(collectAdvantage(raging(), { kind: 'save', ability: 'dexterity' }, unarmored)).toBe(
       'NONE',
     );

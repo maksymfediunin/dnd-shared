@@ -6,6 +6,7 @@ import type {
   AvailableAction,
   ModifierPart,
 } from '../../schemas/combat.js';
+import { combineAdvantage } from '../conditions.js';
 import {
   martialArtsDie,
   rageDamageBonus,
@@ -163,23 +164,29 @@ export function collectAcFormula(h: MechanicsHolder): AcFormulaFacet | null {
   return null;
 }
 
+/** Источники преимущества и помехи броску — по одному на грань, для сведения с прочими. */
+export function advantageSources(
+  h: MechanicsHolder,
+  roll: { kind: AdvantageFacet['roll']; ability?: AbilityCode },
+  ctx: MechanicsContext = {},
+): AdvantageFacet['mode'][] {
+  return facetsOf(h).flatMap(({ facet }) =>
+    facet.kind === 'advantage' &&
+    facet.roll === roll.kind &&
+    (facet.ability === undefined || facet.ability === roll.ability) &&
+    holds(facet.when, ctx)
+      ? [facet.mode]
+      : [],
+  );
+}
+
 /** Преимущество и помеха гасят друг друга, сколько бы их ни было (PHB). */
 export function collectAdvantage(
   h: MechanicsHolder,
   roll: { kind: AdvantageFacet['roll']; ability?: AbilityCode },
   ctx: MechanicsContext = {},
 ): AdvantageMode {
-  let advantage = false;
-  let disadvantage = false;
-  for (const { facet } of facetsOf(h)) {
-    if (facet.kind !== 'advantage' || facet.roll !== roll.kind) continue;
-    if (facet.ability !== undefined && facet.ability !== roll.ability) continue;
-    if (!holds(facet.when, ctx)) continue;
-    if (facet.mode === 'ADVANTAGE') advantage = true;
-    else disadvantage = true;
-  }
-  if (advantage === disadvantage) return 'NONE';
-  return advantage ? 'ADVANTAGE' : 'DISADVANTAGE';
+  return combineAdvantage(advantageSources(h, roll, ctx));
 }
 
 export function collectDefenses(
