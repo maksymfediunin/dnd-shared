@@ -29,6 +29,12 @@ export const ERROR_CODES = {
   INVALID_CHOICE: 'INVALID_CHOICE',
   LEVEL_UP_NOT_AVAILABLE: 'LEVEL_UP_NOT_AVAILABLE',
   MAX_LEVEL_REACHED: 'MAX_LEVEL_REACHED',
+  /**
+   * Уровень уже поднят другим запросом — двойной клик или вторая
+   * вкладка. Своим кодом, а не INVALID_CHOICE: выбор тут ни при чём,
+   * лист надо перечитать.
+   */
+  LEVEL_UP_CONFLICT: 'LEVEL_UP_CONFLICT',
   ROOM_NOT_FOUND: 'ROOM_NOT_FOUND',
   ROOM_CODE_INVALID: 'ROOM_CODE_INVALID',
   ROOM_FULL: 'ROOM_FULL',

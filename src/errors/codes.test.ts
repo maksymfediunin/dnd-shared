@@ -8,6 +8,7 @@ describe('коды ошибок', () => {
     expect(ERROR_CODES.INVALID_CHOICE).toBe('INVALID_CHOICE');
     expect(ERROR_CODES.LEVEL_UP_NOT_AVAILABLE).toBe('LEVEL_UP_NOT_AVAILABLE');
     expect(ERROR_CODES.MAX_LEVEL_REACHED).toBe('MAX_LEVEL_REACHED');
+    expect(ERROR_CODES.LEVEL_UP_CONFLICT).toBe('LEVEL_UP_CONFLICT');
   });
 
   it('знает код слишком большого запроса', () => {
