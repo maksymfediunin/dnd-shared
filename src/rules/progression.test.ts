@@ -268,6 +268,36 @@ const resourceByLevel = (classCode: ClassCode, code: string): number[] =>
   );
 
 describe('ресурсы классов', () => {
+  // resourceByLevel ниже смотрит один код и лишнего не замечает: ресурс,
+  // по ошибке выданный не тому классу или раньше срока, ловит только
+  // полный список кодов на каждом уровне.
+  it('полный список ресурсов каждого класса на каждом уровне', () => {
+    const from = (start: number, ...codes: string[]) =>
+      LEVELS.map((level) => (level >= start ? codes : []));
+    const merge = (...columns: string[][][]) =>
+      LEVELS.map((_, index) => columns.flatMap((column) => column[index] ?? []));
+    const expected: Record<ClassCode, string[][]> = {
+      barbarian: from(1, 'RAGE'),
+      bard: from(1, 'BARDIC_INSPIRATION'),
+      cleric: from(2, 'CHANNEL_DIVINITY'),
+      druid: from(2, 'WILD_SHAPE'),
+      fighter: merge(from(1, 'SECOND_WIND'), from(2, 'ACTION_SURGE')),
+      monk: from(2, 'KI'),
+      paladin: merge(from(1, 'LAY_ON_HANDS'), from(3, 'CHANNEL_DIVINITY')),
+      ranger: from(11),
+      rogue: from(11),
+      sorcerer: from(2, 'SORCERY_POINT'),
+      warlock: from(11),
+      wizard: from(11),
+    };
+    for (const classCode of CLASS_CODES) {
+      expect(
+        LEVELS.map((level) => classResources(classCode, level).map((resource) => resource.code)),
+        classCode,
+      ).toEqual(expected[classCode]);
+    }
+  });
+
   it('ярость варвара и её урон', () => {
     expect(resourceByLevel('barbarian', 'RAGE')).toEqual([2, 2, 3, 3, 3, 4, 4, 4, 4, 4]);
     expect(LEVELS.map(rageDamageBonus)).toEqual([2, 2, 2, 2, 2, 2, 2, 2, 3, 3]);
