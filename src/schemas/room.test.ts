@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MAX_LEVEL } from '../rules/progression.js';
 import {
   ROOM_CODE_ALPHABET,
   roomCharacterChoiceSchema,
@@ -91,7 +92,9 @@ describe('создание комнаты', () => {
   });
 
   it('не пускает уровень выше таблиц правил', () => {
-    expect(roomCreateSchema.safeParse({ ...validRoom, maxLevel: 6 }).success).toBe(false);
+    expect(roomCreateSchema.safeParse({ ...validRoom, maxLevel: MAX_LEVEL + 1 }).success).toBe(
+      false,
+    );
   });
 
   it('не пускает пустое название кампании', () => {

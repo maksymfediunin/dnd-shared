@@ -32,16 +32,28 @@ interface ClassExpectation {
   caster: 'FULL' | 'HALF' | 'PACT' | 'NONE';
   subclassLevel: number;
   extraAttack: boolean;
-  /** Ячейки по кругам для уровней 1–5. */
+  /** Ячейки по кругам для уровней 1–10. */
   slots: number[][];
   cantrips: number[];
   /** null — класс не держит список известных заклинаний. */
   known: number[] | null;
 }
 
-const FULL_SLOTS = [[2], [3], [4, 2], [4, 3], [4, 3, 2]];
-const HALF_SLOTS = [[], [2], [3], [3], [4, 2]];
-const NO_SLOTS = [[], [], [], [], []];
+const FULL_SLOTS = [
+  [2],
+  [3],
+  [4, 2],
+  [4, 3],
+  [4, 3, 2],
+  [4, 3, 3],
+  [4, 3, 3, 1],
+  [4, 3, 3, 2],
+  [4, 3, 3, 3, 1],
+  [4, 3, 3, 3, 2],
+];
+const HALF_SLOTS = [[], [2], [3], [3], [4, 2], [4, 2], [4, 3], [4, 3], [4, 3, 2], [4, 3, 2]];
+const NO_SLOTS = [[], [], [], [], [], [], [], [], [], []];
+const NO_CANTRIPS = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 const EXPECTED: Record<ClassCode, ClassExpectation> = {
   barbarian: {
@@ -50,7 +62,7 @@ const EXPECTED: Record<ClassCode, ClassExpectation> = {
     subclassLevel: 3,
     extraAttack: true,
     slots: NO_SLOTS,
-    cantrips: [0, 0, 0, 0, 0],
+    cantrips: NO_CANTRIPS,
     known: null,
   },
   bard: {
@@ -59,8 +71,8 @@ const EXPECTED: Record<ClassCode, ClassExpectation> = {
     subclassLevel: 3,
     extraAttack: false,
     slots: FULL_SLOTS,
-    cantrips: [2, 2, 2, 3, 3],
-    known: [4, 5, 6, 7, 8],
+    cantrips: [2, 2, 2, 3, 3, 3, 3, 3, 3, 4],
+    known: [4, 5, 6, 7, 8, 9, 10, 11, 12, 14],
   },
   cleric: {
     hitDie: 8,
@@ -68,7 +80,7 @@ const EXPECTED: Record<ClassCode, ClassExpectation> = {
     subclassLevel: 1,
     extraAttack: false,
     slots: FULL_SLOTS,
-    cantrips: [3, 3, 3, 4, 4],
+    cantrips: [3, 3, 3, 4, 4, 4, 4, 4, 4, 5],
     known: null,
   },
   druid: {
@@ -77,7 +89,7 @@ const EXPECTED: Record<ClassCode, ClassExpectation> = {
     subclassLevel: 2,
     extraAttack: false,
     slots: FULL_SLOTS,
-    cantrips: [2, 2, 2, 3, 3],
+    cantrips: [2, 2, 2, 3, 3, 3, 3, 3, 3, 4],
     known: null,
   },
   fighter: {
@@ -86,7 +98,7 @@ const EXPECTED: Record<ClassCode, ClassExpectation> = {
     subclassLevel: 3,
     extraAttack: true,
     slots: NO_SLOTS,
-    cantrips: [0, 0, 0, 0, 0],
+    cantrips: NO_CANTRIPS,
     known: null,
   },
   monk: {
@@ -95,7 +107,7 @@ const EXPECTED: Record<ClassCode, ClassExpectation> = {
     subclassLevel: 3,
     extraAttack: true,
     slots: NO_SLOTS,
-    cantrips: [0, 0, 0, 0, 0],
+    cantrips: NO_CANTRIPS,
     known: null,
   },
   paladin: {
@@ -104,7 +116,7 @@ const EXPECTED: Record<ClassCode, ClassExpectation> = {
     subclassLevel: 3,
     extraAttack: true,
     slots: HALF_SLOTS,
-    cantrips: [0, 0, 0, 0, 0],
+    cantrips: NO_CANTRIPS,
     known: null,
   },
   ranger: {
@@ -113,8 +125,8 @@ const EXPECTED: Record<ClassCode, ClassExpectation> = {
     subclassLevel: 3,
     extraAttack: true,
     slots: HALF_SLOTS,
-    cantrips: [0, 0, 0, 0, 0],
-    known: [0, 2, 3, 3, 4],
+    cantrips: NO_CANTRIPS,
+    known: [0, 2, 3, 3, 4, 4, 5, 5, 6, 6],
   },
   rogue: {
     hitDie: 8,
@@ -122,7 +134,7 @@ const EXPECTED: Record<ClassCode, ClassExpectation> = {
     subclassLevel: 3,
     extraAttack: false,
     slots: NO_SLOTS,
-    cantrips: [0, 0, 0, 0, 0],
+    cantrips: NO_CANTRIPS,
     known: null,
   },
   sorcerer: {
@@ -131,8 +143,8 @@ const EXPECTED: Record<ClassCode, ClassExpectation> = {
     subclassLevel: 1,
     extraAttack: false,
     slots: FULL_SLOTS,
-    cantrips: [4, 4, 4, 5, 5],
-    known: [2, 3, 4, 5, 6],
+    cantrips: [4, 4, 4, 5, 5, 5, 5, 5, 5, 6],
+    known: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
   },
   warlock: {
     hitDie: 8,
@@ -141,8 +153,8 @@ const EXPECTED: Record<ClassCode, ClassExpectation> = {
     extraAttack: false,
     // Колдун считает ячейки договором, обычных у него нет.
     slots: NO_SLOTS,
-    cantrips: [2, 2, 2, 3, 3],
-    known: [2, 3, 4, 5, 6],
+    cantrips: [2, 2, 2, 3, 3, 3, 3, 3, 3, 4],
+    known: [2, 3, 4, 5, 6, 7, 8, 9, 10, 10],
   },
   wizard: {
     hitDie: 6,
@@ -150,24 +162,24 @@ const EXPECTED: Record<ClassCode, ClassExpectation> = {
     subclassLevel: 2,
     extraAttack: false,
     slots: FULL_SLOTS,
-    cantrips: [3, 3, 3, 4, 4],
+    cantrips: [3, 3, 3, 4, 4, 4, 4, 4, 4, 5],
     known: null,
   },
 };
 
 describe('бонус мастерства', () => {
   it('равен +2 на уровнях 1–4 и +3 на пятом', () => {
-    expect([1, 2, 3, 4, 5].map(proficiencyBonus)).toEqual([2, 2, 2, 2, 3]);
+    expect(LEVELS.map(proficiencyBonus)).toEqual([2, 2, 2, 2, 3, 3, 3, 3, 4, 4]);
   });
 
-  it('бросает за пределами первых пяти уровней', () => {
+  it('бросает за пределами первых десяти уровней', () => {
     expect(() => proficiencyBonus(0)).toThrow();
-    expect(() => proficiencyBonus(6)).toThrow();
+    expect(() => proficiencyBonus(11)).toThrow();
   });
 
-  it('знает, что дальше пятого уровня правил нет', () => {
-    expect(MAX_LEVEL).toBe(5);
-    expect(LEVELS).toEqual([1, 2, 3, 4, 5]);
+  it('знает, что дальше десятого уровня правил нет', () => {
+    expect(MAX_LEVEL).toBe(10);
+    expect(LEVELS).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 });
 
@@ -189,37 +201,30 @@ describe('таблицы классов', () => {
         expect(subclassUnlockLevel(classCode)).toBe(expected.subclassLevel);
       });
 
-      it('повышение характеристик — только на четвёртом уровне', () => {
-        expect(LEVELS.map((level) => hasAbilityScoreImprovement(classCode, level))).toEqual([
-          false,
-          false,
-          false,
-          true,
-          false,
-        ]);
+      it('повышение характеристик — на 4 и 8, у воина ещё на 6, у плута на 10', () => {
+        const extra = { fighter: 6, rogue: 10 }[classCode as string];
+        expect(LEVELS.filter((level) => hasAbilityScoreImprovement(classCode, level))).toEqual(
+          extra ? [4, extra, 8].sort((a, b) => a - b) : [4, 8],
+        );
       });
 
-      it('дополнительная атака — только на пятом и только у своих', () => {
-        expect(LEVELS.map((level) => hasExtraAttack(classCode, level))).toEqual([
-          false,
-          false,
-          false,
-          false,
-          expected.extraAttack,
-        ]);
+      it('дополнительная атака — с пятого и только у своих', () => {
+        expect(LEVELS.filter((level) => hasExtraAttack(classCode, level))).toEqual(
+          expected.extraAttack ? [5, 6, 7, 8, 9, 10] : [],
+        );
       });
 
-      it('ячейки заклинаний на всех пяти уровнях', () => {
+      it('ячейки заклинаний на всех уровнях', () => {
         expect(LEVELS.map((level) => spellSlots(classCode, level))).toEqual(expected.slots);
       });
 
-      it('заговоров известно на всех пяти уровнях', () => {
+      it('заговоров известно на всех уровнях', () => {
         expect(LEVELS.map((level) => cantripsKnown(classCode, level))).toEqual(expected.cantrips);
       });
 
-      it('заклинаний известно на всех пяти уровнях', () => {
+      it('заклинаний известно на всех уровнях', () => {
         expect(LEVELS.map((level) => spellsKnown(classCode, level))).toEqual(
-          expected.known ?? [null, null, null, null, null],
+          expected.known ?? LEVELS.map(() => null),
         );
       });
     });
@@ -234,6 +239,11 @@ describe('договор колдуна', () => {
       { slots: 2, spellLevel: 2 },
       { slots: 2, spellLevel: 2 },
       { slots: 2, spellLevel: 3 },
+      { slots: 2, spellLevel: 3 },
+      { slots: 2, spellLevel: 4 },
+      { slots: 2, spellLevel: 4 },
+      { slots: 2, spellLevel: 5 },
+      { slots: 2, spellLevel: 5 },
     ]);
   });
 
@@ -245,20 +255,21 @@ describe('договор колдуна', () => {
 
 describe('книга волшебника', () => {
   it('шесть заклинаний на первом уровне и по два за каждый следующий', () => {
-    expect(LEVELS.map(spellbookSize)).toEqual([6, 8, 10, 12, 14]);
+    expect(LEVELS.map(spellbookSize)).toEqual([6, 8, 10, 12, 14, 16, 18, 20, 22, 24]);
   });
 });
 
+/** Максимум одного ресурса по всем уровням; 0 — ресурса в листе нет. */
+const resourceByLevel = (classCode: ClassCode, code: string): number[] =>
+  LEVELS.map(
+    (level) =>
+      classResources(classCode, level).find((resource) => resource.code === code)?.max ?? 0,
+  );
+
 describe('ресурсы классов', () => {
   it('ярость варвара и её урон', () => {
-    expect(LEVELS.map((level) => classResources('barbarian', level))).toEqual([
-      [{ code: 'RAGE', max: 2 }],
-      [{ code: 'RAGE', max: 2 }],
-      [{ code: 'RAGE', max: 3 }],
-      [{ code: 'RAGE', max: 3 }],
-      [{ code: 'RAGE', max: 3 }],
-    ]);
-    expect(LEVELS.map(rageDamageBonus)).toEqual([2, 2, 2, 2, 2]);
+    expect(resourceByLevel('barbarian', 'RAGE')).toEqual([2, 2, 3, 3, 3, 4, 4, 4, 4, 4]);
+    expect(LEVELS.map(rageDamageBonus)).toEqual([2, 2, 2, 2, 2, 2, 2, 2, 3, 3]);
   });
 
   it('вдохновение барда считается от Харизмы и не меньше одного', () => {
@@ -268,106 +279,51 @@ describe('ресурсы классов', () => {
     expect(classResources('bard', 1, { charismaModifier: -1 })).toEqual([
       { code: 'BARDIC_INSPIRATION', max: 1 },
     ]);
-    expect(LEVELS.map(bardicInspirationDie)).toEqual([6, 6, 6, 6, 8]);
+    expect(LEVELS.map(bardicInspirationDie)).toEqual([6, 6, 6, 6, 8, 8, 8, 8, 8, 10]);
   });
 
-  it('божественный канал жреца появляется со второго уровня', () => {
-    expect(LEVELS.map((level) => classResources('cleric', level))).toEqual([
-      [],
-      [{ code: 'CHANNEL_DIVINITY', max: 1 }],
-      [{ code: 'CHANNEL_DIVINITY', max: 1 }],
-      [{ code: 'CHANNEL_DIVINITY', max: 1 }],
-      [{ code: 'CHANNEL_DIVINITY', max: 1 }],
-    ]);
+  it('божественный канал жреца — со второго уровня, второй — с шестого', () => {
+    expect(resourceByLevel('cleric', 'CHANNEL_DIVINITY')).toEqual([0, 1, 1, 1, 1, 2, 2, 2, 2, 2]);
+    expect(classResources('cleric', 1)).toEqual([]);
   });
 
   it('обличья зверя друида появляются со второго уровня', () => {
-    expect(LEVELS.map((level) => classResources('druid', level))).toEqual([
-      [],
-      [{ code: 'WILD_SHAPE', max: 2 }],
-      [{ code: 'WILD_SHAPE', max: 2 }],
-      [{ code: 'WILD_SHAPE', max: 2 }],
-      [{ code: 'WILD_SHAPE', max: 2 }],
-    ]);
+    expect(resourceByLevel('druid', 'WILD_SHAPE')).toEqual([0, 2, 2, 2, 2, 2, 2, 2, 2, 2]);
   });
 
   it('второе дыхание воина с первого уровня, всплеск действий со второго', () => {
-    expect(LEVELS.map((level) => classResources('fighter', level))).toEqual([
-      [{ code: 'SECOND_WIND', max: 1 }],
-      [
-        { code: 'SECOND_WIND', max: 1 },
-        { code: 'ACTION_SURGE', max: 1 },
-      ],
-      [
-        { code: 'SECOND_WIND', max: 1 },
-        { code: 'ACTION_SURGE', max: 1 },
-      ],
-      [
-        { code: 'SECOND_WIND', max: 1 },
-        { code: 'ACTION_SURGE', max: 1 },
-      ],
-      [
-        { code: 'SECOND_WIND', max: 1 },
-        { code: 'ACTION_SURGE', max: 1 },
-      ],
-    ]);
+    expect(resourceByLevel('fighter', 'SECOND_WIND')).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    expect(resourceByLevel('fighter', 'ACTION_SURGE')).toEqual([0, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    expect(classResources('fighter', 1)).toEqual([{ code: 'SECOND_WIND', max: 1 }]);
   });
 
   it('очки ци монаха и кость боевых искусств', () => {
-    expect(LEVELS.map((level) => classResources('monk', level))).toEqual([
-      [],
-      [{ code: 'KI', max: 2 }],
-      [{ code: 'KI', max: 3 }],
-      [{ code: 'KI', max: 4 }],
-      [{ code: 'KI', max: 5 }],
-    ]);
-    expect(LEVELS.map(martialArtsDie)).toEqual([4, 4, 4, 4, 6]);
+    expect(resourceByLevel('monk', 'KI')).toEqual([0, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(classResources('monk', 1)).toEqual([]);
+    expect(LEVELS.map(martialArtsDie)).toEqual([4, 4, 4, 4, 6, 6, 6, 6, 6, 6]);
   });
 
   it('наложение рук паладина — пять хитов за уровень, канал с третьего', () => {
-    expect(LEVELS.map((level) => classResources('paladin', level))).toEqual([
-      [{ code: 'LAY_ON_HANDS', max: 5 }],
-      [{ code: 'LAY_ON_HANDS', max: 10 }],
-      [
-        { code: 'LAY_ON_HANDS', max: 15 },
-        { code: 'CHANNEL_DIVINITY', max: 1 },
-      ],
-      [
-        { code: 'LAY_ON_HANDS', max: 20 },
-        { code: 'CHANNEL_DIVINITY', max: 1 },
-      ],
-      [
-        { code: 'LAY_ON_HANDS', max: 25 },
-        { code: 'CHANNEL_DIVINITY', max: 1 },
-      ],
-    ]);
+    expect(resourceByLevel('paladin', 'LAY_ON_HANDS')).toEqual(LEVELS.map((level) => 5 * level));
+    expect(resourceByLevel('paladin', 'CHANNEL_DIVINITY')).toEqual([0, 0, 1, 1, 1, 1, 1, 1, 1, 1]);
   });
 
-  it('у следопыта и плута расходуемых ресурсов нет', () => {
-    expect(LEVELS.map((level) => classResources('ranger', level))).toEqual([[], [], [], [], []]);
-    expect(LEVELS.map((level) => classResources('rogue', level))).toEqual([[], [], [], [], []]);
+  it('у следопыта, плута, колдуна и волшебника расходуемых ресурсов нет', () => {
+    for (const classCode of ['ranger', 'rogue', 'warlock', 'wizard'] as const) {
+      expect(LEVELS.flatMap((level) => classResources(classCode, level))).toEqual([]);
+    }
   });
 
   it('кости скрытой атаки плута', () => {
-    expect(LEVELS.map(sneakAttackDice)).toEqual([1, 1, 2, 2, 3]);
+    expect(LEVELS.map(sneakAttackDice)).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
   });
 
   it('очки чародейства со второго уровня', () => {
-    expect(LEVELS.map((level) => classResources('sorcerer', level))).toEqual([
-      [],
-      [{ code: 'SORCERY_POINT', max: 2 }],
-      [{ code: 'SORCERY_POINT', max: 3 }],
-      [{ code: 'SORCERY_POINT', max: 4 }],
-      [{ code: 'SORCERY_POINT', max: 5 }],
-    ]);
+    expect(resourceByLevel('sorcerer', 'SORCERY_POINT')).toEqual([0, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(classResources('sorcerer', 1)).toEqual([]);
   });
 
   it('воззвания колдуна', () => {
-    expect(LEVELS.map(invocationsKnown)).toEqual([0, 2, 2, 2, 3]);
-    expect(LEVELS.map((level) => classResources('warlock', level))).toEqual([[], [], [], [], []]);
-  });
-
-  it('у волшебника расходуемых ресурсов нет', () => {
-    expect(LEVELS.map((level) => classResources('wizard', level))).toEqual([[], [], [], [], []]);
+    expect(LEVELS.map(invocationsKnown)).toEqual([0, 2, 2, 2, 3, 3, 4, 4, 5, 5]);
   });
 });
