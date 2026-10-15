@@ -14,6 +14,7 @@ import {
   opportunityReactors,
   reachDistance,
   reachInCells,
+  sideOf,
   weaponAbility,
   weaponAttackBonus,
 } from './combat.js';
@@ -422,6 +423,17 @@ describe('стороны участников', () => {
     expect(isAlly(villager, { id: 'w', side: 'NEUTRAL' })).toBe(false);
     expect(isEnemy(villager, goblin)).toBe(false);
     expect(isEnemy(party, villager)).toBe(false);
+  });
+
+  // Старый контейнер в окне выкатки вставляет фишки без стороны.
+  it('сторона не записана — выводится из вида фишки', () => {
+    expect(sideOf({ side: null, monsterId: null })).toBe('PARTY');
+    expect(sideOf({ side: null, monsterId: 'm-1' })).toBe('HOSTILE');
+    expect(sideOf({ side: 'NEUTRAL', monsterId: 'm-1' })).toBe('NEUTRAL');
+    const hero = { id: 'h', side: null, monsterId: null };
+    const orc = { id: 'o', side: null, monsterId: 'm-1' };
+    expect(isAlly(hero, party)).toBe(true);
+    expect(isEnemy(hero, orc)).toBe(true);
   });
 
   it('себе всякий союзник — и нейтральный тоже', () => {
