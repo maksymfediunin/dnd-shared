@@ -13,6 +13,9 @@ import {
   onHitDiceCount,
   sumModifiers,
 } from './compute.js';
+import { EFFECT_MECHANICS } from './effects.data.js';
+import { FEATURE_MECHANICS } from './features.data.js';
+import { TRAIT_MECHANICS } from './traits.data.js';
 import type { MechanicsContext, MechanicsHolder } from './types.js';
 
 /** Коллекторы на настоящих записях реестра — то, что переехало из `class-features.rules.ts`. */
@@ -302,5 +305,23 @@ describe('ступени подкласса', () => {
     expect(isSubclassStep('mindless-rage')).toBe(false);
     expect(isSubclassStep('barbarian-ability-score-improvement-1')).toBe(false);
     expect(isSubclassStep('rage')).toBe(false);
+  });
+});
+
+describe('целостность записей', () => {
+  // Прибавка к атаке или урону без подписи ушла бы в бросок без строки в раскладе.
+  it('у граней атаки и урона есть подпись расклада', () => {
+    const records = [
+      ...Object.values(FEATURE_MECHANICS),
+      ...Object.values(TRAIT_MECHANICS),
+      ...Object.values(EFFECT_MECHANICS),
+    ];
+    for (const record of records) {
+      for (const facet of 'facets' in record ? record.facets : []) {
+        if (facet.kind === 'modifier' && (facet.target === 'attack' || facet.target === 'damage')) {
+          expect(facet.source, JSON.stringify(facet)).toBeDefined();
+        }
+      }
+    }
   });
 });
