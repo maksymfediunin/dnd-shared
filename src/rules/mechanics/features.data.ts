@@ -21,6 +21,7 @@ const DUELING: MechanicRecord = {
 const TWO_WEAPON_FIGHTING: MechanicRecord = {
   facets: [{ kind: 'rule', rule: 'offHandAbilityDamage' }],
 };
+const SUBCLASS_STEP: MechanicRecord = { holder: 'subclassStep' };
 const EXTRA_ATTACK: MechanicRecord = {
   facets: [{ kind: 'modifier', target: 'attacksPerAction', amount: 2 }],
 };
@@ -105,6 +106,31 @@ export const FEATURE_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
   'ranger-fighting-style-dueling': DUELING,
   'fighter-fighting-style-two-weapon-fighting': TWO_WEAPON_FIGHTING,
   'ranger-fighting-style-two-weapon-fighting': TWO_WEAPON_FIGHTING,
+
+  /*
+   * Ступени подкласса: SRD отмечает уровень, на котором подкласс даёт
+   * что-то новое, отдельной строкой без механики; само новое — своим
+   * кодом (`mindless-rage`). В окне повышения ступень не показывается.
+   */
+  'primal-path-improvement-1': SUBCLASS_STEP,
+  'primal-path-improvement-2': SUBCLASS_STEP,
+  'bard-college-improvement-1': SUBCLASS_STEP,
+  'divine-domain-improvement-1': SUBCLASS_STEP,
+  'divine-domain-improvement-2': SUBCLASS_STEP,
+  'divine-domain-improvement-3': SUBCLASS_STEP,
+  'druid-circle-improvement-1': SUBCLASS_STEP,
+  'druid-circle-improvement-2': SUBCLASS_STEP,
+  'martial-archetype-improvement-1': SUBCLASS_STEP,
+  'martial-archetype-improvement-2': SUBCLASS_STEP,
+  'monastic-tradition-improvement-1': SUBCLASS_STEP,
+  'sacred-oath-improvement-1': SUBCLASS_STEP,
+  'ranger-archetype-improvement-1': SUBCLASS_STEP,
+  'roguish-archetype-improvement-1': SUBCLASS_STEP,
+  'sorcerous-origin-improvement-1': SUBCLASS_STEP,
+  'otherworldly-patron-improvement-1': SUBCLASS_STEP,
+  'otherworldly-patron-improvement-2': SUBCLASS_STEP,
+  'arcane-tradition-improvement-1': SUBCLASS_STEP,
+  'arcane-tradition-improvement-2': SUBCLASS_STEP,
 
   'martial-arts': { facets: [{ kind: 'rule', rule: 'martialArts' }] },
   // Раз в ход, сама — на первом попадании, где выполнены условия (PHB).

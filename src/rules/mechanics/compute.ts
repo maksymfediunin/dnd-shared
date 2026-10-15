@@ -308,3 +308,9 @@ export function availableActions(input: AvailableActionsInput): AvailableAction[
   }
   return out;
 }
+
+/** Заглушка ступени подкласса — строка без механики, которую окно повышения не показывает. */
+export function isSubclassStep(code: string): boolean {
+  const record = FEATURE_MECHANICS[code];
+  return record !== undefined && 'holder' in record && record.holder === 'subclassStep';
+}

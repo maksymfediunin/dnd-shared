@@ -9,6 +9,7 @@ import {
   collectModifiers,
   collectOnHit,
   hasRule,
+  isSubclassStep,
   onHitDiceCount,
   sumModifiers,
 } from './compute.js';
@@ -291,5 +292,15 @@ describe('доступные действия', () => {
 
   it('волшебнику — пусто', () => {
     expect(list([])).toEqual([]);
+  });
+});
+
+describe('ступени подкласса', () => {
+  it('заглушка ступени — да; новое умение подкласса и повышение характеристик — нет', () => {
+    expect(isSubclassStep('primal-path-improvement-1')).toBe(true);
+    expect(isSubclassStep('divine-domain-improvement-3')).toBe(true);
+    expect(isSubclassStep('mindless-rage')).toBe(false);
+    expect(isSubclassStep('barbarian-ability-score-improvement-1')).toBe(false);
+    expect(isSubclassStep('rage')).toBe(false);
   });
 });
