@@ -172,6 +172,10 @@ export const UNARMED_STRIKE = 'unarmed';
 export const COMBAT_ABILITIES = ['RAGE', 'END_RAGE', 'SECOND_WIND', 'ACTION_SURGE'] as const;
 export type CombatAbility = (typeof COMBAT_ABILITIES)[number];
 
+/** Чего стоит действие хода: вид действия или ничего (всплеск действий, снятие ярости). */
+export const ACTION_ECONOMY = ['ACTION', 'BONUS_ACTION', 'REACTION', 'FREE'] as const;
+export type ActionEconomy = (typeof ACTION_ECONOMY)[number];
+
 export const abilityInputSchema = z.object({
   participantId: z.uuid().optional(),
   ability: z.enum(COMBAT_ABILITIES),
