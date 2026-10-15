@@ -44,23 +44,27 @@ describe('заклинательная характеристика', () => {
 });
 
 describe('доступный круг заклинаний', () => {
-  it('полные заклинатели добираются до третьего круга к пятому уровню', () => {
-    expect(LEVELS.map((level) => maxSpellLevel('wizard', level))).toEqual([1, 1, 2, 2, 3]);
-    expect(LEVELS.map((level) => maxSpellLevel('bard', level))).toEqual([1, 1, 2, 2, 3]);
+  it('полные заклинатели добираются до пятого круга к девятому уровню', () => {
+    const full = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5];
+    expect(LEVELS.map((level) => maxSpellLevel('wizard', level))).toEqual(full);
+    expect(LEVELS.map((level) => maxSpellLevel('bard', level))).toEqual(full);
   });
 
-  it('половинные начинают со второго уровня и доходят до второго круга', () => {
-    expect(LEVELS.map((level) => maxSpellLevel('paladin', level))).toEqual([0, 1, 1, 1, 2]);
-    expect(LEVELS.map((level) => maxSpellLevel('ranger', level))).toEqual([0, 1, 1, 1, 2]);
+  it('половинные начинают со второго уровня и доходят до третьего круга', () => {
+    const half = [0, 1, 1, 1, 2, 2, 2, 2, 3, 3];
+    expect(LEVELS.map((level) => maxSpellLevel('paladin', level))).toEqual(half);
+    expect(LEVELS.map((level) => maxSpellLevel('ranger', level))).toEqual(half);
   });
 
   it('колдун берёт круг из договора', () => {
-    expect(LEVELS.map((level) => maxSpellLevel('warlock', level))).toEqual([1, 1, 2, 2, 3]);
+    expect(LEVELS.map((level) => maxSpellLevel('warlock', level))).toEqual([
+      1, 1, 2, 2, 3, 3, 4, 4, 5, 5,
+    ]);
   });
 
   it('у не-заклинателей круга нет', () => {
-    expect(LEVELS.map((level) => maxSpellLevel('fighter', level))).toEqual([0, 0, 0, 0, 0]);
-    expect(LEVELS.map((level) => maxSpellLevel('rogue', level))).toEqual([0, 0, 0, 0, 0]);
+    expect(LEVELS.map((level) => maxSpellLevel('fighter', level))).toEqual(LEVELS.map(() => 0));
+    expect(LEVELS.map((level) => maxSpellLevel('rogue', level))).toEqual(LEVELS.map(() => 0));
   });
 });
 

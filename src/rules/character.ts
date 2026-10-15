@@ -177,3 +177,36 @@ export function initiativeParts(dexterityModifier: number, bonus = 0): ModifierP
     ...(bonus !== 0 ? [{ source: 'jackOfAllTrades' as const, value: bonus }] : []),
   ];
 }
+
+/**
+ * Языки, на которых говорит тип избранного врага следопыта, — по
+ * колонке «типичные носители» таблицы языков SRD. Следопыт учит один из
+ * них, «если враги вообще говорят»: у зверей, конструктов, чудовищ,
+ * слизи, растений и нежити своего языка в таблице нет, и выбора тогда
+ * нет тоже. Гуманоиды — расы, а у рас свои языки, включая драконий
+ * (дракорождённые) и подземный (торговцы Подземья).
+ */
+const FAVORED_ENEMY_LANGUAGES: Record<string, readonly string[]> = {
+  aberrations: ['deep-speech'],
+  celestials: ['celestial'],
+  dragons: ['draconic'],
+  elementals: ['primordial'],
+  fey: ['sylvan'],
+  fiends: ['abyssal', 'infernal'],
+  giants: ['giant'],
+  humanoids: [
+    'common',
+    'dwarvish',
+    'elvish',
+    'gnomish',
+    'goblin',
+    'halfling',
+    'orc',
+    'draconic',
+    'undercommon',
+  ],
+};
+
+export function favoredEnemyLanguages(enemyType: string): string[] {
+  return [...(FAVORED_ENEMY_LANGUAGES[enemyType] ?? [])];
+}

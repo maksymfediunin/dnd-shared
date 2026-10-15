@@ -1,13 +1,13 @@
 import type { CharacterResourceCode, ClassCode } from '../enums/character.js';
 
 /**
- * Правила кончаются на пятом уровне — так решено в общем ТЗ. Пятый
- * уровень даёт и Дополнительную атаку, и третий круг заклинаний,
- * то есть все механики, которые понадобятся боёвке.
+ * Правила кончаются на десятом уровне. Таблицы ниже — SRD 5.1
+ * (редакция 2014 года): по ней же написаны списки известных заклинаний
+ * и воззваний, и смешивать редакции в одной строке таблицы нельзя.
  */
-export const MAX_LEVEL = 5;
+export const MAX_LEVEL = 10;
 
-export const LEVELS = [1, 2, 3, 4, 5] as const;
+export const LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 export type CharacterLevel = (typeof LEVELS)[number];
 
@@ -41,7 +41,7 @@ function atLevel<T>(table: readonly T[], level: number): T {
   return table[level - 1] as T;
 }
 
-const PROFICIENCY_BONUS = [2, 2, 2, 2, 3] as const;
+const PROFICIENCY_BONUS = [2, 2, 2, 2, 3, 3, 3, 3, 4, 4] as const;
 
 export function proficiencyBonus(level: number): number {
   return atLevel(PROFICIENCY_BONUS, level);
@@ -85,11 +85,33 @@ export function casterKind(classCode: ClassCode): CasterKind {
   return CASTER_KIND[classCode];
 }
 
-/** Ячейки по кругам, уровни 1–5. Полные заклинатели. */
-const FULL_CASTER_SLOTS: readonly (readonly number[])[] = [[2], [3], [4, 2], [4, 3], [4, 3, 2]];
+/** Ячейки по кругам, уровни 1–10. Полные заклинатели. */
+const FULL_CASTER_SLOTS: readonly (readonly number[])[] = [
+  [2],
+  [3],
+  [4, 2],
+  [4, 3],
+  [4, 3, 2],
+  [4, 3, 3],
+  [4, 3, 3, 1],
+  [4, 3, 3, 2],
+  [4, 3, 3, 3, 1],
+  [4, 3, 3, 3, 2],
+];
 
 /** Половинные заклинатели: заклинания появляются со второго уровня. */
-const HALF_CASTER_SLOTS: readonly (readonly number[])[] = [[], [2], [3], [3], [4, 2]];
+const HALF_CASTER_SLOTS: readonly (readonly number[])[] = [
+  [],
+  [2],
+  [3],
+  [3],
+  [4, 2],
+  [4, 2],
+  [4, 3],
+  [4, 3],
+  [4, 3, 2],
+  [4, 3, 2],
+];
 
 const NO_SLOTS: readonly number[] = [];
 
@@ -116,6 +138,11 @@ const PACT_MAGIC: readonly PactMagic[] = [
   { slots: 2, spellLevel: 2 },
   { slots: 2, spellLevel: 2 },
   { slots: 2, spellLevel: 3 },
+  { slots: 2, spellLevel: 3 },
+  { slots: 2, spellLevel: 4 },
+  { slots: 2, spellLevel: 4 },
+  { slots: 2, spellLevel: 5 },
+  { slots: 2, spellLevel: 5 },
 ];
 
 export function pactMagic(classCode: ClassCode, level: number): PactMagic | null {
@@ -124,21 +151,21 @@ export function pactMagic(classCode: ClassCode, level: number): PactMagic | null
   return { ...atLevel(PACT_MAGIC, level) };
 }
 
-const NONE_BY_LEVEL = [0, 0, 0, 0, 0] as const;
+const NONE_BY_LEVEL = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] as const;
 
 const CANTRIPS_KNOWN: Record<ClassCode, readonly number[]> = {
   barbarian: NONE_BY_LEVEL,
-  bard: [2, 2, 2, 3, 3],
-  cleric: [3, 3, 3, 4, 4],
-  druid: [2, 2, 2, 3, 3],
+  bard: [2, 2, 2, 3, 3, 3, 3, 3, 3, 4],
+  cleric: [3, 3, 3, 4, 4, 4, 4, 4, 4, 5],
+  druid: [2, 2, 2, 3, 3, 3, 3, 3, 3, 4],
   fighter: NONE_BY_LEVEL,
   monk: NONE_BY_LEVEL,
   paladin: NONE_BY_LEVEL,
   ranger: NONE_BY_LEVEL,
   rogue: NONE_BY_LEVEL,
-  sorcerer: [4, 4, 4, 5, 5],
-  warlock: [2, 2, 2, 3, 3],
-  wizard: [3, 3, 3, 4, 4],
+  sorcerer: [4, 4, 4, 5, 5, 5, 5, 5, 5, 6],
+  warlock: [2, 2, 2, 3, 3, 3, 3, 3, 3, 4],
+  wizard: [3, 3, 3, 4, 4, 4, 4, 4, 4, 5],
 };
 
 export function cantripsKnown(classCode: ClassCode, level: number): number {
@@ -151,10 +178,12 @@ export function cantripsKnown(classCode: ClassCode, level: number): number {
  * них не число, а null: считать подготовку — дело spells.ts.
  */
 const SPELLS_KNOWN: Partial<Record<ClassCode, readonly number[]>> = {
-  bard: [4, 5, 6, 7, 8],
-  sorcerer: [2, 3, 4, 5, 6],
-  warlock: [2, 3, 4, 5, 6],
-  ranger: [0, 2, 3, 3, 4],
+  // На десятом +2 — это Тайны магии: они в счёт известных, но выбираются
+  // из списков всех классов отдельной группой (character.service.ts).
+  bard: [4, 5, 6, 7, 8, 9, 10, 11, 12, 14],
+  sorcerer: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+  warlock: [2, 3, 4, 5, 6, 7, 8, 9, 10, 10],
+  ranger: [0, 2, 3, 3, 4, 4, 5, 5, 6, 6],
 };
 
 export function spellsKnown(classCode: ClassCode, level: number): number | null {
@@ -193,12 +222,19 @@ export function subclassUnlockLevel(classCode: ClassCode): number {
   return SUBCLASS_UNLOCK_LEVEL[classCode];
 }
 
-/** До пятого уровня повышение характеристик одно и у всех классов. */
-export const ABILITY_SCORE_IMPROVEMENT_LEVELS = [4] as const;
+/** Общие для всех 4 и 8; воин и плут получают по лишнему. */
+const ABILITY_SCORE_IMPROVEMENT_LEVELS: readonly number[] = [4, 8];
+const EXTRA_ABILITY_SCORE_IMPROVEMENT: Partial<Record<ClassCode, number>> = {
+  fighter: 6,
+  rogue: 10,
+};
 
-export function hasAbilityScoreImprovement(_classCode: ClassCode, level: number): boolean {
+export function hasAbilityScoreImprovement(classCode: ClassCode, level: number): boolean {
   assertLevel(level);
-  return (ABILITY_SCORE_IMPROVEMENT_LEVELS as readonly number[]).includes(level);
+  return (
+    ABILITY_SCORE_IMPROVEMENT_LEVELS.includes(level) ||
+    EXTRA_ABILITY_SCORE_IMPROVEMENT[classCode] === level
+  );
 }
 
 const EXTRA_ATTACK_CLASSES: readonly ClassCode[] = [
@@ -214,14 +250,14 @@ export function hasExtraAttack(classCode: ClassCode, level: number): boolean {
   return level >= 5 && EXTRA_ATTACK_CLASSES.includes(classCode);
 }
 
-const RAGE_COUNT = [2, 2, 3, 3, 3] as const;
-const CHANNEL_DIVINITY_CLERIC = [0, 1, 1, 1, 1] as const;
-const CHANNEL_DIVINITY_PALADIN = [0, 0, 1, 1, 1] as const;
-const WILD_SHAPE = [0, 2, 2, 2, 2] as const;
-const SECOND_WIND = [1, 1, 1, 1, 1] as const;
-const ACTION_SURGE = [0, 1, 1, 1, 1] as const;
-const KI_POINTS = [0, 2, 3, 4, 5] as const;
-const SORCERY_POINTS = [0, 2, 3, 4, 5] as const;
+const RAGE_COUNT = [2, 2, 3, 3, 3, 4, 4, 4, 4, 4] as const;
+const CHANNEL_DIVINITY_CLERIC = [0, 1, 1, 1, 1, 2, 2, 2, 2, 2] as const;
+const CHANNEL_DIVINITY_PALADIN = [0, 0, 1, 1, 1, 1, 1, 1, 1, 1] as const;
+const WILD_SHAPE = [0, 2, 2, 2, 2, 2, 2, 2, 2, 2] as const;
+const SECOND_WIND = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1] as const;
+const ACTION_SURGE = [0, 1, 1, 1, 1, 1, 1, 1, 1, 1] as const;
+const KI_POINTS = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+const SORCERY_POINTS = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 export interface ClassResourceOptions {
   /** Нужен барду: вдохновений столько, каков модификатор Харизмы. */
@@ -280,11 +316,12 @@ export function classResources(
   return resources;
 }
 
-const RAGE_DAMAGE = [2, 2, 2, 2, 2] as const;
-const BARDIC_INSPIRATION_DIE = [6, 6, 6, 6, 8] as const;
-const MARTIAL_ARTS_DIE = [4, 4, 4, 4, 6] as const;
-const SNEAK_ATTACK_DICE = [1, 1, 2, 2, 3] as const;
-const INVOCATIONS_KNOWN = [0, 2, 2, 2, 3] as const;
+const RAGE_DAMAGE = [2, 2, 2, 2, 2, 2, 2, 2, 3, 3] as const;
+const BARDIC_INSPIRATION_DIE = [6, 6, 6, 6, 8, 8, 8, 8, 8, 10] as const;
+const MARTIAL_ARTS_DIE = [4, 4, 4, 4, 6, 6, 6, 6, 6, 6] as const;
+const SNEAK_ATTACK_DICE = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5] as const;
+const INVOCATIONS_KNOWN = [0, 2, 2, 2, 3, 3, 4, 4, 5, 5] as const;
+const UNARMORED_MOVEMENT = [0, 10, 10, 10, 10, 15, 15, 15, 15, 20] as const;
 
 /** Прибавка варвара к урону в ярости. */
 export function rageDamageBonus(level: number): number {
@@ -309,6 +346,11 @@ export function sneakAttackDice(level: number): number {
 /** Сколько воззваний знает колдун. */
 export function invocationsKnown(level: number): number {
   return atLevel(INVOCATIONS_KNOWN, level);
+}
+
+/** Прибавка к скорости монаха без доспеха и щита (столбец таблицы монаха). */
+export function unarmoredMovementBonus(level: number): number {
+  return atLevel(UNARMORED_MOVEMENT, level);
 }
 
 /**
