@@ -781,8 +781,6 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
       trigger: z.enum(['ENTER', 'START', 'END']).optional(),
       /** Заклинатель, чья это сложность, — если не он сейчас ходит («Святилище»). */
       casterParticipantId: z.uuid().optional(),
-      /** Бережное заклинание: успех без броска (`results` пуст). */
-      automatic: z.boolean().optional(),
     })
     .refine((v) => (v.spellCode === undefined) !== (v.featureCode === undefined), {
       path: ['spellCode'],
