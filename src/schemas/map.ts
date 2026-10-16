@@ -293,6 +293,12 @@ export const conditionApplySchema = z
      * пережило бы своего заклинателя.
      */
     sourceSpellCode: z.string().min(1).max(64).optional(),
+    /**
+     * Обход ведущего: наложить, хотя у цели иммунитет (409
+     * `CONDITION_IMMUNE` без него). Наложенное под иммунитетом с
+     * приостановкой лежит приостановленным.
+     */
+    override: z.boolean().optional(),
   })
   .refine((v) => v.level === undefined || v.code === 'exhaustion', {
     path: ['level'],

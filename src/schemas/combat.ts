@@ -709,6 +709,11 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     spellCode: z.string().min(1).max(64).optional(),
     /** Атака при отходе — реакция, брошенная сервером сама (§6 дизайна доработок). */
     opportunity: z.boolean().optional(),
+    /**
+     * Удар по ответу окна реакции (волна 4): убийца великанов — реакцией,
+     * метание пойманного снаряда — той же реакцией, что и отражение.
+     */
+    reaction: z.enum(['GIANT_KILLER', 'DEFLECT_MISSILES']).optional(),
     /** Каким путём атака (нет у строк до волны 3 — это было действие или бонус). */
     via: z.enum(ATTACK_VIA).optional(),
     /** Чем били — предмет листа или `unarmed`: вторая рука сверяется с ним. */
@@ -902,8 +907,10 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
       featureCode: z.string().min(1).max(64).optional(),
       /** Против чего бросали: спасбросок заклинания — не всегда ловкость. */
       ability: abilityCodeSchema,
-      ...rollShape,
-      total: z.number().int(),
+      // Броска нет у неуязвимой цели (`immune`): записи костей у неё нет.
+      notation: rollShape.notation.optional(),
+      results: z.array(z.number().int().min(1).max(100)).max(20),
+      total: z.number().int().optional(),
       /** Сложность заклинателя — без неё по броску нечего разбирать. */
       dc: z.number().int().min(1),
       outcome: savingThrowOutcomeSchema,
