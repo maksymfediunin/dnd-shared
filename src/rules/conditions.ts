@@ -195,11 +195,24 @@ export function effectiveSpeed(speed: number, effects: ConditionEffects): number
   return effects.speed === 'HALF' ? Math.floor(speed / 2) : speed;
 }
 
+/**
+ * Бюджет шага за ход: скорость с состояниями, умноженная на рывки —
+ * рывок даёт ещё одну скорость (SRD), второй (действие и хитрое
+ * действие) — ещё одну. Схваченному (скорость 0) рывок не даёт ничего.
+ * Одна функция на все места, где бюджет считается: служба шага,
+ * снимок сцены и подсветка на фронте.
+ */
+export function turnMovementFeet(speed: number, effects: ConditionEffects, dashes = 0): number {
+  return effectiveSpeed(speed, effects) * (1 + dashes);
+}
+
 /** Уже разобранные величины, нужные подсветке — не снимок сцены целиком. */
 export interface ReachableCellsInput {
   mover: Placed;
   conditions: ConditionEntry[];
   speed: number;
+  /** Рывки этого хода — каждый ещё одна скорость (`turnMovementFeet`). */
+  dashes?: number;
   /** Остаток хода носителя в футах — считая от `from`, если он задан. */
   movementLeftFeet: number;
   /**
@@ -242,7 +255,10 @@ export interface ReachableCellsInput {
  */
 export function reachableCellsFor(input: ReachableCellsInput): Set<string> {
   const effects = combineConditions(input.conditions);
-  const budgetFeet = Math.min(input.movementLeftFeet, effectiveSpeed(input.speed, effects));
+  const budgetFeet = Math.min(
+    input.movementLeftFeet,
+    turnMovementFeet(input.speed, effects, input.dashes ?? 0),
+  );
 
   const from = input.from ?? { x: input.mover.x, y: input.mover.y };
   const span = footprint(input.mover.size);
@@ -312,9 +328,16 @@ export function attackAdvantage(input: {
   isNear: boolean;
   /** Кто кого видит сквозь туман и тьму (`seesTarget`); нет — видят оба. */
   sight?: { attackerSeesTarget: boolean; targetSeesAttacker: boolean };
+  /**
+   * Источники из реестра механик — безрассудство, уклонение, помощь:
+   * сводятся тем же правилом в одном списке со всеми прочими, а не
+   * поверх готового режима (иначе гасимая помеха терялась бы).
+   */
+  registry?: readonly AdvantageMode[];
 }): AdvantageMode {
   const fromTarget = input.isNear ? input.target.incomingNear : input.target.incomingFar;
   const merged = mergeAdvantage([
+    ...(input.registry ?? []).map((mode) => (mode === 'NONE' ? 'NORMAL' : mode)),
     input.manual === 'NONE' ? 'NORMAL' : input.manual,
     input.attacker.ownAttacks,
     fromTarget,
@@ -351,7 +374,13 @@ export function seesTarget(input: {
   obscuredCells: ReadonlySet<string>;
   viewerBlindsightFeet?: number;
   cellSizeFeet: number;
+  /**
+   * Цель спряталась от смотрящего (засада: `HIDDEN.hiddenFrom` цели
+   * содержит смотрящего) — не видит, что бы ни было с туманом.
+   */
+  hiddenFromViewer?: boolean;
 }): boolean {
+  if (input.hiddenFromViewer) return false;
   const inside = (placed: Placed): boolean =>
     cellsOf(placed, footprint(placed.size)).some((cell) => input.obscuredCells.has(cellKey(cell)));
   if (!inside(input.viewer) && !inside(input.target)) return true;

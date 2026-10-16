@@ -55,6 +55,24 @@ export const CHARACTER_RESOURCE_CODES = [
   'BARDIC_INSPIRATION',
   'LAY_ON_HANDS',
   'WILD_SHAPE',
+  // Волна 3 (§П2 разбора умений): подклассовые, расовые и ресурсы воззваний.
+  'WHOLENESS_OF_BODY',
+  'BREATH_WEAPON',
+  'INDOMITABLE',
+  'DARK_ONES_OWN_LUCK',
+  'ARCANE_RECOVERY',
+  'NATURAL_RECOVERY',
+  'DIVINE_INTERVENTION',
+  'RELENTLESS_ENDURANCE',
+  'INFERNAL_REBUKE',
+  'INFERNAL_DARKNESS',
+  'THIEF_OF_FIVE_FATES',
+  'MIRE_THE_MIND',
+  'SIGN_OF_ILL_OMEN',
+  'BEWITCHING_WHISPERS',
+  'DREADFUL_WORD',
+  'SCULPTOR_OF_FLESH',
+  'MINIONS_OF_CHAOS',
 ] as const;
 
 export const characterResourceCodeSchema = z.enum(CHARACTER_RESOURCE_CODES);

@@ -134,6 +134,33 @@ export const ERROR_CODES = {
   /** Стабилизировать можно только того, кто умирает: на нуле хитов, жив и не стабилен. */
   TARGET_NOT_DYING: 'TARGET_NOT_DYING',
   OBSTACLE_NOT_FOUND: 'OBSTACLE_NOT_FOUND',
+  /**
+   * Бонусная атака, шквал — только после совершённого действия «Атака» в
+   * этом ходу; после заклинания действием их нет.
+   */
+  ATTACK_ACTION_REQUIRED: 'ATTACK_ACTION_REQUIRED',
+  /** Кость вдохновения у цели уже есть — второй не бывает. */
+  ALREADY_INSPIRED: 'ALREADY_INSPIRED',
+  /** Цель не годится этому действию: себя, нежить, не в пяти футах. */
+  TARGET_INVALID: 'TARGET_INVALID',
+  /** Цель неуязвима к этому умению этого источника (устрашение после успеха). */
+  TARGET_IMMUNE: 'TARGET_IMMUNE',
+  /** Сохранение жизни поднимает не выше половины максимума хитов. */
+  HEAL_CAP_EXCEEDED: 'HEAL_CAP_EXCEEDED',
+  /** Распределено больше общего запаса (сохранение жизни). */
+  POOL_EXCEEDED: 'POOL_EXCEEDED',
+  /** В ярости не колдуют. */
+  CANNOT_CAST_WHILE_RAGING: 'CANNOT_CAST_WHILE_RAGING',
+  /** Метамагия — одна на заклинание (кроме усиленной). */
+  ONE_METAMAGIC_PER_SPELL: 'ONE_METAMAGIC_PER_SPELL',
+  /** Метамагия к этому заклинанию не подходит. */
+  METAMAGIC_NOT_ELIGIBLE: 'METAMAGIC_NOT_ELIGIBLE',
+  /** Захват и толчок — не больше чем на размер крупнее себя. */
+  TARGET_TOO_LARGE: 'TARGET_TOO_LARGE',
+  /** Захват требует свободной руки. */
+  NO_FREE_HAND: 'NO_FREE_HAND',
+  /** Застигнут врасплох — в первом ходу ни действий, ни шага. */
+  SURPRISED: 'SURPRISED',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

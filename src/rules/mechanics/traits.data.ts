@@ -7,6 +7,30 @@ export const TRAIT_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
   'hellish-resistance': { facets: [{ kind: 'defense', resistance: ['fire'] }] },
   'damage-resistance': { facets: [{ kind: 'defense', resistance: ['ANCESTRY'] }] },
   'dwarven-toughness': { facets: [{ kind: 'modifier', target: 'hpPerLevel', amount: 1 }] },
+  // Форма, вид урона и спасбросок — из `TraitEffects.breathWeapon` выбранного предка.
+  'breath-weapon': {
+    facets: [
+      { kind: 'resource', code: 'BREATH_WEAPON', recovery: 'SHORT' },
+      {
+        kind: 'action',
+        ability: 'BREATH_WEAPON',
+        economy: 'ACTION',
+        resource: 'BREATH_WEAPON',
+        input: { target: 'AREA' },
+      },
+    ],
+  },
+  // Реакция — окно волны 4 (`PARTIAL`); счётчик уже на листе.
+  'relentless-endurance': {
+    facets: [{ kind: 'resource', code: 'RELENTLESS_ENDURANCE', recovery: 'LONG' }],
+  },
+  // Заклинания черты — волна 8 (`PARTIAL`).
+  'infernal-legacy': {
+    facets: [
+      { kind: 'resource', code: 'INFERNAL_REBUKE', recovery: 'LONG', fromLevel: 3 },
+      { kind: 'resource', code: 'INFERNAL_DARKNESS', recovery: 'LONG', fromLevel: 5 },
+    ],
+  },
 
   // Пометки: механики в бою нет, и запись говорит почему.
   'draconic-ancestry': { holder: 'choice' },

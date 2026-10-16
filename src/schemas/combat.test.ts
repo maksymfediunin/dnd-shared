@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  abilityInputSchema,
   attackInputSchema,
   availableActionSchema,
   castInputSchema,
@@ -584,5 +585,86 @@ describe('строка снятия ярости', () => {
   it('несёт остаток раундов', () => {
     const payload = { kind: 'ABILITY', ability: 'END_RAGE', roundsRemaining: 7 };
     expect(encounterEventPayloadSchema.parse(payload)).toEqual(payload);
+  });
+});
+
+describe('контракт волны 3', () => {
+  const uuid = '11111111-1111-4111-8111-111111111111';
+  const other = '22222222-2222-4222-8222-222222222222';
+
+  it('ответ волны 2 — умение без ввода — проходит схему списка', () => {
+    expect(
+      participantActionsResponseSchema.safeParse({
+        data: [
+          {
+            kind: 'ABILITY',
+            ability: 'RAGE',
+            featureCode: 'rage',
+            economy: 'BONUS_ACTION',
+            resource: { code: 'RAGE', left: 2, max: 2 },
+            available: true,
+            reason: null,
+          },
+        ],
+      }).success,
+    ).toBe(true);
+  });
+
+  it('спасбросок — против заклинания либо умения, ровно одно из двух', () => {
+    const save = {
+      kind: 'SAVE',
+      ability: 'wisdom',
+      notation: '1d20',
+      results: [9],
+      total: 9,
+      dc: 13,
+      outcome: 'FAILURE',
+    };
+    expect(encounterEventPayloadSchema.safeParse(save).success).toBe(false);
+    expect(
+      encounterEventPayloadSchema.safeParse({ ...save, featureCode: 'intimidating-presence' })
+        .success,
+    ).toBe(true);
+    expect(
+      encounterEventPayloadSchema.safeParse({
+        ...save,
+        featureCode: 'intimidating-presence',
+        spellCode: 'fear',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('вход действия хода: распределение сохранения жизни и бонусная версия', () => {
+    expect(
+      abilityInputSchema.safeParse({
+        ability: 'PRESERVE_LIFE',
+        allocations: [
+          { participantId: uuid, amount: 17 },
+          { participantId: other, amount: 3 },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(abilityInputSchema.safeParse({ ability: 'DASH', economy: 'BONUS_ACTION' }).success).toBe(
+      true,
+    );
+    expect(abilityInputSchema.safeParse({ ability: 'FLY' }).success).toBe(false);
+  });
+
+  it('старый вход атаки с bonusAction проходит; путь и безрассудство — новые поля', () => {
+    expect(
+      attackInputSchema.safeParse({ targetId: uuid, weaponItemId: 'dagger', bonusAction: true })
+        .success,
+    ).toBe(true);
+    expect(
+      attackInputSchema.safeParse({
+        targetId: uuid,
+        weaponItemId: 'unarmed',
+        via: 'FLURRY',
+        reckless: true,
+      }).success,
+    ).toBe(true);
+    expect(
+      attackInputSchema.safeParse({ targetId: uuid, weaponItemId: 'x', via: 'SNEAK' }).success,
+    ).toBe(false);
   });
 });

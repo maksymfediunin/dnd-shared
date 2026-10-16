@@ -372,3 +372,21 @@ export function resourceRecovery(code: CharacterResourceCode, level: number): 'S
       return 'LONG';
   }
 }
+
+/**
+ * Порог уничтожения нежити жрецом: ПО не выше — гибнет, провалив
+ * изгнание. До 5-го уровня умения нет (`null`).
+ */
+export function destroyUndeadCr(level: number): number | null {
+  assertLevel(level);
+  if (level >= 8) return 1;
+  if (level >= 5) return 0.5;
+  return null;
+}
+
+const SLOT_CREATION_COST = [2, 3, 5, 6, 7] as const;
+
+/** Очки чародейства за ячейку круга 1–5 (гибкое колдовство); выше пятого — нельзя. */
+export function slotCreationCost(slotLevel: number): number | null {
+  return SLOT_CREATION_COST[slotLevel - 1] ?? null;
+}

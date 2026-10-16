@@ -231,6 +231,8 @@ export const participantUpdateSchema = z
     displayName: z.string().trim().min(1).max(60).optional(),
     /** Сторона фишки — правит только ведущий (союзный NPC, очарованный враг). */
     side: participantSideSchema.optional(),
+    /** Застигнут врасплох (§П3.15) — отмечает только ведущий; снимает конец его хода. */
+    surprised: z.boolean().optional(),
     /**
      * Ход властью ведущего, вне правил очереди и бюджета футов. Раньше
      * ведущий был вне правил всегда — и за столом это выходило боком:
