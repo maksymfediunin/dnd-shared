@@ -466,6 +466,8 @@ const checkSchema = z.object({
     .optional(),
   /** Чья проверка, если не того, кто действует (защищающийся в захвате). */
   participantId: z.uuid().optional(),
+  /** Преимущество или помеха проверки (ярость — Сила, засада — бег): две кости в `results`. */
+  advantageMode: advantageModeSchema.optional(),
 });
 
 /**
@@ -602,6 +604,12 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     targetArmorClass: z.number().int(),
     outcome: attackOutcomeSchema,
     isCritical: z.boolean(),
+    /**
+     * Чем сведён бросок: преимущество или помеха — две кости в `results`
+     * не говорят, какая из них взята. Нет — честный бросок или строка до
+     * волны 3.
+     */
+    advantageMode: advantageModeSchema.optional(),
   }),
   z.object({
     kind: z.literal('DAMAGE'),

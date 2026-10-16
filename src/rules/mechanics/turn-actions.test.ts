@@ -119,8 +119,14 @@ describe('умения', () => {
         (a) => a.kind === 'ABILITY' && a.ability === 'FLURRY_OF_BLOWS',
       );
     expect(flurry({})).toMatchObject({ available: false, reason: 'ATTACK_ACTION_REQUIRED' });
-    expect(flurry({ attackActionTaken: true })).toMatchObject({ available: true });
-    expect(flurry({ attackActionTaken: true }, 2)).toMatchObject({ reason: 'RESOURCE_EXHAUSTED' });
+    // Шквал — после всех атак «Атаки» (ревью волны 3, пункт 16).
+    expect(flurry({ attackActionTaken: true, attacksLeft: 1 })).toMatchObject({
+      reason: 'ATTACK_ACTION_REQUIRED',
+    });
+    expect(flurry({ attackActionTaken: true, attacksLeft: 0 })).toMatchObject({ available: true });
+    expect(flurry({ attackActionTaken: true, attacksLeft: 0 }, 2)).toMatchObject({
+      reason: 'RESOURCE_EXHAUSTED',
+    });
   });
 
   it('жрец 2: изгнание и сохранение жизни на одном канале; без кода умения — без кнопки', () => {
@@ -225,6 +231,31 @@ describe('пути атаки', () => {
       'ATTACK',
     ).find((a) => a.kind === 'ATTACK' && a.via === 'FLURRY');
     expect(flurry).toMatchObject({ available: true, left: 2, weaponIds: ['unarmed'] });
+  });
+
+  it('ошеломлённый посреди хода не бьёт ни шквалом, ни сокрушителем орды', () => {
+    const strikes = kinds(
+      list(
+        holder(['hunters-prey-horde-breaker']),
+        {},
+        { flurryStrikesLeft: 1, hasLastWeaponAttack: true, attacksLeft: 0, cannotAct: true },
+      ),
+      'ATTACK',
+    ).filter((a) => a.kind === 'ATTACK' && (a.via === 'FLURRY' || a.via === 'HORDE_BREAKER'));
+    expect(strikes).toHaveLength(2);
+    for (const strike of strikes) {
+      expect(strike).toMatchObject({ available: false, reason: 'PARTICIPANT_CANNOT_ACT' });
+    }
+  });
+
+  it('подготовленная атака — реакция: без реакций её нет', () => {
+    const readied = (noReactions: boolean) =>
+      kinds(
+        list(holder([], { effects: ['READIED'] }), { isTurn: false }, { noReactions }),
+        'ATTACK',
+      ).find((a) => a.kind === 'ATTACK' && a.via === 'READIED');
+    expect(readied(false)).toMatchObject({ available: true });
+    expect(readied(true)).toMatchObject({ available: false, reason: 'PARTICIPANT_CANNOT_ACT' });
   });
 });
 

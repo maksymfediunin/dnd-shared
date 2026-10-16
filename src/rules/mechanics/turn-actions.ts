@@ -111,14 +111,20 @@ export function attackActions(input: AvailableActionsInput): Attack[] {
     'BONUS',
     'BONUS_ACTION',
     martialArts ? 'martial-arts' : null,
-    economyReason(input, 'BONUS_ACTION', { afterAttackAction: true }),
+    economyReason(input, 'BONUS_ACTION', { afterAttackAction: 'started' }),
   );
   if ((state?.flurryStrikesLeft ?? 0) > 0) {
     // Бонусное действие уже потрачено самим шквалом — удары идут даром.
-    push('FLURRY', 'BONUS_ACTION', 'flurry-of-blows', economyReason(input, 'FREE'), {
-      left: state?.flurryStrikesLeft ?? 0,
-      weaponIds: ['unarmed'],
-    });
+    push(
+      'FLURRY',
+      'BONUS_ACTION',
+      'flurry-of-blows',
+      economyReason(input, 'FREE', { strike: true }),
+      {
+        left: state?.flurryStrikesLeft ?? 0,
+        weaponIds: ['unarmed'],
+      },
+    );
   }
   const frenzyRound = h.effectData?.FRENZY?.round;
   if (
@@ -134,7 +140,12 @@ export function attackActions(input: AvailableActionsInput): Attack[] {
     state?.hasLastWeaponAttack &&
     !state.hordeBreakerUsed
   ) {
-    push('HORDE_BREAKER', 'FREE', 'hunters-prey-horde-breaker', economyReason(input, 'FREE'));
+    push(
+      'HORDE_BREAKER',
+      'FREE',
+      'hunters-prey-horde-breaker',
+      economyReason(input, 'FREE', { strike: true }),
+    );
   }
   if (h.effects.includes('READIED') && !input.isTurn) {
     push('READIED', 'REACTION', null, economyReason(input, 'REACTION'));

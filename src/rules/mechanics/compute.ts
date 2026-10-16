@@ -379,6 +379,11 @@ export interface TurnState {
   /** В этом ходу была атака оружием — сокрушитель орды бьёт тем же. */
   hasLastWeaponAttack: boolean;
   round: number;
+  /**
+   * Реакции нет вовсе (приём открытой ладони, изгнание, «Шоковое
+   * касание»): подготовленная атака — тоже реакция. Нет поля — может.
+   */
+  noReactions?: boolean;
 }
 
 const ECONOMY_REASON: Partial<Record<ActionEconomy, ActionUnavailableReason>> = {
@@ -397,12 +402,23 @@ const ECONOMY_REASON: Partial<Record<ActionEconomy, ActionUnavailableReason>> = 
 export function economyReason(
   input: AvailableActionsInput,
   economy: ActionEconomy,
-  options: { afterAttackAction?: boolean } = {},
+  options: {
+    /**
+     * Только после действия «Атака»: `started` — начатого (вторая рука,
+     * боевые искусства), `finished` — всех его атак (шквал, ревью волны 3).
+     */
+    afterAttackAction?: 'started' | 'finished';
+    /** Удар даром (шквал, сокрушитель орды) — оцепеневший его не нанесёт. */
+    strike?: boolean;
+  } = {},
 ): ActionUnavailableReason | null {
   const { override = false, state } = input;
   if (input.isDown) return 'PARTICIPANT_IS_DOWN';
   if (!override && !input.isTurn && economy !== 'REACTION') return 'NOT_YOUR_TURN';
-  if (!override && economy !== 'FREE' && state?.cannotAct) return 'PARTICIPANT_CANNOT_ACT';
+  if (!override && (economy !== 'FREE' || options.strike) && state?.cannotAct) {
+    return 'PARTICIPANT_CANNOT_ACT';
+  }
+  if (!override && economy === 'REACTION' && state?.noReactions) return 'PARTICIPANT_CANNOT_ACT';
   const used = {
     ACTION: input.economy.hasUsedAction,
     // Атака из действия «Атака» — пока у него остались атаки.
@@ -412,7 +428,12 @@ export function economyReason(
     FREE: false,
   } satisfies Record<ActionEconomy, boolean>;
   if (!override && used[economy]) return ECONOMY_REASON[economy] ?? null;
-  if (!override && options.afterAttackAction && !state?.attackActionTaken) {
+  if (
+    !override &&
+    options.afterAttackAction &&
+    (!state?.attackActionTaken ||
+      (options.afterAttackAction === 'finished' && state.attacksLeft > 0))
+  ) {
     return 'ATTACK_ACTION_REQUIRED';
   }
   return null;
@@ -477,7 +498,9 @@ export function availableActions(input: AvailableActionsInput): AvailableAction[
       const cost = typeof facet.cost === 'number' ? facet.cost : 1;
       const reason =
         economyReason(input, facet.economy, {
-          afterAttackAction: facet.availableAfter === 'attackAction',
+          ...(facet.availableAfter === 'attackAction'
+            ? { afterAttackAction: 'finished' as const }
+            : {}),
         }) ?? (left !== null && left < cost ? 'RESOURCE_EXHAUSTED' : null);
       // Бешенство — вариант входа в ярость, а не своя кнопка: решается в
       // момент входа (SRD «when you enter your rage»).
