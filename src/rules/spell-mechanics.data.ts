@@ -329,7 +329,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     variants: [
       { key: 'asleep', conditions: ['unconscious'], endsOnDamage: true },
       { key: 'panicked', conditions: ['frightened'] },
-      { key: 'sickened', modifiers: { ownAttacks: 'DISADVANTAGE' } },
+      { key: 'sickened', modifiers: { ownAttacks: 'DISADVANTAGE' }, repeatSave: true },
     ],
   },
   fabricate: { point: true, gm: 'Превращает сырьё в изделия — вне боя' },
@@ -648,7 +648,8 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'mass-heal': {
     removesConditions: ['blinded', 'deafened'],
     healPool: { total: 700, distribute: 'CASTER' },
-    gm: 'Излечивает болезни; не действует на нежить и конструктов',
+    targetFilter: { excludeTypes: ['undead', 'construct'] },
+    gm: 'Излечивает болезни',
     targets: { base: 12 },
   },
   'mass-healing-word': { targets: { base: 6 }, gm: 'Не действует на нежить и конструктов' },

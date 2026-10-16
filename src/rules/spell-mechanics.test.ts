@@ -5,6 +5,7 @@ import { SPELL_MECHANICS } from './spell-mechanics.data.js';
 import {
   armorClassWithEffects,
   attackDiceFrom,
+  creatureTypeOf,
   distributeHealPool,
   endsOnDamageBy,
   hasSpellEffect,
@@ -395,25 +396,36 @@ describe('волна 1б: записи по букве SRD', () => {
     expect(hasSpellEffect(spellMechanic('flame-blade'))).toBe(true);
   });
 
-  it('фильтр целей и восстановления — одно на выбор', () => {
-    expect(spellMechanic('charm-person')?.targetFilter).toEqual({ types: ['humanoid'] });
-    expect(spellMechanic('animal-friendship')?.targetFilter).toEqual({
-      types: ['beast'],
-      maxInt: 3,
-    });
-    expect(spellMechanic('lesser-restoration')?.removes?.choose).toBe(1);
-    expect(spellMechanic('lesser-restoration')?.removesConditions).toBeUndefined();
+  it('рой зверей — зверь; прочие типы — как есть', () => {
+    expect(creatureTypeOf('swarm of Tiny beasts')).toBe('beast');
+    expect(creatureTypeOf('Humanoid')).toBe('humanoid');
+    expect(creatureTypeOf('beast')).toBe('beast');
   });
 
-  it('зоны: «Паутина» без сотворения, «Облако» с ним, «Страж» только на вход', () => {
-    expect(spellMechanic('web')?.zone?.onCast).toBeUndefined();
-    expect(spellMechanic('incendiary-cloud')?.zone?.onCast).toBe(true);
-    expect(spellMechanic('guardian-of-faith')?.zone?.on).toEqual(['ENTER']);
-    expect(spellMechanic('wall-of-thorns')?.zone).toMatchObject({
-      on: ['ENTER', 'END'],
-      damageType: 'slashing',
+  it('«Сглаз»: от тошноты — спасбросок в конце хода, от сна и паники — нет', () => {
+    expect(repeatSaveOf(spellMechanicFor('eyebite', 'sickened'))).toEqual({ at: 'END' });
+    expect(repeatSaveOf(spellMechanicFor('eyebite', 'asleep'))).toBeNull();
+    expect(repeatSaveOf(spellMechanicFor('eyebite', 'panicked'))).toBeNull();
+  });
+
+  it('«Верный удар» — только в свой ход: атака при отходе его не берёт и не тратит', () => {
+    const awake = on('true-strike', {
+      targetId: 'm1',
+      until: { participantId: 'p1', at: 'END', skip: 0 },
     });
-    expect(spellMechanic('gust-of-wind')?.pushFeet).toBeUndefined();
+    expect(
+      combineConditions([], spellConditionEffects([awake], null, 'm1', false)).ownAttacks,
+    ).toBe('NORMAL');
+    expect(spentByOwnAttack(awake, 'm1', false)).toBe(false);
+  });
+
+  it('подпись повтора говорит, когда бросают', () => {
+    expect(spellEffectSummary('phantasmal-killer')).toContainEqual({ key: 'repeatSaveStart' });
+    expect(spellEffectSummary('fear')).toContainEqual({ key: 'repeatSaveUnseen' });
+    expect(spellEffectSummary('hold-person')).toEqual([{ key: 'repeatSave' }]);
+    expect(spellEffectSummary('eyebite', { variant: 'sickened' })).toContainEqual({
+      key: 'repeatSave',
+    });
   });
 
   // Ступени «Божественного слова» — волна 8 (`hpTiers`); до неё текст

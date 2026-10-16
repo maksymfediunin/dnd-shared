@@ -168,9 +168,10 @@ export interface SpellMechanic {
    * Кто вообще может быть целью: «Очарование личности» — гуманоид,
    * «Дружба с животными» — зверь. Тип не тот — отказ сотворения;
    * `maxInt` выше — заклинание не действует, ячейка потрачена (SRD: «the
-   * spell fails»).
+   * spell fails»). `excludeTypes` — целью быть может, но не действует
+   * («Массовое исцеление»: «no effect on undead or constructs»).
    */
-  targetFilter?: { types?: string[]; maxInt?: number };
+  targetFilter?: { types?: string[]; maxInt?: number; excludeTypes?: string[] };
   /**
    * Действие, доступное, пока держится заклинание: «Огненный клинок»
    * сотворяется бонусом без атаки, а бьют им отдельным действием
@@ -194,8 +195,6 @@ export interface SpellMechanic {
    * значок на ней врал бы, что заклинание наложено на неё.
    */
   point?: boolean;
-  /** Отталкивание от заклинателя на провале или при попадании. */
-  pushFeet?: number;
   /** Заклинатель лечится на эту долю нанесённого урона («Вампирское прикосновение»). */
   lifesteal?: number;
   /** Действует только на цель с текущими хитами не выше этого («Слово силы: оглушение»). */
@@ -272,6 +271,8 @@ export interface SpellVariant {
   temporaryHitPoints?: SpellMechanic['temporaryHitPoints'];
   /** «Сглаз»: урон будит спящего, но панику и тошноту не снимает. */
   endsOnDamage?: SpellMechanic['endsOnDamage'];
+  /** «Сглаз»: от тошноты спасаются в конце хода, от сна и паники — нет. */
+  repeatSave?: SpellMechanic['repeatSave'];
 }
 
 export function spellMechanic(code: string): SpellMechanic | null {
@@ -289,14 +290,32 @@ export function spellMechanicFor(code: string, variant?: string | null): SpellMe
   if (!base?.variants?.length) return base;
   const chosen = base.variants.find((v) => v.key === variant) ?? base.variants[0];
   if (!chosen) return base;
-  const { conditions: _c, modifiers: _m, temporaryHitPoints: _t, endsOnDamage: _e, ...rest } = base;
+  const {
+    conditions: _c,
+    modifiers: _m,
+    temporaryHitPoints: _t,
+    endsOnDamage: _e,
+    repeatSave: _r,
+    ...rest
+  } = base;
   return {
     ...rest,
     ...(chosen.conditions ? { conditions: chosen.conditions } : {}),
     ...(chosen.modifiers ? { modifiers: chosen.modifiers } : {}),
     ...(chosen.temporaryHitPoints ? { temporaryHitPoints: chosen.temporaryHitPoints } : {}),
     ...(chosen.endsOnDamage !== undefined ? { endsOnDamage: chosen.endsOnDamage } : {}),
+    ...(chosen.repeatSave !== undefined ? { repeatSave: chosen.repeatSave } : {}),
   };
+}
+
+/**
+ * Тип существа для фильтра целей: рой («swarm of Tiny beasts») — того же
+ * типа, что и его существа. Без этого стая крыс не была бы зверем для
+ * «Дружбы с животными».
+ */
+export function creatureTypeOf(type: string): string {
+  const lower = type.trim().toLowerCase();
+  return /^swarm of \w+ (\w+?)s$/.exec(lower)?.[1] ?? lower;
 }
 
 /**
@@ -368,6 +387,8 @@ interface ActiveModifiers {
   modifiers: SpellModifiers;
   /** Против кого действует `ownAttacks` при `vsSourceOnly`; `null` — против всех. */
   onlyAgainst: string | null;
+  /** Только в собственный ход носителя («Верный удар» — «on your next turn»). */
+  ownTurnOnly: boolean;
 }
 
 /**
@@ -413,7 +434,14 @@ export function activeSpellModifiers(effects: readonly SpellEffectRow[]): Active
         : modifiers.vsSourceOnly
           ? (effect.sourceId ?? '')
           : null;
-    return [{ spellCode: effect.spellCode, modifiers: { ...modifiers, ...computed }, onlyAgainst }];
+    return [
+      {
+        spellCode: effect.spellCode,
+        modifiers: { ...modifiers, ...computed },
+        onlyAgainst,
+        ownTurnOnly: mechanic.activeFrom !== undefined,
+      },
+    ];
   });
 }
 
@@ -422,9 +450,17 @@ export function activeSpellModifiers(effects: readonly SpellEffectRow[]): Active
  * спящий («Верный удар» в ход сотворения) не тратится, привязанный к
  * цели — только атакой по ней.
  */
-export function spentByOwnAttack(effect: SpellEffectRow, targetId: string): boolean {
+export function spentByOwnAttack(
+  effect: SpellEffectRow,
+  targetId: string,
+  /** Бьёт ли носитель в свой ход — атака при отходе в чужой «Верный удар» не тратит. */
+  bearerTurn = true,
+): boolean {
   const [active] = activeSpellModifiers([effect]);
-  if (active) return active.onlyAgainst === null || active.onlyAgainst === targetId;
+  if (active) {
+    if (active.ownTurnOnly && !bearerTurn) return false;
+    return active.onlyAgainst === null || active.onlyAgainst === targetId;
+  }
   // Без поправок атаки (`consumedOnOwnAttack` у прибавки к урону) — не
   // моё дело решать здесь; спящее — не тратится.
   const mechanic = effect.spellCode ? spellMechanic(effect.spellCode) : null;
@@ -446,8 +482,10 @@ export function spellConditionEffects(
    * «только против наложившего» (`vsSourceOnly`) без неё не действуют.
    */
   againstId?: string | null,
+  /** Сейчас ход носителя; не назван — считается, что да. */
+  bearerTurn = true,
 ): ConditionEffects[] {
-  return activeSpellModifiers(effects).map(({ modifiers, onlyAgainst }) => {
+  return activeSpellModifiers(effects).map(({ modifiers, onlyAgainst, ownTurnOnly }) => {
     const incomingApplies =
       modifiers.incomingFrom === undefined ||
       (attackerType != null && modifiers.incomingFrom.includes(attackerType.toLowerCase()));
@@ -456,7 +494,7 @@ export function spellConditionEffects(
       cannotAct: false,
       speed: 'NORMAL',
       ownAttacks:
-        onlyAgainst === null || onlyAgainst === againstId
+        (onlyAgainst === null || onlyAgainst === againstId) && (!ownTurnOnly || bearerTurn)
           ? (modifiers.ownAttacks ?? 'NORMAL')
           : 'NORMAL',
       incomingNear: incoming,
@@ -653,7 +691,15 @@ export type SpellEffectSummaryItem =
   | { key: 'saveAdvantage' | 'saveDisadvantage'; value: AbilityCode[] }
   | { key: 'resistances' | 'resistNonmagical'; value: string[] }
   | { key: 'weaponDamage'; value: string; type: string }
-  | { key: 'noReactions' | 'noHealing' | 'repeatSave' | 'endsWhenBearerAttacks' };
+  | {
+      key:
+        | 'noReactions'
+        | 'noHealing'
+        | 'repeatSave'
+        | 'repeatSaveStart'
+        | 'repeatSaveUnseen'
+        | 'endsWhenBearerAttacks';
+    };
 
 export function spellEffectSummary(spellCode: string, data?: unknown): SpellEffectSummaryItem[] {
   const variant = (data as { variant?: unknown } | null | undefined)?.variant;
@@ -688,7 +734,19 @@ export function spellEffectSummary(spellCode: string, data?: unknown): SpellEffe
   }
   if (m.noReactions) items.push({ key: 'noReactions' });
   if (m.noHealing) items.push({ key: 'noHealing' });
-  if (mechanic.repeatSave) items.push({ key: 'repeatSave' });
+  // Ритм повтора виден в подписи: «Призрачный убийца» бросает в начале
+  // хода и бьёт на провале, «Страх» — только не видя заклинателя.
+  const repeat = repeatSaveOf(mechanic);
+  if (repeat) {
+    items.push({
+      key:
+        repeat.at === 'START'
+          ? 'repeatSaveStart'
+          : repeat.when === 'NO_LINE_OF_SIGHT'
+            ? 'repeatSaveUnseen'
+            : 'repeatSave',
+    });
+  }
   if (mechanic.endsWhenBearerAttacks) items.push({ key: 'endsWhenBearerAttacks' });
   return items;
 }
