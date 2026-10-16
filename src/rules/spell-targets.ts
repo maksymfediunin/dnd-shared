@@ -126,6 +126,9 @@ export function isHarmful(mechanic: SpellMechanic | null, resolution: SpellResol
  * незачем. Плотяной голем и ковёр-душитель — не неорганика.
  */
 export const INORGANIC_MONSTERS: readonly string[] = [
+  // Азер — тело из латуни (металл). Мефиты — нет: пыль, лёд, магма и пар
+  // не «камень, кристалл, металл» Р8 — твёрдого тела у них нет.
+  'azer',
   'animated-armor',
   'flying-sword',
   'clay-golem',

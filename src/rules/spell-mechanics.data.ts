@@ -229,9 +229,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     reaction: true,
   },
   'create-food-and-water': { outOfCombat: 'Еда и вода — быт.', point: true },
-  'create-or-destroy-water': {
-    outOfCombat: 'Вода в сосудах или дождь в кубе 30 фт — быт; тушение огня по предметам — Р3.',
-  },
+  'create-or-destroy-water': { gm: 'Создание или уничтожение воды, решает ведущий' },
   'create-undead': {
     point: true,
     gm: 'Превращает до трёх трупов в упырей под контролем заклинателя на 24 часа; только ночью',
@@ -252,14 +250,11 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'delayed-blast-fireball': {
     gm: 'Урон при окончании заклинания, а не при сотворении: база 12d6 (+1d6 за каждый конец хода заклинателя без взрыва); бусину можно коснуться/бросить на 40 фт',
   },
-  demiplane: { outOfCombat: 'Дверь в карманный план — убежище, вне сцены.', point: true },
+  demiplane: { point: true, gm: 'Дверь в карманное измерение — ведущий' },
   'detect-evil-and-good': { outOfCombat: 'Обнаружение — разведка.' },
   'detect-magic': { outOfCombat: 'Обнаружение — разведка.' },
   'detect-poison-and-disease': { outOfCombat: 'Обнаружение — разведка.' },
-  'detect-thoughts': {
-    outOfCombat:
-      'Чтение мыслей и допрос; обнаружение мыслящих за стеной — разведка, без следствий в бою.',
-  },
+  'detect-thoughts': { gm: 'Чтение мыслей, зондирование (спасбросок Мудрости) — решает ведущий' },
   'dimension-door': {
     teleportFeet: 500,
     gm: 'Можно взять одного согласного союзного существа в пределах 5 фт',
@@ -813,10 +808,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     outOfCombat:
       'Иллюзия по условию — заготовка обмана; в бою — та же иллюзия, что и `major-image`, а её восприятие NPC — игра ведущего.',
   },
-  'project-image': {
-    outOfCombat: 'Копия на расстоянии до 500 миль — переговоры и разведка.',
-    point: true,
-  },
+  'project-image': { point: true, gm: 'Иллюзорная копия на расстоянии 500 миль — вне боя' },
   'protection-from-energy': {
     modifiers: { resistances: ['fire'] },
     variants: [
@@ -863,7 +855,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Существа и предметы в цилиндре падают вверх; Лов-спасбросок, чтобы ухватиться за неподвижный предмет; урон от падения по обычным правилам — ведущий',
   },
   revivify: { revive: { withinRounds: 10, hp: 1 } },
-  'rope-trick': { outOfCombat: 'Убежище для отдыха — вне сцены.' },
+  'rope-trick': { gm: 'Внепространственное убежище по верёвке — сюжетное' },
   'sacred-flame': { gm: 'Цель не получает выгоды от укрытия при этом спасброске' },
   sanctuary: { endsWhenBearerAttacks: true, sanctuary: true },
   'scorching-ray': {

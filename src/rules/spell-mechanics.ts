@@ -720,6 +720,21 @@ export function distributeHealPool(
   return shares;
 }
 
+/**
+ * Заклинания воскрешения для «Божественного вмешательства» (р. 24): у
+ * «Оживления» и «Воскрешений» время сотворения — час, в бою их творит
+ * только божество, и запись у них — пометка вне боя. Здесь — что они
+ * делают с мёртвым на сцене: давность (`null` — любая) и хиты.
+ */
+export const REVIVAL_SPELLS: Readonly<
+  Record<string, { withinRounds: number | null; hp: 'ONE' | 'MAX' }>
+> = {
+  revivify: { withinRounds: 10, hp: 'ONE' },
+  'raise-dead': { withinRounds: null, hp: 'ONE' },
+  resurrection: { withinRounds: null, hp: 'MAX' },
+  'true-resurrection': { withinRounds: null, hp: 'MAX' },
+};
+
 /** Кость прибавки со знаком: «-1d4» вычитается («Порча»). */
 export interface SignedDice {
   spellCode: string;
@@ -1044,10 +1059,13 @@ export function spellCheckMods(
     if (m.checkAdvantage?.some((code) => code === 'ALL' || code === check.ability)) {
       out.advantage.push('ADVANTAGE');
     }
+    // «Порабощение»: помеха — к проверке против кого-то, кроме заклинателя;
+    // проверка без того, на кого смотрят, помехи не получает.
     if (
       check.skill &&
       m.checkDisadvantage?.includes(check.skill) &&
-      (check.againstId == null || check.againstId !== effect.sourceId)
+      check.againstId != null &&
+      check.againstId !== effect.sourceId
     ) {
       out.advantage.push('DISADVANTAGE');
     }

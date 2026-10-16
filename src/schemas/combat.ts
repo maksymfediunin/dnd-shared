@@ -528,6 +528,8 @@ export const reactionAnswerSchema = z.object({
   /** Выбор вмешательства — заклинание из `spells` варианта и его цели. */
   spellCode: z.string().trim().min(1).max(64).optional(),
   targetIds: z.array(z.uuid()).min(1).max(20).optional(),
+  /** Вариант выбранного заклинания (`SpellMechanic.variants`). */
+  variant: z.string().trim().min(1).max(32).optional(),
 });
 export type ReactionAnswerInput = z.infer<typeof reactionAnswerSchema>;
 
@@ -791,6 +793,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
           dice: z.string().regex(/^\d+d\d+$/),
           type: z.string().min(1).max(40),
           oncePer: z.enum(['turn', 'ownTurn']),
+          /** Урон оружия (губитель колоссов) — режется сопротивлением оружию. */
+          weapon: z.boolean().optional(),
         }),
       )
       .max(5)

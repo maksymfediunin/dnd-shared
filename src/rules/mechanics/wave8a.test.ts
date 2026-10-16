@@ -97,6 +97,13 @@ describe('крит, переброс, кости при попадании', () 
     expect(collectCrit({ ...h, level: 8, traits: new Set() }, greataxe).extraWeaponDice).toBe(0);
   });
 
+  it('рукопашная атака оружием — только вблизи: брошенный топорик не в счёт', () => {
+    expect(holds(['meleeWeaponAttack'], greataxe)).toBe(true);
+    expect(
+      holds(['meleeWeaponAttack'], { ...greataxe, attack: { weapon: true, range: 'RANGED' } }),
+    ).toBe(false);
+  });
+
   it('бой большим оружием: 1 и 2 — двуручным; длинный меч со щитом — нет', () => {
     const h = holderOf({ features: new Set(['fighting-style-great-weapon-fighting']) });
     expect(collectDamageRerolls(h, greataxe)).toEqual([1, 2]);
@@ -243,6 +250,8 @@ describe('дарованные заклинания и отдых', () => {
       collectDefenses(h, { attack: { weapon: true, magicalWeapon: true } }).resistances,
     ).toEqual([]);
     expect(collectDefenses({ ...h, fiendishResilienceType: null }).resistances).toEqual([]);
+    // Лист и снимок участника (без удара) стойкости не несут.
+    expect(collectDefenses(h).resistances).toEqual([]);
   });
 });
 

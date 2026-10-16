@@ -180,7 +180,10 @@ function test(p: Predicate, ctx: MechanicsContext, owner?: FacetOwner): boolean 
     case 'weaponAttack':
       return ctx.attack?.weapon === true;
     case 'meleeWeaponAttack':
-      return ctx.attack?.weapon === true && weapon?.rangeType === 'MELEE';
+      // Брошенный кинжал — оружие ближнего боя, но атака дальнобойная.
+      return (
+        ctx.attack?.weapon === true && ctx.attack.range === 'MELEE' && weapon?.rangeType === 'MELEE'
+      );
     case 'meleeAttack':
       return ctx.attack?.range === 'MELEE';
     case 'twoHandedGrip':
@@ -385,9 +388,15 @@ export function collectDefenses(
   const all = [...facetsOf(h).map((entry) => ({ ...entry, h })), ...extra];
   for (const { code, facet, h: owner } of all) {
     if (facet.kind !== 'defense' || !holds(facet.when, ctx, { code, h: owner })) continue;
-    // Исчадная стойкость не режет магическое и серебряное оружие (П1.4):
-    // удар такого оружия гасит её сопротивление целиком.
-    if (facet.except && ctx.attack?.weapon === true && ctx.attack.magicalWeapon === true) continue;
+    // Исчадная стойкость не режет магическое и серебряное оружие (П1.4).
+    // Без контекста удара (лист, снимок участника) её нет вовсе: снимок
+    // резал бы и магический меч, а вид меняется на отдыхе посреди сцены.
+    if (
+      facet.except &&
+      (!ctx.attack || (ctx.attack.weapon === true && ctx.attack.magicalWeapon === true))
+    ) {
+      continue;
+    }
     for (const type of facet.resistance ?? []) {
       const resolved =
         type === 'ANCESTRY'
