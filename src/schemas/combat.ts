@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { ABILITY_CODES, abilityCodeSchema } from '../enums/character.js';
+import {
+  ABILITY_CODES,
+  abilityCodeSchema,
+  characterResourceCodeSchema,
+} from '../enums/character.js';
 import {
   attackOutcomeSchema,
   concentrationOutcomeSchema,
@@ -171,6 +175,50 @@ export const UNARMED_STRIKE = 'unarmed';
 /** Умения, которые сами по себе действие хода (а не прибавка к удару). */
 export const COMBAT_ABILITIES = ['RAGE', 'END_RAGE', 'SECOND_WIND', 'ACTION_SURGE'] as const;
 export type CombatAbility = (typeof COMBAT_ABILITIES)[number];
+
+/** Чего стоит действие хода: вид действия или ничего (всплеск действий, снятие ярости). */
+export const ACTION_ECONOMY = ['ACTION', 'BONUS_ACTION', 'REACTION', 'FREE'] as const;
+export type ActionEconomy = (typeof ACTION_ECONOMY)[number];
+
+/** Почему действия сейчас нет — код из ERROR_CODES: переводы `errors.*` у фронта уже есть. */
+export const ACTION_UNAVAILABLE_REASONS = [
+  'PARTICIPANT_IS_DOWN',
+  'NOT_YOUR_TURN',
+  'ACTION_ALREADY_USED',
+  'BONUS_ACTION_ALREADY_USED',
+  'REACTION_ALREADY_USED',
+  'RESOURCE_EXHAUSTED',
+] as const;
+export type ActionUnavailableReason = (typeof ACTION_UNAVAILABLE_REASONS)[number];
+
+/**
+ * Что участник может сделать прямо сейчас (дизайн 15 октября, §4.3):
+ * фронт рисует кнопки по этому списку, а не по коду класса, — иначе
+ * новое умение без правки фронта не появилось бы. Размеченное
+ * объединение по `kind`: волна 3 добавит `BASIC`, `ATTACK`, `SPELL`,
+ * волна 4 — `REACTION`.
+ */
+export const availableActionSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('ABILITY'),
+    ability: z.enum(COMBAT_ABILITIES),
+    featureCode: z.string().min(1).max(64),
+    economy: z.enum(ACTION_ECONOMY),
+    resource: z
+      .object({
+        code: characterResourceCodeSchema,
+        left: z.number().int().min(0),
+        max: z.number().int().min(1),
+      })
+      .nullable(),
+    available: z.boolean(),
+    reason: z.enum(ACTION_UNAVAILABLE_REASONS).nullable(),
+  }),
+]);
+export type AvailableAction = z.infer<typeof availableActionSchema>;
+
+export const participantActionsResponseSchema = z.object({ data: z.array(availableActionSchema) });
+export type ParticipantActionsResponse = z.infer<typeof participantActionsResponseSchema>;
 
 export const abilityInputSchema = z.object({
   participantId: z.uuid().optional(),
@@ -579,6 +627,11 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     notation: z.string().min(1).max(32).optional(),
     results: z.array(z.number().int().min(1).max(100)).max(20).optional(),
     amount: z.number().int().min(0).optional(),
+    /**
+     * Снятие ярости само (бездействие, ноль хитов, срок): сколько раундов
+     * у неё оставалось — по ним перемотка хода восстанавливает эффект.
+     */
+    roundsRemaining: z.number().int().min(0).nullable().optional(),
   }),
   z.object({ kind: z.literal('ROUND'), round: z.number().int().min(1) }),
 ]);

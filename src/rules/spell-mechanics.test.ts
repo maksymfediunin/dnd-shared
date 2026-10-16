@@ -9,6 +9,7 @@ import {
   rollSignedDice,
   SPELL_EFFECT_CODE,
   saveAdvantageFrom,
+  saveAdvantageSources,
   saveBonusFrom,
   speedWithEffects,
   spellConditionEffects,
@@ -238,5 +239,42 @@ describe('варианты, зоны и следствия урона', () => {
       { slotLevel: 4 },
     );
     expect(plan).toEqual({ kind: 'DAMAGE', dice: '4d8', modifier: 0, type: 'radiant' });
+  });
+});
+
+describe('пустые записи', () => {
+  // Без записи тест полноты не отличил бы «считает SRD» от «забыли».
+  it('14 заклинаний, которые целиком считают поля SRD и код, — с записью {}', () => {
+    for (const code of [
+      'circle-of-death',
+      'cure-wounds',
+      'darkness',
+      'fireball',
+      'fog-cloud',
+      'healing-word',
+      'hunters-mark',
+      'inflict-wounds',
+      'lightning-bolt',
+      'poison-spray',
+      'sleep',
+      'spare-the-dying',
+      'stinking-cloud',
+      'thunderwave',
+    ]) {
+      expect(SPELL_MECHANICS[code], code).toEqual({});
+    }
+  });
+});
+
+describe('источники преимущества спасброска', () => {
+  // Сведённый режим терял бы источники: «и то и другое» плюс ещё одно
+  // преимущество со стороны дали бы преимущество вместо обычного броска.
+  it('по источнику на эффект, а не сведённым режимом', () => {
+    const effects = [
+      { code: SPELL_EFFECT_CODE, spellCode: 'enlarge-reduce', data: { variant: 'enlarge' } },
+      { code: SPELL_EFFECT_CODE, spellCode: 'bestow-curse', data: { variant: 'str' } },
+    ];
+    expect(saveAdvantageSources(effects, 'strength').sort()).toEqual(['ADVANTAGE', 'DISADVANTAGE']);
+    expect(saveAdvantageFrom(effects, 'strength')).toBe('NONE');
   });
 });

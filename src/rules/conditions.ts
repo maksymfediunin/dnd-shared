@@ -141,13 +141,21 @@ export function effectsOf(entry: ConditionEntry): ConditionEffects {
 /**
  * Складывает преимущества и помехи по правилу книги: они гасят друг
  * друга, сколько бы их ни было. Поэтому считается не сумма, а два
- * признака — «есть ли хоть одно» того и другого.
+ * признака — «есть ли хоть одно» того и другого. Сводить надо список
+ * источников целиком: свести часть, а потом добавить ещё одно, — значит
+ * потерять помеху, погашенную внутри части.
  */
-function mergeAdvantage(values: AdvantageEffect[]): AdvantageEffect {
-  const up = values.includes('ADVANTAGE');
-  const down = values.includes('DISADVANTAGE');
-  if (up === down) return 'NORMAL';
+export function combineAdvantage(sources: readonly string[]): AdvantageMode {
+  const up = sources.includes('ADVANTAGE');
+  const down = sources.includes('DISADVANTAGE');
+  if (up === down) return 'NONE';
   return up ? 'ADVANTAGE' : 'DISADVANTAGE';
+}
+
+/** То же правило в словаре таблицы состояний (`NORMAL` вместо `NONE`). */
+function mergeAdvantage(values: AdvantageEffect[]): AdvantageEffect {
+  const merged = combineAdvantage(values);
+  return merged === 'NONE' ? 'NORMAL' : merged;
 }
 
 /**

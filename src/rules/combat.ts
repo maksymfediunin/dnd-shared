@@ -1,5 +1,5 @@
 import type { WeaponCategory, WeaponProperty, WeaponRangeType } from '../enums/character.js';
-import type { DeathSaveOutcome } from '../enums/combat.js';
+import type { DeathSaveOutcome, ParticipantSide } from '../enums/combat.js';
 import type { AdvantageMode } from '../enums/dice.js';
 import type { SizeCategory } from '../enums/size.js';
 import { diceNotation, keptDie, type RandomSource, rollDice } from './dice.js';
@@ -334,6 +334,41 @@ export interface OpportunityReactor extends Placed {
  * Кто враг и не потрачена ли реакция, решает вызывающий: у сервера это
  * строки базы, у фронта — снимок, где реакция монстра скрыта.
  */
+/**
+ * Участник в той форме, какая нужна стороне: фишки старого контейнера
+ * в окне выкатки стороны не несут (`null`) — она выводится из вида.
+ */
+interface Sided {
+  id: string;
+  side?: ParticipantSide | null;
+  monsterId?: string | null;
+}
+
+/**
+ * Сторона участника — единственное место, где читается поле: не
+ * записана — персонаж за партию, монстр против. Признак — монстр, а не
+ * лист: у персонажа с удалённым листом `characterId` пуст.
+ */
+export function sideOf(p: Pick<Sided, 'side' | 'monsterId'>): ParticipantSide {
+  return p.side ?? (p.monsterId ? 'HOSTILE' : 'PARTY');
+}
+
+/**
+ * Союзник ли это — единственный ответ на вопрос для всех правил
+ * (скрытая атака, согласные цели, зоны «только по врагам»). Себе всякий
+ * союзник, даже нейтральный.
+ */
+export function isAlly(a: Sided, b: Sided): boolean {
+  const side = sideOf(a);
+  return a.id === b.id || (side === sideOf(b) && side !== 'NEUTRAL');
+}
+
+/** Враг — другая сторона, и ни одна из двух не нейтральная. */
+export function isEnemy(a: Sided, b: Sided): boolean {
+  const [left, right] = [sideOf(a), sideOf(b)];
+  return left !== right && left !== 'NEUTRAL' && right !== 'NEUTRAL';
+}
+
 export function opportunityReactors(input: {
   mover: Placed;
   to: Cell;

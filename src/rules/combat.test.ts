@@ -7,11 +7,14 @@ import {
   damageRoll,
   deathSave,
   initiativeOrder,
+  isAlly,
+  isEnemy,
   movementCost,
   movesCloser,
   opportunityReactors,
   reachDistance,
   reachInCells,
+  sideOf,
   weaponAbility,
   weaponAttackBonus,
 } from './combat.js';
@@ -402,5 +405,39 @@ describe('opportunityReactors', () => {
         cellSizeFeet: 5,
       }),
     ).toEqual([]);
+  });
+});
+
+describe('стороны участников', () => {
+  const party = { id: 'a', side: 'PARTY' as const };
+  const friend = { id: 'b', side: 'PARTY' as const };
+  const goblin = { id: 'g', side: 'HOSTILE' as const };
+  const villager = { id: 'v', side: 'NEUTRAL' as const };
+
+  it('союзник — та же сторона; враг — другая; нейтральный — ни то ни другое', () => {
+    expect(isAlly(party, friend)).toBe(true);
+    expect(isEnemy(party, friend)).toBe(false);
+    expect(isAlly(party, goblin)).toBe(false);
+    expect(isEnemy(party, goblin)).toBe(true);
+    expect(isEnemy(goblin, party)).toBe(true);
+    expect(isAlly(villager, { id: 'w', side: 'NEUTRAL' })).toBe(false);
+    expect(isEnemy(villager, goblin)).toBe(false);
+    expect(isEnemy(party, villager)).toBe(false);
+  });
+
+  // Старый контейнер в окне выкатки вставляет фишки без стороны.
+  it('сторона не записана — выводится из вида фишки', () => {
+    expect(sideOf({ side: null, monsterId: null })).toBe('PARTY');
+    expect(sideOf({ side: null, monsterId: 'm-1' })).toBe('HOSTILE');
+    expect(sideOf({ side: 'NEUTRAL', monsterId: 'm-1' })).toBe('NEUTRAL');
+    const hero = { id: 'h', side: null, monsterId: null };
+    const orc = { id: 'o', side: null, monsterId: 'm-1' };
+    expect(isAlly(hero, party)).toBe(true);
+    expect(isEnemy(hero, orc)).toBe(true);
+  });
+
+  it('себе всякий союзник — и нейтральный тоже', () => {
+    expect(isAlly(villager, villager)).toBe(true);
+    expect(isAlly(goblin, { ...goblin })).toBe(true);
   });
 });

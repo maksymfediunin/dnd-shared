@@ -1,7 +1,7 @@
 import type { AbilityCode } from '../enums/character.js';
 import type { ConditionCode } from '../enums/conditions.js';
 import type { AdvantageMode } from '../enums/dice.js';
-import type { AdvantageEffect, ConditionEffects } from './conditions.js';
+import { type AdvantageEffect, type ConditionEffects, combineAdvantage } from './conditions.js';
 import { SPELL_MECHANICS } from './spell-mechanics.data.js';
 
 /**
@@ -407,11 +407,18 @@ export function saveAdvantageFrom(
   effects: readonly SpellEffectRow[],
   ability: AbilityCode,
 ): AdvantageMode {
-  const active = activeSpellModifiers(effects);
-  const up = active.some(({ modifiers }) => modifiers.saveAdvantage?.includes(ability));
-  const down = active.some(({ modifiers }) => modifiers.saveDisadvantage?.includes(ability));
-  if (up === down) return 'NONE';
-  return up ? 'ADVANTAGE' : 'DISADVANTAGE';
+  return combineAdvantage(saveAdvantageSources(effects, ability));
+}
+
+/** Источники по одному на заклинание — для сведения вместе с прочими (ярость, правило). */
+export function saveAdvantageSources(
+  effects: readonly SpellEffectRow[],
+  ability: AbilityCode,
+): ('ADVANTAGE' | 'DISADVANTAGE')[] {
+  return activeSpellModifiers(effects).flatMap(({ modifiers }) => [
+    ...(modifiers.saveAdvantage?.includes(ability) ? ['ADVANTAGE' as const] : []),
+    ...(modifiers.saveDisadvantage?.includes(ability) ? ['DISADVANTAGE' as const] : []),
+  ]);
 }
 
 export function weaponDamageFrom(

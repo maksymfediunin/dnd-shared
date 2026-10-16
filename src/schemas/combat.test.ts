@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   attackInputSchema,
+  availableActionSchema,
   castInputSchema,
   damageInputSchema,
   encounterEventPayloadSchema,
   initiativeInputSchema,
+  participantActionsResponseSchema,
   startCombatInputSchema,
 } from './combat.js';
 
@@ -490,5 +492,38 @@ describe('startCombatInputSchema', () => {
 
   it('не булево — отказ', () => {
     expect(startCombatInputSchema.safeParse({ simplified: 'yes' }).success).toBe(false);
+  });
+});
+
+describe('список доступных действий', () => {
+  it('принимает умение с ресурсом и без, отвергает неизвестную причину', () => {
+    const rage = {
+      kind: 'ABILITY',
+      ability: 'RAGE',
+      featureCode: 'rage',
+      economy: 'BONUS_ACTION',
+      resource: { code: 'RAGE', left: 0, max: 2 },
+      available: false,
+      reason: 'RESOURCE_EXHAUSTED',
+    };
+    expect(participantActionsResponseSchema.parse({ data: [rage] }).data).toEqual([rage]);
+    const end = {
+      ...rage,
+      ability: 'END_RAGE',
+      economy: 'FREE',
+      resource: null,
+      available: true,
+      reason: null,
+    };
+    expect(availableActionSchema.parse(end)).toEqual(end);
+    expect(() => availableActionSchema.parse({ ...rage, reason: 'TIRED' })).toThrow();
+  });
+});
+
+describe('строка снятия ярости', () => {
+  // Перемотка хода восстанавливает ярость с прежним остатком раундов.
+  it('несёт остаток раундов', () => {
+    const payload = { kind: 'ABILITY', ability: 'END_RAGE', roundsRemaining: 7 };
+    expect(encounterEventPayloadSchema.parse(payload)).toEqual(payload);
   });
 });

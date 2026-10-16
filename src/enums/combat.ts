@@ -10,6 +10,15 @@ export const combatStatusSchema = z.enum(COMBAT_STATUSES);
 export type CombatStatus = (typeof COMBAT_STATUSES)[number];
 
 /**
+ * Сторона участника боя — кто кому союзник, не по виду фишки: союзный
+ * NPC, очарованный враг, призванный зверь (волна 6) воюют не за «своих
+ * по виду». Нейтральный — ни союзник, ни враг никому, кроме себя.
+ */
+export const PARTICIPANT_SIDES = ['PARTY', 'HOSTILE', 'NEUTRAL'] as const;
+export const participantSideSchema = z.enum(PARTICIPANT_SIDES);
+export type ParticipantSide = (typeof PARTICIPANT_SIDES)[number];
+
+/**
  * Виды строк журнала. `ROUND` — не действие участника, а отметка
  * «пошёл следующий круг»: по ней журнал делится на раунды при чтении.
  *
