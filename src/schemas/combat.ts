@@ -164,6 +164,8 @@ export const castInputSchema = z
      */
     targetIds: z.array(z.uuid()).min(1).max(20).optional(),
     cell: targetCellSchema.optional(),
+    /** Несколько точек одного сотворения — «Пляшущие огоньки» (до четырёх, волна 5). */
+    cells: z.array(targetCellSchema).min(1).max(4).optional(),
     /**
      * Клетка переноса — «Туманный шаг», «Переносящая дверь»: цель —
      * сам заклинатель, а куда он встанет, задаёт эта клетка.
@@ -209,8 +211,8 @@ export const castInputSchema = z
   })
   .refine(
     (v) =>
-      [v.targetId, v.cell, v.targetIds, v.destination].filter((aim) => aim !== undefined).length ===
-      1,
+      [v.targetId, v.cell, v.targetIds, v.destination, v.cells].filter((aim) => aim !== undefined)
+        .length === 1,
     {
       path: ['targetId'],
       message: 'Заклинание бьёт либо по фишке, либо по фишкам, либо по клетке',

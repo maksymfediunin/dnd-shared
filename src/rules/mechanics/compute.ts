@@ -562,6 +562,8 @@ export interface TurnState {
   /** Застигнут врасплох — первый ход боя. */
   surprised: boolean;
   grappled: boolean;
+  /** Опутан зоной, из которой вырываются проверкой («Паутина», волна 5). */
+  restrainedByZone?: boolean;
   /** Действие «Атака» в этом ходу совершено (всплеск его не сбрасывает). */
   attackActionTaken: boolean;
   /**
