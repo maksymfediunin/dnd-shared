@@ -1,9 +1,10 @@
 import type { CharacterResourceCode } from '../enums/character.js';
+import type { ParticipantSide } from '../enums/combat.js';
 import type { ConditionCode } from '../enums/conditions.js';
 import type { AdvantageMode } from '../enums/dice.js';
 import type { SizeCategory } from '../enums/size.js';
 import type { ReactionOption, WindowEvent } from '../schemas/combat.js';
-import { type Placed, reachDistance } from './combat.js';
+import { isEnemy, type Placed, reachDistance } from './combat.js';
 import { keptDie } from './dice.js';
 import { facetsOf, holds } from './mechanics/compute.js';
 import type { MechanicsContext, MechanicsHolder, ReactionFacet } from './mechanics/types.js';
@@ -60,6 +61,9 @@ export interface ReactionMember extends Placed {
   /** Заклинания-реакции, которые можно сотворить сейчас (знает, есть ячейка). */
   reactionSpells: readonly (typeof WINDOW_REACTION_SPELLS)[number][];
   size: SizeCategory;
+  /** Сторона — правилом `isEnemy`: помеха и вычитание только против врага. */
+  side?: ParticipantSide | null;
+  monsterId?: string | null;
 }
 
 /** Событие окна: кто бросает, на кого, и что нужно условиям ответов. */
@@ -70,8 +74,10 @@ export interface ReactionEvent {
   /** Цели атаки и урона, бросающие спасбросок, упавшие до нуля. */
   subjectIds: readonly string[];
   attack?: NonNullable<MechanicsContext['attack']>;
-  /** Кость к20, ушедшая в итог, — фаза броска на 1 и 20 не открывается. */
+  /** Кость к20, ушедшая в итог, — фаза броска на 1 и крите не открывается. */
   natural?: number;
+  /** С какой кости крит (чемпион — 19): крит попадает, и словцо его не отменит. */
+  critThreshold?: number;
   /** Урон заклинания — его может усилить сам заклинатель. */
   spellDamage?: boolean;
   /** Упавшие до нуля: убит ли на месте (стойкость полуорка не спасает). */
@@ -120,7 +126,13 @@ export function reactionResponders(
   sees: (viewerId: string, targetId: string) => boolean,
   hears: (listenerId: string, speakerId: string) => boolean,
 ): ReactionResponder[] {
-  if (e.event === 'attackRolled' && (e.natural === 1 || e.natural === 20)) return [];
+  if (
+    e.event === 'attackRolled' &&
+    e.natural !== undefined &&
+    (e.natural === 1 || e.natural >= (e.critThreshold ?? 20))
+  ) {
+    return [];
+  }
   const byId = new Map(members.map((m) => [m.id, m]));
   const actor = e.actorId ? byId.get(e.actorId) : undefined;
   const firstSubject = e.subjectIds[0] ? byId.get(e.subjectIds[0]) : undefined;
@@ -199,6 +211,12 @@ function effectFits(
   sees: (viewerId: string, targetId: string) => boolean,
 ): boolean {
   const effect = facet.effect;
+  // Помеха «Обороны» и кость словца — против врага (решение 30 плана
+  // волны 4): союзнику они только мешали бы, а окно спрашивало бы зря.
+  if ('imposeDisadvantage' in effect || 'subtractDie' in effect) {
+    const actor = e.actorId ? members.get(e.actorId) : undefined;
+    if (!actor || !isEnemy(m, actor)) return false;
+  }
   // Невероятное уклонение — от попавшей атаки, а не от урона по площади.
   if ('halveDamage' in effect) return e.attack !== undefined;
   if ('empower' in effect) return e.spellDamage === true;

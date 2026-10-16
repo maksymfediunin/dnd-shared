@@ -468,12 +468,28 @@ export const reactionWindowViewSchema = z.object({
     .optional(),
   /** Фаза 3: брошенный урон до вычитаний. */
   damage: z.object({ amount: z.number().int().min(0), damageType: z.string().max(40) }).optional(),
+  /**
+   * Окно закрывается — ответы уже не принимаются, идёт продолжение.
+   * Без поля панель звала бы нажать кнопку, на которую сервер ответит 409.
+   */
+  closingAt: z.iso.datetime().nullable().optional(),
   responders: z
     .array(
       z.object({
         participantId: z.uuid(),
+        /**
+         * Варианты ответа. Игроку у монстра пусто: чем ответит монстр,
+         * решает ведущий, и подсказка о его умениях — его тайна.
+         */
         options: z.array(reactionOptionSchema).max(12),
         answered: z.boolean(),
+        /** Свой бросок ответчика, когда бросков несколько (спасбросок по площади). */
+        roll: z
+          .object({
+            results: z.array(z.number().int().min(1).max(100)).max(20),
+            total: z.number().int(),
+          })
+          .optional(),
       }),
     )
     .max(40),

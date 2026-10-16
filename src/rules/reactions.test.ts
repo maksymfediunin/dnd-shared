@@ -116,7 +116,7 @@ describe('кто вправе ответить', () => {
       ...patch,
     });
   const wizard = member('wizard', 0);
-  const goblin = member('goblin', -1, { size: 'SMALL' });
+  const goblin = member('goblin', -1, { size: 'SMALL', side: 'HOSTILE' });
   const declared = { event: 'attackDeclared', actorId: 'goblin', subjectIds: ['wizard'] } as const;
 
   it('«Оборона»: со щитом в пяти футах — есть; без щита — нет; реакция потрачена — нет', () => {
@@ -133,6 +133,15 @@ describe('кто вправе ответить', () => {
     expect(abilitiesOf([protector({ x: 3 }), wizard, goblin], declared)).toEqual([]);
   });
 
+  // Помеха и вычитание — оружие против врага: союзнику «Оборона» и словцо
+  // только мешали бы (решение 30 плана волны 4).
+  it('«Оборона» и словцо — только против врага', () => {
+    const friend = member('goblin', -1, { side: 'PARTY' });
+    expect(abilitiesOf([protector(), wizard, friend], declared)).toEqual([]);
+    const ally = member('ogre', 0);
+    expect(abilitiesOf([bard(13), ally, member('fighter', 1)], rolled)).toEqual([]);
+  });
+
   it('«Оборона» не прикрывает самого носителя', () => {
     expect(abilitiesOf([protector(), goblin], { ...declared, subjectIds: ['fighter'] })).toEqual(
       [],
@@ -145,7 +154,7 @@ describe('кто вправе ответить', () => {
       resourcesLeft: { BARDIC_INSPIRATION: 2 },
       ...patch,
     });
-  const ogre = member('ogre', 0, { size: 'LARGE' });
+  const ogre = member('ogre', 0, { size: 'LARGE', side: 'HOSTILE' });
   const rolled = {
     event: 'attackRolled',
     actorId: 'ogre',
@@ -176,6 +185,15 @@ describe('кто вправе ответить', () => {
     const fighter = member('fighter', 1);
     expect(abilitiesOf([bard(2), ogre, fighter], { ...rolled, natural: 20 })).toEqual([]);
     expect(abilitiesOf([bard(2), ogre, fighter], { ...rolled, natural: 1 })).toEqual([]);
+  });
+
+  it('натуральная 19 при крите с 19 (чемпион) — тоже крит: фазы броска нет', () => {
+    const fighter = member('fighter', 1);
+    const champion = { ...rolled, natural: 19, critThreshold: 19 };
+    expect(abilitiesOf([bard(2), ogre, fighter], champion)).toEqual([]);
+    expect(abilitiesOf([bard(2), ogre, fighter], { ...rolled, natural: 19 })).toEqual([
+      'bard:CUTTING_WORDS',
+    ]);
   });
 
   const ranger = (patch: Partial<ReactionMember> = {}) =>
