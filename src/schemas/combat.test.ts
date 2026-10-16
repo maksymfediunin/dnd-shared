@@ -31,6 +31,17 @@ describe('attackInputSchema', () => {
     expect(parsed.monsterActionCode).toBe('goblin-scimitar');
   });
 
+  // Хват выбирает бьющий: длинный меч ветерана двумя руками — 1к10, а не 1к8.
+  it('принимает хват действия монстра и отвергает выбор роя', () => {
+    const base = {
+      targetId: '11111111-1111-4111-8111-111111111111',
+      monsterActionCode: 'veteran-longsword-action',
+    };
+    expect(attackInputSchema.parse({ ...base, variant: 'twoHanded' }).variant).toBe('twoHanded');
+    // «Рой на половине хитов» решает сервер по хитам, а не бьющий.
+    expect(attackInputSchema.safeParse({ ...base, variant: 'bearerBloodied' }).success).toBe(false);
+  });
+
   // Ровно один источник удара: иначе непонятно, чем бьют, и служба
   // выбирала бы за игрока.
   it('отвергает оружие и действие монстра разом', () => {
@@ -166,6 +177,23 @@ describe('encounterEventPayloadSchema', () => {
     });
 
     expect(parsed).toMatchObject({ kind: 'DAMAGE', amount: 8 });
+  });
+
+  // Второй вид урона атаки монстра (адская гончая: + 2к6 огнём) — прибавка
+  // без заклинания: подписать её нечем, кроме вида урона.
+  it('разбирает прибавку урона без заклинания', () => {
+    const parsed = encounterEventPayloadSchema.parse({
+      kind: 'DAMAGE',
+      notation: '1d8+3',
+      results: [5],
+      amount: 15,
+      damageType: 'piercing',
+      spellBonus: [{ notation: '2d6', results: [3, 4], amount: 7, type: 'fire' }],
+      temporaryAbsorbed: 0,
+      hitPointsLeft: 4,
+    });
+
+    expect(parsed).toMatchObject({ spellBonus: [{ amount: 7, type: 'fire' }] });
   });
 
   // Форма записи зависит от вида события: запись об уроне без числа —
