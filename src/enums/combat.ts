@@ -64,9 +64,28 @@ export const ENCOUNTER_EVENT_KINDS = [
   'ABILITY',
   'STABILIZE',
   'REACTION',
+  'CONTINUATION_FAILED',
 ] as const;
 export const encounterEventKindSchema = z.enum(ENCOUNTER_EVENT_KINDS);
 export type EncounterEventKind = (typeof ENCOUNTER_EVENT_KINDS)[number];
+
+/**
+ * Операции, которые окно реакции продолжает после закрытия. Перечнем:
+ * строка `CONTINUATION_FAILED` называет, что не продолжилось, и фронт
+ * подписывает это переводом, а не сырым кодом.
+ */
+export const CONTINUATION_OPS = [
+  'ATTACK',
+  'ROLL_DAMAGE',
+  'CAST',
+  'END_TURN',
+  'DEATH_SAVE',
+  'USE_ABILITY',
+  'REACTION_ATTACK',
+  'ZONES_ON_MOVE',
+  'FOLLOW_UP',
+] as const;
+export type ContinuationOp = (typeof CONTINUATION_OPS)[number];
 
 /**
  * Чего не хватило машинному расчёту урона у сотворённого заклинания.

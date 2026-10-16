@@ -6,6 +6,7 @@ import {
 } from '../enums/character.js';
 import {
   attackOutcomeSchema,
+  CONTINUATION_OPS,
   concentrationOutcomeSchema,
   deathSaveOutcomeSchema,
   INITIATIVE_MAX,
@@ -1074,6 +1075,19 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     ability: z.enum(REACTION_ABILITIES),
     featureCode: z.string().min(1).max(64).nullable(),
     value: z.number().int().optional(),
+  }),
+  /**
+   * Продолжение окна реакции не удалось: операция не сыграна, сцена
+   * осталась, какой была до неё (записи операции — одной транзакцией).
+   * Строкой журнала, а не только логом сервера: иначе ответ «потерялся»
+   * бы молча, и стол не узнал бы, почему удар так и не случился.
+   * `code` — код ошибки (`ERROR_CODES`), `TAPE_DIVERGED` — разошлась лента
+   * костей (дефект движка), `INTERNAL` — прочее.
+   */
+  z.object({
+    kind: z.literal('CONTINUATION_FAILED'),
+    op: z.enum(CONTINUATION_OPS),
+    code: z.string().min(1).max(64),
   }),
 ]);
 export type EncounterEventPayload = z.infer<typeof encounterEventPayloadSchema>;

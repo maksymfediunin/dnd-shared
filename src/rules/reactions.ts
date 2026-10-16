@@ -64,6 +64,8 @@ export interface ReactionMember extends Placed {
   /** Сторона — правилом `isEnemy`: помеха и вычитание только против врага. */
   side?: ParticipantSide | null;
   monsterId?: string | null;
+  /** Свободна ли рука: поймать снаряд и метнуть его нечем, если обе заняты. */
+  freeHand?: boolean;
 }
 
 /** Событие окна: кто бросает, на кого, и что нужно условиям ответов. */
@@ -193,7 +195,7 @@ export function reactionResponders(
         economy: facet.economy,
         resource: facet.cost ? { code: facet.cost.resource, left: left ?? 0 } : null,
         ...(facet.ability === 'DEFLECT_MISSILES'
-          ? { canThrowBack: (m.resourcesLeft.KI ?? 0) >= 1 }
+          ? { canThrowBack: (m.resourcesLeft.KI ?? 0) >= 1 && m.freeHand !== false }
           : {}),
       });
     }
