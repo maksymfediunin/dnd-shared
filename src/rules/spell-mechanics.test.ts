@@ -5,6 +5,11 @@ import { SPELL_MECHANICS } from './spell-mechanics.data.js';
 import {
   armorClassWithEffects,
   attackDiceFrom,
+  creatureTypeOf,
+  distributeHealPool,
+  endsOnDamageBy,
+  hasSpellEffect,
+  repeatSaveOf,
   resistancesWithEffects,
   rollSignedDice,
   SPELL_EFFECT_CODE,
@@ -14,10 +19,12 @@ import {
   speedWithEffects,
   spellConditionEffects,
   spellEffectSummary,
+  spellMechanic,
   spellMechanicFor,
   spellRayCount,
   spellTargetLimit,
   spellVariantKey,
+  spentByOwnAttack,
   weaponDamageFrom,
   weaponDiceAtSlot,
 } from './spell-mechanics.js';
@@ -276,5 +283,154 @@ describe('источники преимущества спасброска', () 
     ];
     expect(saveAdvantageSources(effects, 'strength').sort()).toEqual(['ADVANTAGE', 'DISADVANTAGE']);
     expect(saveAdvantageFrom(effects, 'strength')).toBe('NONE');
+  });
+});
+
+describe('волна 1б: записи по букве SRD', () => {
+  const party = { id: 'p1', side: 'PARTY' as const };
+  const ally = { id: 'p2', side: 'PARTY' as const };
+  const ogre = { id: 'm1', side: 'HOSTILE' as const, monsterId: 'ogre' };
+
+  it('«Массовое исцеление»: 700 поровну, не выше недостающего, лишнее — остальным', () => {
+    expect(
+      distributeHealPool(700, [
+        { id: 'a', missing: 50 },
+        { id: 'b', missing: 120 },
+        { id: 'c', missing: 30 },
+      ]),
+    ).toEqual({ a: 50, b: 120, c: 30 });
+    expect(
+      distributeHealPool(700, [
+        { id: 'a', missing: 500 },
+        { id: 'b', missing: 500 },
+        { id: 'c', missing: 100 },
+      ]),
+    ).toEqual({ a: 300, b: 300, c: 100 });
+    // Остаток от деления — первым по порядку.
+    expect(
+      distributeHealPool(10, [
+        { id: 'a', missing: 9 },
+        { id: 'b', missing: 9 },
+        { id: 'c', missing: 9 },
+      ]),
+    ).toEqual({ a: 4, b: 3, c: 3 });
+    expect(distributeHealPool(10, [{ id: 'a', missing: 0 }])).toEqual({ a: 0 });
+  });
+
+  it('повторный спасбросок одной формой: прежние записи — в конце хода', () => {
+    expect(repeatSaveOf(spellMechanic('hold-person'))).toEqual({ at: 'END' });
+    expect(repeatSaveOf(spellMechanic('phantasmal-killer'))).toMatchObject({
+      at: 'START',
+      onFail: { damage: '4d10', type: 'psychic', perSlot: '1d10' },
+    });
+    expect(repeatSaveOf(spellMechanic('fear'))).toEqual({ at: 'END', when: 'NO_LINE_OF_SIGHT' });
+    expect(repeatSaveOf(spellMechanic('fireball'))).toBeNull();
+  });
+
+  it('«Наложение проклятия», атаки: помеха только по наложившему', () => {
+    const cursed = [
+      {
+        code: SPELL_EFFECT_CODE,
+        spellCode: 'bestow-curse',
+        data: { variant: 'attacks' },
+        sourceId: 'p1',
+      },
+    ];
+    const vs = (id: string | null) =>
+      combineConditions([], spellConditionEffects(cursed, null, id)).ownAttacks;
+    expect(vs('p1')).toBe('DISADVANTAGE');
+    expect(vs('p2')).toBe('NORMAL');
+    expect(vs(null)).toBe('NORMAL');
+  });
+
+  it('«Верный удар»: спит в ход сотворения, потом — только по названной цели', () => {
+    const dormant = on('true-strike', {
+      targetId: 'm1',
+      until: { participantId: 'p1', at: 'END', skip: 1 },
+    });
+    const awake = on('true-strike', {
+      targetId: 'm1',
+      until: { participantId: 'p1', at: 'END', skip: 0 },
+    });
+    const own = (row: typeof awake, id: string) =>
+      combineConditions([], spellConditionEffects([row], null, id)).ownAttacks;
+    expect(own(dormant, 'm1')).toBe('NORMAL');
+    expect(own(awake, 'm1')).toBe('ADVANTAGE');
+    expect(own(awake, 'm2')).toBe('NORMAL');
+    expect(spentByOwnAttack(dormant, 'm1')).toBe(false);
+    expect(spentByOwnAttack(awake, 'm2')).toBe(false);
+    expect(spentByOwnAttack(awake, 'm1')).toBe(true);
+  });
+
+  it('«Каменная кожа» режет только немагическое', () => {
+    expect(resistancesWithEffects([], [on('stoneskin')])).toEqual([
+      'bludgeoning',
+      'piercing',
+      'slashing',
+    ]);
+    expect(resistancesWithEffects([], [on('stoneskin')], true)).toEqual([]);
+    expect(spellEffectSummary('stoneskin')).toEqual([
+      { key: 'resistNonmagical', value: ['bludgeoning', 'piercing', 'slashing'] },
+    ]);
+  });
+
+  it('урон от стороны заклинателя снимает очарование, от чужой — нет; узор — от любого', () => {
+    const charm = on('charm-person');
+    expect(endsOnDamageBy(charm, ally, party)).toBe(true);
+    expect(endsOnDamageBy(charm, party, party)).toBe(true);
+    expect(endsOnDamageBy(charm, ogre, party)).toBe(false);
+    expect(endsOnDamageBy(charm, null, party)).toBe(false);
+    // Сторона, а не вид фишки: монстр на стороне партии — спутник.
+    expect(endsOnDamageBy(charm, { ...ogre, side: 'PARTY' }, party)).toBe(true);
+    expect(endsOnDamageBy(on('hypnotic-pattern'), null, null)).toBe(true);
+  });
+
+  it('«Сглаз»: урон снимает только сон', () => {
+    expect(endsOnDamageBy(on('eyebite', { variant: 'asleep' }), null, null)).toBe(true);
+    expect(endsOnDamageBy(on('eyebite', { variant: 'sickened' }), null, null)).toBe(false);
+    expect(endsOnDamageBy(on('eyebite', { variant: 'panicked' }), null, null)).toBe(false);
+  });
+
+  it('«Внушение» оставляет эффект — иначе урону снимать нечего', () => {
+    expect(hasSpellEffect(spellMechanic('suggestion'))).toBe(true);
+    expect(hasSpellEffect(spellMechanic('flame-blade'))).toBe(true);
+  });
+
+  it('рой зверей — зверь; прочие типы — как есть', () => {
+    expect(creatureTypeOf('swarm of Tiny beasts')).toBe('beast');
+    expect(creatureTypeOf('Humanoid')).toBe('humanoid');
+    expect(creatureTypeOf('beast')).toBe('beast');
+  });
+
+  it('«Сглаз»: от тошноты — спасбросок в конце хода, от сна и паники — нет', () => {
+    expect(repeatSaveOf(spellMechanicFor('eyebite', 'sickened'))).toEqual({ at: 'END' });
+    expect(repeatSaveOf(spellMechanicFor('eyebite', 'asleep'))).toBeNull();
+    expect(repeatSaveOf(spellMechanicFor('eyebite', 'panicked'))).toBeNull();
+  });
+
+  it('«Верный удар» — только в свой ход: атака при отходе его не берёт и не тратит', () => {
+    const awake = on('true-strike', {
+      targetId: 'm1',
+      until: { participantId: 'p1', at: 'END', skip: 0 },
+    });
+    expect(
+      combineConditions([], spellConditionEffects([awake], null, 'm1', false)).ownAttacks,
+    ).toBe('NORMAL');
+    expect(spentByOwnAttack(awake, 'm1', false)).toBe(false);
+  });
+
+  it('подпись повтора говорит, когда бросают', () => {
+    expect(spellEffectSummary('phantasmal-killer')).toContainEqual({ key: 'repeatSaveStart' });
+    expect(spellEffectSummary('fear')).toContainEqual({ key: 'repeatSaveUnseen' });
+    expect(spellEffectSummary('hold-person')).toEqual([{ key: 'repeatSave' }]);
+    expect(spellEffectSummary('eyebite', { variant: 'sickened' })).toContainEqual({
+      key: 'repeatSave',
+    });
+  });
+
+  // Ступени «Божественного слова» — волна 8 (`hpTiers`); до неё текст
+  // ведущему обязан хотя бы не путать «оглохла» с «ошеломлена».
+  it('«Божественное слово»: при ≤50 хитов — оглохла, а не ошеломлена', () => {
+    expect(spellMechanic('divine-word')?.gm).toMatch(/≤50 хп оглохла 1 мин/);
   });
 });
