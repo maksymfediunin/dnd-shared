@@ -22,6 +22,7 @@ import { advantageModeSchema } from '../enums/dice.js';
 import { localeSchema } from '../enums/locale.js';
 import { MAP_MAX_GRID } from '../enums/map.js';
 import { spellSlotLevelSchema } from '../enums/spells.js';
+import { CHOSEN_ATTACK_VARIANTS } from '../rules/monster-actions.js';
 
 /**
  * Бросок инициативы. Пустое тело — «бросаю за себя»; ведущий может
@@ -61,6 +62,12 @@ export const attackInputSchema = z
     targetId: z.uuid(),
     weaponItemId: z.string().trim().min(1).max(64).optional(),
     monsterActionCode: z.string().trim().min(1).max(64).optional(),
+    /**
+     * Другой урон того же действия монстра: хват двумя руками или бросок
+     * издали. Пусто — основной урон. Есть ли такой вариант у действия,
+     * проверяет служба.
+     */
+    variant: z.enum(CHOSEN_ATTACK_VARIANTS).optional(),
     advantageMode: advantageModeSchema.default('NONE'),
     /**
      * Атака бонусным действием: удар без оружия монаха после действия
@@ -436,7 +443,9 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     spellBonus: z
       .array(
         z.object({
-          spellCode: z.string().min(1).max(64),
+          // Нет у второго вида урона атаки монстра («plus 2к6 огнём»):
+          // прибавка его собственная, а не заклинания.
+          spellCode: z.string().min(1).max(64).optional(),
           notation: rollShape.notation,
           results: z.array(z.number().int().min(1).max(100)).max(20),
           // Со знаком: «Уменьшение» отнимает 1к4 от удара.
