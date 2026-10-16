@@ -1,13 +1,16 @@
 import type { AbilityCode, CharacterResourceCode } from '../../enums/character.js';
 import type { AdvantageMode } from '../../enums/dice.js';
-import type {
-  ActionEconomy,
-  ActionUnavailableReason,
-  AvailableAction,
-  ModifierPart,
+import {
+  type ActionEconomy,
+  type ActionUnavailableReason,
+  type AvailableAction,
+  COMBAT_ABILITIES,
+  type CombatAbility,
+  type ModifierPart,
 } from '../../schemas/combat.js';
 import { combineAdvantage } from '../conditions.js';
 import {
+  bardicInspirationDie,
   martialArtsDie,
   rageDamageBonus,
   sneakAttackDice,
@@ -18,9 +21,11 @@ import { FEATURE_MECHANICS } from './features.data.js';
 import { TRAIT_MECHANICS } from './traits.data.js';
 import type {
   AcFormulaFacet,
+  ActionFacet,
   AdvantageFacet,
   Amount,
   AmountTable,
+  CastOptionFacet,
   Facet,
   MechanicRecord,
   MechanicsContext,
@@ -29,6 +34,8 @@ import type {
   OnHitFacet,
   Predicate,
   RuleFacet,
+  SpellModifierFacet,
+  TriggerFacet,
 } from './types.js';
 
 /**
@@ -38,9 +45,20 @@ import type {
  * «когда грань действует» разошлась бы с первой.
  */
 
-function test(p: Predicate, ctx: MechanicsContext): boolean {
-  if (typeof p === 'object') return p.anyOf.some((inner) => test(inner, ctx));
+/**
+ * Чья грань проверяется: предикатам `effect*` нужны данные эффекта
+ * (`holder.effectData[code]`) — священное оружие помнит предмет, помощь —
+ * цель.
+ */
+export interface FacetOwner {
+  code: string;
+  h: MechanicsHolder;
+}
+
+function test(p: Predicate, ctx: MechanicsContext, owner?: FacetOwner): boolean {
+  if (typeof p === 'object') return p.anyOf.some((inner) => test(inner, ctx, owner));
   const { armor, weapon, roll } = ctx;
+  const data = owner ? owner.h.effectData?.[owner.code] : undefined;
   switch (p) {
     case 'noArmor':
       return armor !== undefined && armor.worn === null;
@@ -74,12 +92,32 @@ function test(p: Predicate, ctx: MechanicsContext): boolean {
       return roll !== undefined && roll.mode !== 'DISADVANTAGE';
     case 'allyAdjacentToTarget':
       return roll?.allyAdjacentToTarget === true;
+    case 'ownTurn':
+      return ctx.turn?.isOwn === true;
+    case 'movedAtMostHalfSpeed':
+      return ctx.turn?.movedAtMostHalf === true;
+    case 'attackerSeen':
+      return roll?.targetSeesAttacker === true;
+    case 'bearerAlert':
+      return ctx.bearer?.alert === true;
+    case 'pactWeapon':
+      return weapon?.pact === true;
+    case 'viaFlurry':
+      return ctx.attack?.via === 'FLURRY';
+    case 'effectItemIsWeapon':
+      return data?.itemId !== undefined && data.itemId === weapon?.itemId;
+    case 'effectTargetIsTarget':
+      return data?.targetId !== undefined && data.targetId === ctx.target?.id;
   }
 }
 
 /** Все условия разом; без условий грань действует всегда. */
-export function holds(when: readonly Predicate[] | undefined, ctx: MechanicsContext): boolean {
-  return (when ?? []).every((p) => test(p, ctx));
+export function holds(
+  when: readonly Predicate[] | undefined,
+  ctx: MechanicsContext,
+  owner?: FacetOwner,
+): boolean {
+  return (when ?? []).every((p) => test(p, ctx, owner));
 }
 
 const TABLES: Record<AmountTable, (level: number) => number> = {
@@ -87,12 +125,22 @@ const TABLES: Record<AmountTable, (level: number) => number> = {
   martialArtsDie,
   sneakAttackDice,
   unarmoredMovement: unarmoredMovementBonus,
+  bardicInspirationDie,
 };
 
 export function amountOf(amount: Amount, h: MechanicsHolder): number {
   if (typeof amount === 'number') return amount;
   if (amount === 'halfProficiency') return Math.floor(h.proficiencyBonus / 2);
-  return TABLES[amount.table](h.level);
+  if (amount === 'proficiency') return h.proficiencyBonus;
+  if (amount === 'level') return h.level;
+  if ('table' in amount) return TABLES[amount.table](h.level);
+  if ('ability' in amount) {
+    const value = h.abilityModifiers?.[amount.ability] ?? 0;
+    return amount.min !== undefined ? Math.max(amount.min, value) : value;
+  }
+  if ('times' in amount) return amount.times * amountOf(amount.of, h);
+  const sum = amount.sum.reduce((total: number, part) => total + amountOf(part, h), 0);
+  return amount.min !== undefined ? Math.max(amount.min, sum) : sum;
 }
 
 function facetsOfRecord(record: MechanicRecord | undefined): readonly Facet[] {
@@ -134,7 +182,7 @@ export function collectModifiers(
   const out: CollectedModifier[] = [];
   for (const { code, facet } of facetsOf(h)) {
     if (facet.kind !== 'modifier' || facet.target !== target) continue;
-    if (!holds(facet.when, ctx)) continue;
+    if (!holds(facet.when, ctx, { code, h })) continue;
     out.push({
       code,
       value: amountOf(facet.amount, h),
@@ -153,9 +201,13 @@ export function sumModifiers(
   return collectModifiers(h, target, ctx).reduce((total, m) => total + m.value, 0);
 }
 
-/** Число атак за действие «Атака»: бо́льшая из граней, не сумма; без граней — одна. */
-export function attacksPerActionOf(h: MechanicsHolder): number {
-  return Math.max(1, ...collectModifiers(h, 'attacksPerAction').map((m) => m.value));
+/**
+ * Число атак за действие «Атака»: бо́льшая из граней, не сумма; без
+ * граней — одна. Контекст — ради жаждущего клинка: две атаки только
+ * клинком договора.
+ */
+export function attacksPerActionOf(h: MechanicsHolder, ctx: MechanicsContext = {}): number {
+  return Math.max(1, ...collectModifiers(h, 'attacksPerAction', ctx).map((m) => m.value));
 }
 
 /** Формула КД без доспеха; класс у персонажа один, и формула у него не больше одной. */
@@ -165,16 +217,24 @@ export function collectAcFormula(h: MechanicsHolder): AcFormulaFacet | null {
 }
 
 /** Источники преимущества и помехи броску — по одному на грань, для сведения с прочими. */
+export interface AdvantageRoll {
+  kind: AdvantageFacet['roll'];
+  ability?: AbilityCode;
+  /** Навык проверки: грань с навыком действует только на него. */
+  skill?: string;
+}
+
 export function advantageSources(
   h: MechanicsHolder,
-  roll: { kind: AdvantageFacet['roll']; ability?: AbilityCode },
+  roll: AdvantageRoll,
   ctx: MechanicsContext = {},
 ): AdvantageFacet['mode'][] {
-  return facetsOf(h).flatMap(({ facet }) =>
+  return facetsOf(h).flatMap(({ code, facet }) =>
     facet.kind === 'advantage' &&
     facet.roll === roll.kind &&
     (facet.ability === undefined || facet.ability === roll.ability) &&
-    holds(facet.when, ctx)
+    (facet.skill === undefined || facet.skill === roll.skill) &&
+    holds(facet.when, ctx, { code, h })
       ? [facet.mode]
       : [],
   );
@@ -183,7 +243,7 @@ export function advantageSources(
 /** Преимущество и помеха гасят друг друга, сколько бы их ни было (PHB). */
 export function collectAdvantage(
   h: MechanicsHolder,
-  roll: { kind: AdvantageFacet['roll']; ability?: AbilityCode },
+  roll: AdvantageRoll,
   ctx: MechanicsContext = {},
 ): AdvantageMode {
   return combineAdvantage(advantageSources(h, roll, ctx));
@@ -197,8 +257,13 @@ export function collectDefenses(
   for (const { facet } of facetsOf(h)) {
     if (facet.kind !== 'defense' || !holds(facet.when, ctx)) continue;
     for (const type of facet.resistance) {
-      if (type !== 'ANCESTRY') resistances.add(type);
-      else if (h.ancestryDamageType) resistances.add(h.ancestryDamageType);
+      const resolved =
+        type === 'ANCESTRY'
+          ? h.ancestryDamageType
+          : type === 'SORCERER_ANCESTRY'
+            ? (h.sorcererAncestryDamageType ?? null)
+            : type;
+      if (resolved) resistances.add(resolved);
     }
   }
   return { resistances: [...resistances] };
@@ -219,7 +284,7 @@ export function collectOnHit(
 ): { code: string; facet: OnHitFacet }[] {
   const out: { code: string; facet: OnHitFacet }[] = [];
   for (const { code, facet } of facetsOf(h)) {
-    if (facet.kind === 'onHit' && holds(facet.when, ctx)) out.push({ code, facet });
+    if (facet.kind === 'onHit' && holds(facet.when, ctx, { code, h })) out.push({ code, facet });
   }
   return out;
 }
@@ -234,11 +299,11 @@ export function onHitDiceCount(
   h: MechanicsHolder,
   input: { slotLevel?: number; creatureType?: string | null } = {},
 ): number {
-  const above = facet.dice.perSlotAbove
-    ? facet.dice.perSlotAbove * Math.max(0, (input.slotLevel ?? 1) - 1)
-    : 0;
-  const base = amountOf(facet.dice.count, h) + above;
-  const capped = facet.dice.max !== undefined ? Math.min(facet.dice.max, base) : base;
+  const dice = facet.dice;
+  if (!dice) return 0;
+  const above = dice.perSlotAbove ? dice.perSlotAbove * Math.max(0, (input.slotLevel ?? 1) - 1) : 0;
+  const base = amountOf(dice.count, h) + above;
+  const capped = dice.max !== undefined ? Math.min(dice.max, base) : base;
   const type = input.creatureType?.toLowerCase() ?? '';
   const extra = facet.extraVs?.creatureTypes.includes(type) ? facet.extraVs.count : 0;
   return capped + extra;
@@ -246,6 +311,33 @@ export function onHitDiceCount(
 
 export function hasRule(h: MechanicsHolder, rule: RuleFacet['rule']): boolean {
   return facetsOf(h).some(({ facet }) => facet.kind === 'rule' && facet.rule === rule);
+}
+
+/** Что носитель может доплатить к сотворению — по грани на вариант, с кодом умения. */
+export function collectCastOptions(h: MechanicsHolder): { code: string; facet: CastOptionFacet }[] {
+  return facetsOf(h).flatMap(({ code, facet }) =>
+    facet.kind === 'castOption' ? [{ code, facet }] : [],
+  );
+}
+
+export function collectSpellModifiers(
+  h: MechanicsHolder,
+): { code: string; facet: SpellModifierFacet }[] {
+  return facetsOf(h).flatMap(({ code, facet }) =>
+    facet.kind === 'spellModifier' ? [{ code, facet }] : [],
+  );
+}
+
+/**
+ * Временные хиты за добивание враждебного (благословение Тёмного); 0 —
+ * такой грани нет. Враждебность и «до нуля» решает вызывающий: у него
+ * хиты цели до и после.
+ */
+export function onKillTempHp(h: MechanicsHolder): number {
+  const triggers = facetsOf(h).flatMap(({ facet }) =>
+    facet.kind === 'trigger' && facet.on === 'reduceHostileToZero' ? [facet as TriggerFacet] : [],
+  );
+  return Math.max(0, ...triggers.map((facet) => amountOf(facet.tempHp, h)));
 }
 
 export interface AvailableActionsInput {
@@ -261,54 +353,136 @@ export interface AvailableActionsInput {
    * было и до волны 2); пустой ресурс не снимает — заряда нет и у него.
    */
   override?: boolean;
+  /** Состояние хода сверх экономики — волна 3; нет — как в волне 2. */
+  state?: TurnState;
+}
+
+/** Что о ходе участника известно сверх потраченных видов действия. */
+export interface TurnState {
+  /** Оцепенение и всё, что его включает. */
+  cannotAct: boolean;
+  /** Застигнут врасплох — первый ход боя. */
+  surprised: boolean;
+  grappled: boolean;
+  /** Действие «Атака» в этом ходу совершено (всплеск его не сбрасывает). */
+  attackActionTaken: boolean;
+  /**
+   * Сколько атак действия «Атака» ещё осталось: ноль, если действие
+   * потрачено чем угодно (заклинанием тоже).
+   */
+  attacksLeft: number;
+  /** В этом ходу уже была атака — безрассудство решается на первой. */
+  attackedThisTurn: boolean;
+  /** Удары шквала, ещё не сделанные. */
+  flurryStrikesLeft: number;
+  hordeBreakerUsed: boolean;
+  /** В этом ходу была атака оружием — сокрушитель орды бьёт тем же. */
+  hasLastWeaponAttack: boolean;
+  round: number;
 }
 
 const ECONOMY_REASON: Partial<Record<ActionEconomy, ActionUnavailableReason>> = {
   ACTION: 'ACTION_ALREADY_USED',
+  ATTACK: 'ACTION_ALREADY_USED',
   BONUS_ACTION: 'BONUS_ACTION_ALREADY_USED',
   REACTION: 'REACTION_ALREADY_USED',
 };
 
 /**
- * Действия умений, какие у носителя есть сейчас, — в порядке записей
- * реестра. Действие с ресурсом открывается наличием ресурса (максимум
- * больше нуля), а не строкой умения: ресурс выдаётся по классу и уровню
- * вместе с умением, и так было до реестра (решение 2 плана волны 2).
- * Причина недоступности — первая по порядку: чужой ход (кроме реакции),
- * потраченный вид действия, исчерпанный ресурс.
+ * Почему действие этого вида сейчас недоступно — один порядок на весь
+ * список (план волны 3, §4.1): упавший, чужой ход (кроме реакции),
+ * оцепенение, потраченный вид действия, «сперва действие „Атака“».
+ * Исчерпанный ресурс — последним, его решает вызывающий: у него цена.
  */
-export function availableActions(input: AvailableActionsInput): AvailableAction[] {
-  const { holder: h, economy, isTurn, override = false } = input;
+export function economyReason(
+  input: AvailableActionsInput,
+  economy: ActionEconomy,
+  options: { afterAttackAction?: boolean } = {},
+): ActionUnavailableReason | null {
+  const { override = false, state } = input;
+  if (input.isDown) return 'PARTICIPANT_IS_DOWN';
+  if (!override && !input.isTurn && economy !== 'REACTION') return 'NOT_YOUR_TURN';
+  if (!override && economy !== 'FREE' && state?.cannotAct) return 'PARTICIPANT_CANNOT_ACT';
   const used = {
-    ACTION: economy.hasUsedAction,
-    BONUS_ACTION: economy.hasUsedBonusAction,
-    REACTION: economy.hasUsedReaction,
+    ACTION: input.economy.hasUsedAction,
+    // Атака из действия «Атака» — пока у него остались атаки.
+    ATTACK: state ? state.attacksLeft === 0 : input.economy.hasUsedAction,
+    BONUS_ACTION: input.economy.hasUsedBonusAction,
+    REACTION: input.economy.hasUsedReaction,
     FREE: false,
   } satisfies Record<ActionEconomy, boolean>;
+  if (!override && used[economy]) return ECONOMY_REASON[economy] ?? null;
+  if (!override && options.afterAttackAction && !state?.attackActionTaken) {
+    return 'ATTACK_ACTION_REQUIRED';
+  }
+  return null;
+}
+
+/** Ввод действия как его отдаёт список: постоянное из реестра, изменчивое — пусто. */
+export function actionInputOf(
+  spec: NonNullable<ActionFacet['input']>,
+  extraOptions: readonly string[] = [],
+): NonNullable<Extract<AvailableAction, { kind: 'BASIC' }>['input']> {
+  return {
+    target: spec.target,
+    rangeFeet: spec.rangeFeet ?? null,
+    options: [...(spec.options ?? []), ...extraOptions],
+    amount: null,
+    area: null,
+  };
+}
+
+const isCombatAbility = (ability: ActionFacet['ability']): ability is CombatAbility =>
+  (COMBAT_ABILITIES as readonly string[]).includes(ability);
+
+/**
+ * Действия умений, какие у носителя есть сейчас, — в порядке записей
+ * реестра. Открывает действие владение кодом умения (решение 2 плана
+ * волны 3): канал божественности делят изгнание и подклассовые
+ * действия, и по ресурсу «Сохранение жизни» досталось бы любому жрецу.
+ * Три действия волны 2 открываются ресурсом (`openedByResource`).
+ * Базовые действия (рывок «Хитрого действия») — не здесь, а в
+ * `turnActions`: у них свой вид в списке.
+ */
+export function availableActions(input: AvailableActionsInput): AvailableAction[] {
+  const { holder: h, state } = input;
+  if (state?.surprised) return surprisedActions(input);
   const out: AvailableAction[] = [];
-  for (const [code, record] of Object.entries(FEATURE_MECHANICS)) {
+  const sources = [
+    ...Object.entries(FEATURE_MECHANICS).map(([code, record]) => ({
+      code,
+      record,
+      has: h.features.has(code),
+    })),
+    ...Object.entries(TRAIT_MECHANICS).map(([code, record]) => ({
+      code,
+      record,
+      has: h.traits.has(code),
+    })),
+  ];
+  for (const { code, record, has } of sources) {
     for (const facet of facetsOfRecord(record)) {
-      if (facet.kind !== 'action') continue;
+      if (facet.kind !== 'action' || !isCombatAbility(facet.ability)) continue;
       const resource = facet.resource
         ? input.resources.find((r) => r.code === facet.resource && r.max > 0)
         : undefined;
-      const owned = facet.resource
+      const owned = facet.openedByResource
         ? resource !== undefined
         : facet.requiresEffect
           ? h.effects.includes(facet.requiresEffect)
-          : h.features.has(code);
+          : has && (!facet.resource || resource !== undefined);
       if (!owned) continue;
       if (facet.applies && h.effects.includes(facet.applies)) continue;
       const left = resource ? Math.max(0, resource.max - resource.used) : null;
-      const reason: ActionUnavailableReason | null = input.isDown
-        ? 'PARTICIPANT_IS_DOWN'
-        : !override && !isTurn && facet.economy !== 'REACTION'
-          ? 'NOT_YOUR_TURN'
-          : !override && used[facet.economy]
-            ? (ECONOMY_REASON[facet.economy] ?? null)
-            : left === 0
-              ? 'RESOURCE_EXHAUSTED'
-              : null;
+      const cost = typeof facet.cost === 'number' ? facet.cost : 1;
+      const reason =
+        economyReason(input, facet.economy, {
+          afterAttackAction: facet.availableAfter === 'attackAction',
+        }) ?? (left !== null && left < cost ? 'RESOURCE_EXHAUSTED' : null);
+      // Бешенство — вариант входа в ярость, а не своя кнопка: решается в
+      // момент входа (SRD «when you enter your rage»).
+      const options = facet.ability === 'RAGE' && hasRule(h, 'frenzy') ? ['FRENZY'] : [];
+      const spec = facet.input ?? (options.length > 0 ? { target: 'NONE' as const } : undefined);
       out.push({
         kind: 'ABILITY',
         ability: facet.ability,
@@ -318,10 +492,24 @@ export function availableActions(input: AvailableActionsInput): AvailableAction[
           resource && left !== null ? { code: resource.code, left, max: resource.max } : null,
         available: reason === null,
         reason,
+        ...(spec ? { input: actionInputOf(spec, options) } : {}),
       });
     }
   }
   return out;
+}
+
+/**
+ * Застигнутый врасплох в первом ходу не действует вовсе (§П3.15); с
+ * «Звериными инстинктами» — только вход в ярость, и после неё ход
+ * обычный (снимает внезапность служба).
+ */
+function surprisedActions(input: AvailableActionsInput): AvailableAction[] {
+  if (!hasRule(input.holder, 'surpriseRageOverride')) return [];
+  return availableActions({
+    ...input,
+    state: { ...(input.state as TurnState), surprised: false },
+  }).filter((action) => action.kind === 'ABILITY' && action.ability === 'RAGE');
 }
 
 /** Заглушка ступени подкласса — строка без механики, которую окно повышения не показывает. */

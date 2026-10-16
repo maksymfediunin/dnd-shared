@@ -40,6 +40,7 @@ export const FEATURE_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
         ability: 'RAGE',
         economy: 'BONUS_ACTION',
         resource: 'RAGE',
+        openedByResource: true,
         applies: 'RAGE',
       },
       { kind: 'action', ability: 'END_RAGE', economy: 'FREE', requiresEffect: 'RAGE' },
@@ -48,13 +49,360 @@ export const FEATURE_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
   // Лечение 1к10 + уровень — ветка службы: грани лечения появятся с волной 3.
   'second-wind': {
     facets: [
-      { kind: 'action', ability: 'SECOND_WIND', economy: 'BONUS_ACTION', resource: 'SECOND_WIND' },
+      {
+        kind: 'action',
+        ability: 'SECOND_WIND',
+        economy: 'BONUS_ACTION',
+        resource: 'SECOND_WIND',
+        openedByResource: true,
+      },
     ],
   },
   'action-surge-1-use': {
     facets: [
-      { kind: 'action', ability: 'ACTION_SURGE', economy: 'FREE', resource: 'ACTION_SURGE' },
+      {
+        kind: 'action',
+        ability: 'ACTION_SURGE',
+        economy: 'FREE',
+        resource: 'ACTION_SURGE',
+        openedByResource: true,
+      },
     ],
+  },
+
+  // Волна 3: действия умений (план волны 3, §3). Порядок — порядок кнопок.
+  'intimidating-presence': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'INTIMIDATING_PRESENCE',
+        economy: 'ACTION',
+        input: { target: 'CREATURE', rangeFeet: 30 },
+      },
+    ],
+  },
+  'bardic-inspiration-d6': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'BARDIC_INSPIRATION',
+        economy: 'BONUS_ACTION',
+        resource: 'BARDIC_INSPIRATION',
+        input: { target: 'CREATURE', rangeFeet: 60 },
+      },
+    ],
+  },
+  'channel-divinity-turn-undead': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'TURN_UNDEAD',
+        economy: 'ACTION',
+        resource: 'CHANNEL_DIVINITY',
+        input: { target: 'NONE', rangeFeet: 30 },
+      },
+    ],
+  },
+  'channel-divinity-turn-the-unholy': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'TURN_THE_UNHOLY',
+        economy: 'ACTION',
+        resource: 'CHANNEL_DIVINITY',
+        input: { target: 'NONE', rangeFeet: 30 },
+      },
+    ],
+  },
+  'channel-divinity-preserve-life': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'PRESERVE_LIFE',
+        economy: 'ACTION',
+        resource: 'CHANNEL_DIVINITY',
+        input: { target: 'ALLOCATE', rangeFeet: 30 },
+      },
+    ],
+  },
+  'lay-on-hands': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'LAY_ON_HANDS',
+        economy: 'ACTION',
+        resource: 'LAY_ON_HANDS',
+        cost: 'chosen',
+        input: { target: 'CREATURE', rangeFeet: 5, options: ['HEAL', 'CURE_POISON'] },
+      },
+    ],
+  },
+  // Свет — волна 5, магичность оружия — волна 7 (`PARTIAL`).
+  'channel-divinity-sacred-weapon': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'SACRED_WEAPON',
+        economy: 'ACTION',
+        resource: 'CHANNEL_DIVINITY',
+        applies: 'SACRED_WEAPON',
+        input: { target: 'NONE' },
+      },
+      {
+        kind: 'action',
+        ability: 'END_SACRED_WEAPON',
+        economy: 'FREE',
+        requiresEffect: 'SACRED_WEAPON',
+      },
+    ],
+  },
+  'flurry-of-blows': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'FLURRY_OF_BLOWS',
+        economy: 'BONUS_ACTION',
+        resource: 'KI',
+        availableAfter: 'attackAction',
+      },
+    ],
+  },
+  'patient-defense': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'PATIENT_DEFENSE',
+        economy: 'BONUS_ACTION',
+        resource: 'KI',
+        applies: 'DODGING',
+      },
+    ],
+  },
+  'step-of-the-wind': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'STEP_OF_THE_WIND',
+        economy: 'BONUS_ACTION',
+        resource: 'KI',
+        input: { target: 'NONE', options: ['DASH', 'DISENGAGE'] },
+      },
+    ],
+  },
+  'wholeness-of-body': {
+    facets: [
+      { kind: 'resource', code: 'WHOLENESS_OF_BODY', recovery: 'LONG' },
+      {
+        kind: 'action',
+        ability: 'WHOLENESS_OF_BODY',
+        economy: 'ACTION',
+        resource: 'WHOLENESS_OF_BODY',
+      },
+    ],
+  },
+  // Варианты — испуг и очарование на себе (сервер дописывает).
+  'stillness-of-mind': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'STILLNESS_OF_MIND',
+        economy: 'ACTION',
+        input: { target: 'NONE' },
+      },
+    ],
+  },
+  // Круги ячеек — по остатку очков (сервер дописывает варианты).
+  'flexible-casting-creating-spell-slots': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'CREATE_SPELL_SLOT',
+        economy: 'BONUS_ACTION',
+        resource: 'SORCERY_POINT',
+        cost: 'chosen',
+        input: { target: 'NONE' },
+      },
+    ],
+  },
+  'flexible-casting-converting-spell-slot': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'CONVERT_SPELL_SLOT',
+        economy: 'BONUS_ACTION',
+        input: { target: 'NONE' },
+      },
+    ],
+  },
+  // Магичность клинка — волна 7 (`PARTIAL`); варианты — рукопашное оружие справочника.
+  'pact-of-the-blade': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'PACT_WEAPON',
+        economy: 'ACTION',
+        input: { target: 'NONE' },
+      },
+      { kind: 'action', ability: 'DISMISS_PACT_WEAPON', economy: 'FREE' },
+    ],
+  },
+  'cunning-action': {
+    facets: [
+      { kind: 'action', ability: 'DASH', economy: 'BONUS_ACTION' },
+      { kind: 'action', ability: 'DISENGAGE', economy: 'BONUS_ACTION' },
+      { kind: 'action', ability: 'HIDE', economy: 'BONUS_ACTION' },
+    ],
+  },
+  'fast-hands': {
+    facets: [{ kind: 'action', ability: 'USE_AN_OBJECT', economy: 'BONUS_ACTION' }],
+  },
+
+  'reckless-attack': { facets: [{ kind: 'attackOption', option: 'RECKLESS' }] },
+  frenzy: { facets: [{ kind: 'rule', rule: 'frenzy' }] },
+  'feral-instinct': {
+    facets: [
+      { kind: 'advantage', roll: 'initiative', mode: 'ADVANTAGE' },
+      { kind: 'rule', rule: 'surpriseRageOverride' },
+    ],
+  },
+  'destroy-undead-cr-1-2-or-below': { facets: [{ kind: 'rule', rule: 'destroyUndead' }] },
+  'open-hand-technique': {
+    facets: [
+      {
+        kind: 'onHit',
+        when: ['viaFlurry'],
+        rider: {
+          options: [
+            {
+              key: 'PRONE',
+              save: { ability: 'dexterity', dc: { ability: 'wisdom' } },
+              condition: 'prone',
+            },
+            {
+              key: 'PUSH',
+              save: { ability: 'strength', dc: { ability: 'wisdom' } },
+              push: { feet: 15 },
+            },
+            { key: 'NO_REACTIONS', effect: 'NO_REACTIONS' },
+          ],
+        },
+      },
+    ],
+  },
+  // Без «раз в ход»: каждое попадание — снова за очко ци.
+  'stunning-strike': {
+    facets: [
+      {
+        kind: 'onHit',
+        when: ['meleeWeapon'],
+        cost: { resource: 'KI', amount: 1 },
+        rider: {
+          save: { ability: 'constitution', dc: { ability: 'wisdom' } },
+          effect: 'STUNNING_STRIKE',
+        },
+      },
+    ],
+  },
+  'supreme-sneak': {
+    facets: [
+      {
+        kind: 'advantage',
+        roll: 'check',
+        skill: 'stealth',
+        mode: 'ADVANTAGE',
+        when: ['movedAtMostHalfSpeed'],
+      },
+    ],
+  },
+  'hunters-prey-horde-breaker': { facets: [{ kind: 'attackOption', option: 'HORDE_BREAKER' }] },
+  'metamagic-careful-spell': {
+    facets: [{ kind: 'castOption', option: 'CAREFUL', cost: 1, exclusive: true }],
+  },
+  'metamagic-distant-spell': {
+    facets: [{ kind: 'castOption', option: 'DISTANT', cost: 1, exclusive: true }],
+  },
+  // Выбор костей после броска — окно волны 4 (`PARTIAL`); в волне 3 сервер
+  // перебрасывает сам самые малые кости ниже среднего.
+  'metamagic-empowered-spell': {
+    facets: [{ kind: 'castOption', option: 'EMPOWERED', cost: 1 }],
+  },
+  'metamagic-extended-spell': {
+    facets: [{ kind: 'castOption', option: 'EXTENDED', cost: 1, exclusive: true }],
+  },
+  'metamagic-heightened-spell': {
+    facets: [{ kind: 'castOption', option: 'HEIGHTENED', cost: 3, exclusive: true }],
+  },
+  'metamagic-quickened-spell': {
+    facets: [{ kind: 'castOption', option: 'QUICKENED', cost: 2, exclusive: true }],
+  },
+  // Тишина и контрзаклинание — волна 5 (`PARTIAL`); в волне 3 сотворение не выдаёт засаду.
+  'metamagic-subtle-spell': {
+    facets: [{ kind: 'castOption', option: 'SUBTLE', cost: 1, exclusive: true }],
+  },
+  'metamagic-twinned-spell': {
+    facets: [{ kind: 'castOption', option: 'TWINNED', cost: 'spellLevelMin1', exclusive: true }],
+  },
+  'elemental-affinity': {
+    facets: [
+      {
+        kind: 'spellModifier',
+        effect: 'addAbilityToOneDamageRoll',
+        ability: 'charisma',
+        when: 'sorcererAncestryDamage',
+      },
+      { kind: 'castOption', option: 'ELEMENTAL_RESISTANCE', cost: 1 },
+    ],
+  },
+  'dark-ones-blessing': {
+    facets: [
+      {
+        kind: 'trigger',
+        on: 'reduceHostileToZero',
+        tempHp: { sum: [{ ability: 'charisma' }, 'level'], min: 1 },
+      },
+    ],
+  },
+  'eldritch-invocation-thirsting-blade': {
+    facets: [{ kind: 'modifier', target: 'attacksPerAction', amount: 2, when: ['pactWeapon'] }],
+  },
+
+  // Ресурсы §П2 без кнопки: счётчик виден на листе и тратится рукой,
+  // читатель — своя волна (`PARTIAL`).
+  'indomitable-1-use': {
+    facets: [{ kind: 'resource', code: 'INDOMITABLE', recovery: 'LONG' }],
+  },
+  'dark-ones-own-luck': {
+    facets: [{ kind: 'resource', code: 'DARK_ONES_OWN_LUCK', recovery: 'SHORT' }],
+  },
+  'arcane-recovery': {
+    facets: [{ kind: 'resource', code: 'ARCANE_RECOVERY', recovery: 'LONG' }],
+  },
+  'natural-recovery': {
+    facets: [{ kind: 'resource', code: 'NATURAL_RECOVERY', recovery: 'LONG' }],
+  },
+  'divine-intervention': {
+    facets: [{ kind: 'resource', code: 'DIVINE_INTERVENTION', recovery: 'LONG' }],
+  },
+  'eldritch-invocation-thief-of-five-fates': {
+    facets: [{ kind: 'resource', code: 'THIEF_OF_FIVE_FATES', recovery: 'LONG' }],
+  },
+  'eldritch-invocation-mire-the-mind': {
+    facets: [{ kind: 'resource', code: 'MIRE_THE_MIND', recovery: 'LONG' }],
+  },
+  'eldritch-invocation-sign-of-ill-omen': {
+    facets: [{ kind: 'resource', code: 'SIGN_OF_ILL_OMEN', recovery: 'LONG' }],
+  },
+  'eldritch-invocation-bewitching-whispers': {
+    facets: [{ kind: 'resource', code: 'BEWITCHING_WHISPERS', recovery: 'LONG' }],
+  },
+  'eldritch-invocation-dreadful-word': {
+    facets: [{ kind: 'resource', code: 'DREADFUL_WORD', recovery: 'LONG' }],
+  },
+  'eldritch-invocation-sculptor-of-flesh': {
+    facets: [{ kind: 'resource', code: 'SCULPTOR_OF_FLESH', recovery: 'LONG' }],
+  },
+  'eldritch-invocation-minions-of-chaos': {
+    facets: [{ kind: 'resource', code: 'MINIONS_OF_CHAOS', recovery: 'LONG' }],
   },
 
   'barbarian-unarmored-defense': {
@@ -273,6 +621,11 @@ export const FEATURE_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
   'bonus-cantrip': { sheet: 'spells' },
   'pact-of-the-tome': { sheet: 'spells' },
   'font-of-inspiration': { sheet: 'resourceRecovery' },
+  // Ресурсы из таблиц классов: максимум и отдых — в `progression.ts`.
+  ki: { sheet: 'resources' },
+  'font-of-magic': { sheet: 'resources' },
+  'channel-divinity-1-rest': { sheet: 'resources' },
+  'channel-divinity': { sheet: 'resources' },
   'eldritch-invocation-beguiling-influence': { sheet: 'proficiencies' },
   // Вне боя (§1 дизайна: исследование и быт — вне программы).
   druidic: { outOfCombat: 'тайный язык друидов' },

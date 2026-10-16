@@ -11,6 +11,7 @@ import {
   NO_EFFECTS,
   reachableCellsFor,
   seesTarget,
+  turnMovementFeet,
 } from './conditions.js';
 import { blockedCells, cellKey } from './grid.js';
 
@@ -404,5 +405,64 @@ describe('сведение преимущества', () => {
     expect(combineAdvantage(['ADVANTAGE', 'ADVANTAGE'])).toBe('ADVANTAGE');
     expect(combineAdvantage(['DISADVANTAGE', 'NONE'])).toBe('DISADVANTAGE');
     expect(combineAdvantage(['ADVANTAGE', 'DISADVANTAGE', 'ADVANTAGE'])).toBe('NONE');
+  });
+});
+
+describe('бюджет шага и засада (волна 3)', () => {
+  it('скорость 30: без рывка 30, с рывком 60, два рывка — 90; схвачен — 0', () => {
+    expect(turnMovementFeet(30, NO_EFFECTS, 0)).toBe(30);
+    expect(turnMovementFeet(30, NO_EFFECTS, 1)).toBe(60);
+    expect(turnMovementFeet(30, NO_EFFECTS, 2)).toBe(90);
+    expect(turnMovementFeet(30, effectsOf({ code: 'grappled' }), 1)).toBe(0);
+  });
+
+  it('рывок расширяет подсветку шагов', () => {
+    const input = {
+      mover: { x: 0, y: 0, size: 'MEDIUM' as const },
+      conditions: [],
+      speed: 10,
+      movementLeftFeet: 20,
+      cellSizeFeet: 5,
+      grid: { width: 10, height: 10 },
+      walls: new Set<string>(),
+      tokens: new Set<string>(),
+      fearSources: [],
+    };
+    expect(reachableCellsFor(input).has('4:0')).toBe(false);
+    expect(reachableCellsFor({ ...input, dashes: 1 }).has('4:0')).toBe(true);
+  });
+
+  it('спрятавшийся от смотрящего не виден ему и без тумана', () => {
+    const a = { x: 0, y: 0, size: 'MEDIUM' as const };
+    const b = { x: 2, y: 0, size: 'MEDIUM' as const };
+    const none = new Set<string>();
+    expect(seesTarget({ viewer: a, target: b, obscuredCells: none, cellSizeFeet: 5 })).toBe(true);
+    expect(
+      seesTarget({
+        viewer: a,
+        target: b,
+        obscuredCells: none,
+        cellSizeFeet: 5,
+        hiddenFromViewer: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('преимущество реестра сводится с прочими: безрассудство и помеха гасят друг друга', () => {
+    const base = {
+      manual: 'NONE' as const,
+      attacker: NO_EFFECTS,
+      target: NO_EFFECTS,
+      isNear: true,
+    };
+    expect(attackAdvantage({ ...base, registry: ['ADVANTAGE'] })).toBe('ADVANTAGE');
+    expect(attackAdvantage({ ...base, registry: ['ADVANTAGE', 'DISADVANTAGE'] })).toBe('NONE');
+    expect(
+      attackAdvantage({
+        ...base,
+        attacker: effectsOf({ code: 'poisoned' }),
+        registry: ['ADVANTAGE'],
+      }),
+    ).toBe('NONE');
   });
 });

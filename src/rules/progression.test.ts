@@ -5,6 +5,7 @@ import {
   cantripsKnown,
   casterKind,
   classResources,
+  destroyUndeadCr,
   hasAbilityScoreImprovement,
   hasExtraAttack,
   hitDie,
@@ -15,6 +16,7 @@ import {
   pactMagic,
   proficiencyBonus,
   rageDamageBonus,
+  slotCreationCost,
   sneakAttackDice,
   spellbookSize,
   spellSlots,
@@ -360,5 +362,19 @@ describe('ресурсы классов', () => {
 
   it('движение без доспехов монаха: +10 со второго, +15 с шестого, +20 с десятого', () => {
     expect(LEVELS.map(unarmoredMovementBonus)).toEqual([0, 10, 10, 10, 10, 15, 15, 15, 15, 20]);
+  });
+});
+
+describe('таблицы волны 3', () => {
+  it('порог уничтожения нежити: до 5 — нет, 5 — ½, 8 — 1', () => {
+    expect(destroyUndeadCr(4)).toBeNull();
+    expect(destroyUndeadCr(5)).toBe(0.5);
+    expect(destroyUndeadCr(7)).toBe(0.5);
+    expect(destroyUndeadCr(8)).toBe(1);
+  });
+
+  it('цена ячейки в очках: 1→2, 2→3, 3→5, 4→6, 5→7; выше — нельзя', () => {
+    expect([1, 2, 3, 4, 5].map(slotCreationCost)).toEqual([2, 3, 5, 6, 7]);
+    expect(slotCreationCost(6)).toBeNull();
   });
 });

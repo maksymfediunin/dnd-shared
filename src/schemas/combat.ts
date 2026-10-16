@@ -21,7 +21,7 @@ import {
 import { advantageModeSchema } from '../enums/dice.js';
 import { localeSchema } from '../enums/locale.js';
 import { MAP_MAX_GRID } from '../enums/map.js';
-import { spellSlotLevelSchema } from '../enums/spells.js';
+import { spellAreaShapeSchema, spellSlotLevelSchema } from '../enums/spells.js';
 import { CHOSEN_ATTACK_VARIANTS } from '../rules/monster-actions.js';
 
 /**
@@ -43,6 +43,31 @@ export const startCombatInputSchema = z.object({
   simplified: z.boolean().default(false),
 });
 export type StartCombatInput = z.infer<typeof startCombatInputSchema>;
+
+/** Каким путём атака (вход атаки, строка журнала, вид `ATTACK` списка). */
+export const ATTACK_VIA = [
+  'ACTION',
+  'BONUS',
+  'FLURRY',
+  'FRENZY',
+  'HORDE_BREAKER',
+  'READIED',
+] as const;
+export type AttackVia = (typeof ATTACK_VIA)[number];
+
+/** Что чародей доплачивает к сотворению: метамагия и стихийное сопротивление. */
+export const CAST_OPTIONS = [
+  'CAREFUL',
+  'DISTANT',
+  'EMPOWERED',
+  'EXTENDED',
+  'HEIGHTENED',
+  'QUICKENED',
+  'SUBTLE',
+  'TWINNED',
+  'ELEMENTAL_RESISTANCE',
+] as const;
+export type CastOption = (typeof CAST_OPTIONS)[number];
 
 /**
  * Атака. Чем бьют — ровно одно из двух: предмет из инвентаря персонажа
@@ -75,6 +100,15 @@ export const attackInputSchema = z
      * служба — по умениям и тому, чем бил первым.
      */
     bonusAction: z.boolean().optional(),
+    /**
+     * Каким путём атака: действием «Атака», бонусной второй рукой, из
+     * шквала, бешенства, сокрушителем орды или подготовленной реакцией.
+     * Пусто — `ACTION` (или `BONUS` при `bonusAction` — вкладки со старым
+     * фронтом шлют его). Право на путь проверяет служба по списку действий.
+     */
+    via: z.enum(ATTACK_VIA).optional(),
+    /** Безрассудная атака варвара — решается на первой атаке хода. */
+    reckless: z.boolean().optional(),
     /**
      * Ход властью ведущего, вне правил очереди и бюджета футов. Раньше
      * ведущий был вне правил всегда — и за столом это выходило боком:
@@ -160,6 +194,15 @@ export const castInputSchema = z
      * — атака клинком): не сотворение, ячейки и концентрации не трогает.
      */
     followUp: z.boolean().optional(),
+    /**
+     * Метамагия и прочее, что чародей доплачивает очками к сотворению.
+     * Годность и одну метамагию на заклинание проверяет служба.
+     */
+    castOptions: z.array(z.enum(CAST_OPTIONS)).max(3).optional(),
+    /** Бережное заклинание: кто преуспевает в спасброске без броска. */
+    carefulIds: z.array(z.uuid()).max(10).optional(),
+    /** Возвышенное заклинание: чей первый спасбросок — с помехой. */
+    heightenedId: z.uuid().optional(),
     /** Ход властью ведущего — та же дверь, что и у удара. */
     override: z.boolean().optional(),
   })
@@ -195,17 +238,64 @@ export const damageInputSchema = z.object({
    * рукопашным оружием. Пусто — кары нет.
    */
   smiteSlotLevel: spellSlotLevelSchema.optional(),
+  /** Ошеломляющий удар монаха на это попадание — за очко ци. */
+  stunningStrike: z.boolean().optional(),
+  /** Приём открытой ладони на попадание из шквала — одно из трёх. */
+  openHand: z.enum(['PRONE', 'PUSH', 'NO_REACTIONS']).optional(),
 });
 
 /** Удар без оружия — вместо id предмета в `weaponItemId`. */
 export const UNARMED_STRIKE = 'unarmed';
 
 /** Умения, которые сами по себе действие хода (а не прибавка к удару). */
-export const COMBAT_ABILITIES = ['RAGE', 'END_RAGE', 'SECOND_WIND', 'ACTION_SURGE'] as const;
+export const COMBAT_ABILITIES = [
+  'RAGE',
+  'END_RAGE',
+  'SECOND_WIND',
+  'ACTION_SURGE',
+  'INTIMIDATING_PRESENCE',
+  'BARDIC_INSPIRATION',
+  'TURN_UNDEAD',
+  'TURN_THE_UNHOLY',
+  'PRESERVE_LIFE',
+  'LAY_ON_HANDS',
+  'SACRED_WEAPON',
+  'END_SACRED_WEAPON',
+  'FLURRY_OF_BLOWS',
+  'PATIENT_DEFENSE',
+  'STEP_OF_THE_WIND',
+  'WHOLENESS_OF_BODY',
+  'STILLNESS_OF_MIND',
+  'CREATE_SPELL_SLOT',
+  'CONVERT_SPELL_SLOT',
+  'PACT_WEAPON',
+  'DISMISS_PACT_WEAPON',
+  'BREATH_WEAPON',
+] as const;
 export type CombatAbility = (typeof COMBAT_ABILITIES)[number];
 
-/** Чего стоит действие хода: вид действия или ничего (всплеск действий, снятие ярости). */
-export const ACTION_ECONOMY = ['ACTION', 'BONUS_ACTION', 'REACTION', 'FREE'] as const;
+/** Базовые действия хода — есть у всякого персонажа (§П3 разбора умений). */
+export const BASIC_ACTIONS = [
+  'DASH',
+  'DISENGAGE',
+  'DODGE',
+  'HELP',
+  'HIDE',
+  'READY',
+  'SEARCH',
+  'USE_AN_OBJECT',
+  'GRAPPLE',
+  'SHOVE',
+  'ESCAPE',
+] as const;
+export type BasicAction = (typeof BASIC_ACTIONS)[number];
+
+/**
+ * Чего стоит действие хода: вид действия или ничего (всплеск действий,
+ * снятие ярости). `ATTACK` — одна атака из действия «Атака» (захват,
+ * толчок): у воина пятого уровня после неё остаётся вторая.
+ */
+export const ACTION_ECONOMY = ['ACTION', 'BONUS_ACTION', 'REACTION', 'FREE', 'ATTACK'] as const;
 export type ActionEconomy = (typeof ACTION_ECONOMY)[number];
 
 /** Почему действия сейчас нет — код из ERROR_CODES: переводы `errors.*` у фронта уже есть. */
@@ -216,22 +306,45 @@ export const ACTION_UNAVAILABLE_REASONS = [
   'BONUS_ACTION_ALREADY_USED',
   'REACTION_ALREADY_USED',
   'RESOURCE_EXHAUSTED',
+  'ATTACK_ACTION_REQUIRED',
+  'PARTICIPANT_CANNOT_ACT',
+  'SURPRISED',
 ] as const;
 export type ActionUnavailableReason = (typeof ACTION_UNAVAILABLE_REASONS)[number];
+
+/**
+ * Что нужно ввести, нажимая кнопку: цель, варианты, число из запаса,
+ * область. Постоянное — из реестра, изменчивое (ячейки, предметы,
+ * остаток запаса) — сервер дописывает к списку.
+ */
+const actionInputSchema = z.object({
+  target: z.enum(['NONE', 'CREATURE', 'ALLY_AND_FOE', 'ALLOCATE', 'AREA']),
+  rangeFeet: z.number().int().min(0).nullable(),
+  options: z.array(z.string().min(1).max(64)).max(40),
+  amount: z.object({ min: z.number().int().min(0), max: z.number().int().min(0) }).nullable(),
+  area: z.object({ shape: spellAreaShapeSchema, sizeFeet: z.number().int().min(5) }).nullable(),
+});
+export type ActionInput = z.infer<typeof actionInputSchema>;
+
+const availability = {
+  economy: z.enum(ACTION_ECONOMY),
+  available: z.boolean(),
+  reason: z.enum(ACTION_UNAVAILABLE_REASONS).nullable(),
+};
 
 /**
  * Что участник может сделать прямо сейчас (дизайн 15 октября, §4.3):
  * фронт рисует кнопки по этому списку, а не по коду класса, — иначе
  * новое умение без правки фронта не появилось бы. Размеченное
- * объединение по `kind`: волна 3 добавит `BASIC`, `ATTACK`, `SPELL`,
- * волна 4 — `REACTION`.
+ * объединение по `kind`: `ABILITY` — умения с ресурсом, `BASIC` —
+ * базовые действия хода, `ATTACK` — пути атаки, `CAST_OPTION` — что
+ * доплатить к сотворению; волна 4 добавит `REACTION`.
  */
 export const availableActionSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('ABILITY'),
     ability: z.enum(COMBAT_ABILITIES),
     featureCode: z.string().min(1).max(64),
-    economy: z.enum(ACTION_ECONOMY),
     resource: z
       .object({
         code: characterResourceCodeSchema,
@@ -239,6 +352,36 @@ export const availableActionSchema = z.discriminatedUnion('kind', [
         max: z.number().int().min(1),
       })
       .nullable(),
+    ...availability,
+    // Необязательно: ответ волны 2 (без ввода) обязан проходить схему —
+    // вкладки со старым API в окне выкатки.
+    input: actionInputSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal('BASIC'),
+    ability: z.enum(BASIC_ACTIONS),
+    /** null — базовое; иначе умение, дающее бонусную версию («Хитрое действие»). */
+    featureCode: z.string().min(1).max(64).nullable(),
+    ...availability,
+    input: actionInputSchema,
+  }),
+  z.object({
+    kind: z.literal('ATTACK'),
+    via: z.enum(ATTACK_VIA),
+    featureCode: z.string().min(1).max(64).nullable(),
+    ...availability,
+    /** Сколько атак этим путём ещё осталось; null — не считается. */
+    left: z.number().int().min(0).nullable(),
+    /** Чем можно ударить этим путём; null — любым из `/attacks`. */
+    weaponIds: z.array(z.string().min(1).max(64)).nullable(),
+    flags: z.array(z.enum(['RECKLESS'])),
+  }),
+  z.object({
+    kind: z.literal('CAST_OPTION'),
+    option: z.enum(CAST_OPTIONS),
+    featureCode: z.string().min(1).max(64),
+    cost: z.union([z.number().int().min(1), z.literal('SPELL_LEVEL')]),
+    exclusive: z.boolean(),
     available: z.boolean(),
     reason: z.enum(ACTION_UNAVAILABLE_REASONS).nullable(),
   }),
@@ -248,9 +391,30 @@ export type AvailableAction = z.infer<typeof availableActionSchema>;
 export const participantActionsResponseSchema = z.object({ data: z.array(availableActionSchema) });
 export type ParticipantActionsResponse = z.infer<typeof participantActionsResponseSchema>;
 
+/**
+ * Действие хода — умение или базовое действие, одним маршрутом: что
+ * нужно ввести, говорит запись списка (`input`), а проверяет служба.
+ */
 export const abilityInputSchema = z.object({
   participantId: z.uuid().optional(),
-  ability: z.enum(COMBAT_ABILITIES),
+  ability: z.enum([...COMBAT_ABILITIES, ...BASIC_ACTIONS]),
+  /** Та же кнопка бонусным действием: хитрое действие, быстрые руки. */
+  economy: z.enum(ACTION_ECONOMY).optional(),
+  targetId: z.uuid().optional(),
+  /** «Помощь» в атаке — [союзник, враг]; в проверке — [союзник]. */
+  targetIds: z.array(z.uuid()).min(1).max(20).optional(),
+  /** Клетка прицела оружия дыхания. */
+  cell: targetCellSchema.optional(),
+  /** Вариант: круг ячейки, предмет, навык, состояние, способ толчка. */
+  option: z.string().trim().min(1).max(64).optional(),
+  /** Наложение рук — сколько хитов из запаса. */
+  amount: z.number().int().min(1).max(200).optional(),
+  /** Сохранение жизни — кому сколько. */
+  allocations: z
+    .array(z.object({ participantId: z.uuid(), amount: z.number().int().min(1).max(200) }))
+    .min(1)
+    .max(20)
+    .optional(),
   override: z.boolean().optional(),
 });
 export type AbilityInput = z.infer<typeof abilityInputSchema>;
@@ -291,6 +455,19 @@ const rollShape = {
   results: z.array(z.number().int().min(1).max(100)).min(1).max(20),
 };
 
+/** Проверка навыка в строке умения: чей бросок и из чего сложен. */
+const checkSchema = z.object({
+  skill: z.string().min(1).max(64),
+  ...rollShape,
+  total: z.number().int(),
+  modifierParts: z
+    .array(z.object({ source: z.string().min(1).max(40), value: z.number().int() }))
+    .max(10)
+    .optional(),
+  /** Чья проверка, если не того, кто действует (защищающийся в захвате). */
+  participantId: z.uuid().optional(),
+});
+
 /**
  * Форма `payload` зависит от вида события, поэтому это размеченное
  * объединение, а не общий мешок: запись об уроне без числа — это
@@ -318,6 +495,10 @@ export const MODIFIER_SOURCES = [
   'expertise',
   /** Мастер на все руки барда: половина мастерства к проверке без владения. */
   'jackOfAllTrades',
+  /** Священное оружие паладина — Харизма к атаке выбранным оружием. */
+  'sacredWeapon',
+  /** Стихийное сродство чародея — Харизма к одному броску урона. */
+  'elementalAffinity',
   /**
    * Поправка руками к броску стола («+2 от зелья»): всё, чем присланный
    * модификатор расходится с листом (docs/2026-10-02-roll-modifier-parts-design.md).
@@ -402,6 +583,18 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     spellCode: z.string().min(1).max(64).optional(),
     /** Атака при отходе — реакция, брошенная сервером сама (§6 дизайна доработок). */
     opportunity: z.boolean().optional(),
+    /** Каким путём атака (нет у строк до волны 3 — это было действие или бонус). */
+    via: z.enum(ATTACK_VIA).optional(),
+    /** Чем били — предмет листа или `unarmed`: вторая рука сверяется с ним. */
+    weaponItemId: z.string().min(1).max(64).optional(),
+    /** Безрассудная атака. */
+    reckless: z.boolean().optional(),
+    /** На это попадание можно наложить ошеломляющий удар. */
+    canStun: z.boolean().optional(),
+    /** Попадание из шквала монаха открытой ладони — выбор приёма на шаге урона. */
+    openHand: z.boolean().optional(),
+    /** Усиленное заклинание: сколько костей урона перебросить. */
+    empoweredDice: z.number().int().min(1).max(10).optional(),
     /** Из чего сложен бонус к попаданию; сумма частей — модификатор броска. */
     attackParts: modifierPartsSchema,
     ...rollShape,
@@ -555,36 +748,46 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
      */
     spellFailedIds: z.array(z.uuid()).max(40).optional(),
   }),
-  z.object({
-    kind: z.literal('SAVE'),
-    /**
-     * Чей это бросок, строка говорит колонкой `targetParticipantId` —
-     * той же, какой говорит о цели урон: спасбросок бросает цель, и
-     * второго имени для того же участника в payload быть не должно.
-     */
-    spellCode: z.string().min(1).max(64),
-    /** Против чего бросали: спасбросок заклинания — не всегда ловкость. */
-    ability: abilityCodeSchema,
-    ...rollShape,
-    total: z.number().int(),
-    /** Сложность заклинателя — без неё по броску нечего разбирать. */
-    dc: z.number().int().min(1),
-    outcome: savingThrowOutcomeSchema,
-    /** База спасброска — характеристика и мастерство; уже внутри `total`. */
-    modifierParts: modifierPartsSchema,
-    /** Кости заклинаний на бросающем («Благословение», «Порча») — уже внутри `total`. */
-    bonusParts: modifierPartsSchema,
-    /** Преимущество или помеха от заклинаний («Ускорение» — Ловкость). */
-    advantageMode: advantageModeSchema.optional(),
-    /** Повторный спасбросок в конце хода цели: успех снимает наложенное. */
-    repeat: z.boolean().optional(),
-    /** Спасбросок от урона по носителю («Подчинение личности»). */
-    onDamage: z.boolean().optional(),
-    /** Сработала зона заклинания: вошёл, начал или кончил в ней ход. */
-    trigger: z.enum(['ENTER', 'START', 'END']).optional(),
-    /** Заклинатель, чья это сложность, — если не он сейчас ходит («Святилище»). */
-    casterParticipantId: z.uuid().optional(),
-  }),
+  z
+    .object({
+      kind: z.literal('SAVE'),
+      /**
+       * Чей это бросок, строка говорит колонкой `targetParticipantId` —
+       * той же, какой говорит о цели урон: спасбросок бросает цель, и
+       * второго имени для того же участника в payload быть не должно.
+       * Против чего — заклинание или умение (изгнание, устрашение): ровно
+       * одно из двух.
+       */
+      spellCode: z.string().min(1).max(64).optional(),
+      featureCode: z.string().min(1).max(64).optional(),
+      /** Против чего бросали: спасбросок заклинания — не всегда ловкость. */
+      ability: abilityCodeSchema,
+      ...rollShape,
+      total: z.number().int(),
+      /** Сложность заклинателя — без неё по броску нечего разбирать. */
+      dc: z.number().int().min(1),
+      outcome: savingThrowOutcomeSchema,
+      /** База спасброска — характеристика и мастерство; уже внутри `total`. */
+      modifierParts: modifierPartsSchema,
+      /** Кости заклинаний на бросающем («Благословение», «Порча») — уже внутри `total`. */
+      bonusParts: modifierPartsSchema,
+      /** Преимущество или помеха от заклинаний («Ускорение» — Ловкость). */
+      advantageMode: advantageModeSchema.optional(),
+      /** Повторный спасбросок в конце хода цели: успех снимает наложенное. */
+      repeat: z.boolean().optional(),
+      /** Спасбросок от урона по носителю («Подчинение личности»). */
+      onDamage: z.boolean().optional(),
+      /** Сработала зона заклинания: вошёл, начал или кончил в ней ход. */
+      trigger: z.enum(['ENTER', 'START', 'END']).optional(),
+      /** Заклинатель, чья это сложность, — если не он сейчас ходит («Святилище»). */
+      casterParticipantId: z.uuid().optional(),
+      /** Бережное заклинание: успех без броска (`results` пуст). */
+      automatic: z.boolean().optional(),
+    })
+    .refine((v) => (v.spellCode === undefined) !== (v.featureCode === undefined), {
+      path: ['spellCode'],
+      message: 'Спасбросок против заклинания либо умения',
+    }),
   z.object({
     kind: z.literal('HEAL'),
     /** Лечение бывает только заклинанием: правку хитов пишет `HP_ADJUST`. */
@@ -659,7 +862,27 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('END_TURN') }),
   z.object({
     kind: z.literal('ABILITY'),
-    ability: z.enum(COMBAT_ABILITIES),
+    ability: z.enum([...COMBAT_ABILITIES, ...BASIC_ACTIONS]),
+    /** Бонусная версия базового действия (хитрое действие, быстрые руки). */
+    economy: z.enum(ACTION_ECONOMY).optional(),
+    /** Выбранный вариант: круг ячейки, предмет, навык, состояние. */
+    option: z.string().min(1).max(64).optional(),
+    targetIds: z.array(z.uuid()).max(40).optional(),
+    /** Кому сколько вылечено (сохранение жизни, наложение рук, зелье). */
+    heals: z
+      .array(z.object({ participantId: z.uuid(), amount: z.number().int().min(0) }))
+      .max(40)
+      .optional(),
+    /** Проверка навыка (засада, поиск). */
+    check: checkSchema.optional(),
+    /** Встречная проверка (захват, толчок, высвобождение). */
+    opposed: checkSchema.optional(),
+    success: z.boolean().optional(),
+    slotLevel: spellSlotLevelSchema.optional(),
+    /** Очки чародейства, полученные или потраченные. */
+    sorceryPoints: z.number().int().min(0).optional(),
+    /** Сгоревшие сверх максимума очки при превращении ячейки. */
+    lost: z.number().int().min(0).optional(),
     /** Второе дыхание: брошенное и вылеченное. */
     notation: z.string().min(1).max(32).optional(),
     results: z.array(z.number().int().min(1).max(100)).max(20).optional(),
