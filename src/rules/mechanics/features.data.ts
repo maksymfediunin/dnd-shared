@@ -267,6 +267,9 @@ export const FEATURE_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
     ],
   },
   // Магичность клинка — волна 7 (`PARTIAL`); варианты — рукопашное оружие справочника.
+  // Удар без оружия — магический: снимает сопротивление и иммунитет «к
+  // немагическим атакам» (р. 9 разбора монстров, пересмотрен 16.10).
+  'ki-empowered-strikes': { facets: [{ kind: 'rule', rule: 'magicalUnarmed' }] },
   'pact-of-the-blade': {
     facets: [
       {

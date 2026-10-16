@@ -236,7 +236,9 @@ export type EffectCode =
   | 'STUNNING_STRIKE'
   | 'ELEMENTAL_AFFINITY'
   | 'MULTIATTACK_DEFENSE'
-  | 'COUNTERCHARM';
+  | 'COUNTERCHARM'
+  /** Иммунитет к ауре или действию носителя до конца сцены (`data.code`) — р. 21 разбора. */
+  | 'AURA_IMMUNE';
 
 /**
  * Что нужно ввести, нажимая кнопку. Постоянные варианты лежат здесь;
@@ -288,7 +290,11 @@ export interface RuleFacet {
     /** Уклонение: спасбросок Ловкости на половину урона — успех 0, провал половина. */
     | 'evasion'
     /** Магия не усыпляет — наследие фей: «Сон» пропускает, не тратя запас. */
-    | 'immuneMagicalSleep';
+    | 'immuneMagicalSleep'
+    /** Атаки оружием носителя магические — «Magic Weapons» монстров (волна 7а). */
+    | 'magicWeapons'
+    /** Удар без оружия магический — «Удары, усиленные ци» монаха. */
+    | 'magicalUnarmed';
 }
 
 /** Ресурс вне таблиц классов: максимум 1, свой отдых (§П2 разбора умений). */
@@ -362,7 +368,13 @@ export type ReactionEffect =
   | { attack: 'attacker' | 'mover' }
   | { castSpell: 'shield' }
   /** Переброс малых костей урона своего заклинания (усиленное). */
-  | { empower: true };
+  | { empower: true }
+  /** Проваленный спасбросок — успех («Legendary Resistance»). */
+  | { forceSuccess: true }
+  /** +N к КД против этой атаки — «Parry» монстра (N — из его действия). */
+  | { acBonus: 'parry' }
+  /** Легендарная вставка: монстр действует до начала следующего хода. */
+  | { legendaryTurn: true };
 
 /**
  * Аура (разбор П1.5, `zone anchor:'bearer'`): грани получают носитель и
@@ -464,6 +476,8 @@ export interface MechanicsHolder {
   features: ReadonlySet<string>;
   /** Коды черт источника; из предков — только выбранный. */
   traits: ReadonlySet<string>;
+  /** Коды черт монстра (`MonsterAction.traitCode`) — реестр `MONSTER_TRAIT_MECHANICS`. */
+  monsterTraits?: ReadonlySet<string>;
   /** Коды эффектов участника с записью в EFFECT_MECHANICS. */
   effects: readonly string[];
   proficiencyBonus: number;

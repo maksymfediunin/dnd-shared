@@ -31,6 +31,8 @@ export interface AreaInput {
   fromCreature?: boolean;
   /** Куда направлены конус, линия и куб «на себя». Прочим формам направление не нужно. */
   towards?: Cell | null;
+  /** Ширина линии в футах — у пяти дыханий 10 фт; нет — одна клетка. */
+  widthFeet?: number;
   cellSizeFeet: number;
   grid: Grid;
 }
@@ -152,8 +154,18 @@ export function cellsInArea(input: AreaInput): Set<string> {
   if (input.shape === 'LINE') {
     // Клетка заклинателя в линию не входит: линия идёт от него, а не
     // из-под него.
+    // Шире клетки — полосы рядом, вбок по правую руку от направления.
+    const width = Math.max(
+      1,
+      sizeInCells(input.widthFeet ?? input.cellSizeFeet, input.cellSizeFeet),
+    );
     for (let step = 1; step <= size; step += 1) {
-      add({ x: input.origin.x + direction.x * step, y: input.origin.y + direction.y * step });
+      for (let lane = 0; lane < width; lane += 1) {
+        add({
+          x: input.origin.x + direction.x * step - direction.y * lane,
+          y: input.origin.y + direction.y * step + direction.x * lane,
+        });
+      }
     }
     return cells;
   }

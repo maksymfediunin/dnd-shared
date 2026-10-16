@@ -44,7 +44,35 @@ export const BASE_REACTIONS: readonly ReactionFacet[] = [
     who: 'target',
     effect: { castSpell: 'shield' },
   },
+  // Монстры (волна 7а): условия — поля `monster` участника, у прочих их нет.
+  {
+    kind: 'reaction',
+    ability: 'LEGENDARY_TURN',
+    event: ['turnEnded'],
+    economy: 'FREE',
+    who: 'other',
+    effect: { legendaryTurn: true },
+  },
+  {
+    kind: 'reaction',
+    ability: 'PARRY',
+    event: ['attackHit'],
+    economy: 'REACTION',
+    who: 'target',
+    effect: { acBonus: 'parry' },
+  },
 ];
+
+/** Что окну нужно знать о монстре: счётчики фишки и действия статблока. */
+export interface ReactionMonster {
+  legendaryResistanceLeft: number;
+  /** Остаток пула легендарных; 0 — у монстра их нет или пул пуст. */
+  legendaryLeft: number;
+  /** Самое дешёвое легендарное действие — дороже остатка пула вставки нет. */
+  legendaryCheapest: number | null;
+  /** «Parry» статблока: сколько прибавляет к КД; нет — `null`. */
+  parryAc: number | null;
+}
 
 /** Участник глазами окна: где стоит, что умеет и что ему ещё можно. */
 export interface ReactionMember extends Placed {
@@ -66,6 +94,12 @@ export interface ReactionMember extends Placed {
   monsterId?: string | null;
   /** Свободна ли рука: поймать снаряд и метнуть его нечем, если обе заняты. */
   freeHand?: boolean;
+  /** Фишка монстра — счётчики и действия статблока (волна 7а). */
+  monster?: ReactionMonster;
+  /** Застигнут врасплох — легендарных действий до конца первого хода нет (р. 25 разбора). */
+  surprised?: boolean;
+  /** Может действовать (не недееспособен) — для легендарной вставки; реакция тут ни при чём. */
+  canReactLegendary?: boolean;
 }
 
 /** Событие окна: кто бросает, на кого, и что нужно условиям ответов. */
@@ -222,6 +256,29 @@ function effectFits(
   // Невероятное уклонение — от попавшей атаки, а не от урона по площади.
   if ('halveDamage' in effect) return e.attack !== undefined;
   if ('empower' in effect) return e.spellDamage === true;
+  if ('forceSuccess' in effect) return (m.monster?.legendaryResistanceLeft ?? 0) > 0;
+  if ('legendaryTurn' in effect) {
+    // Недееспособный и застигнутый легендарными не действуют (р. 8 плана волны 7).
+    const pool = m.monster;
+    return (
+      pool !== undefined &&
+      pool.legendaryCheapest !== null &&
+      pool.legendaryLeft >= pool.legendaryCheapest &&
+      m.canReactLegendary !== false &&
+      !m.surprised
+    );
+  }
+  if ('acBonus' in effect) {
+    // «Parry»: рукопашная атака оружием, которую монстр видит (р. 12).
+    const actor = e.actorId ? members.get(e.actorId) : undefined;
+    return (
+      (m.monster?.parryAc ?? null) !== null &&
+      e.attack?.range === 'MELEE' &&
+      e.attack.weapon === true &&
+      actor !== undefined &&
+      sees(m.id, actor.id)
+    );
+  }
   if ('castSpell' in effect) return m.reactionSpells.includes(effect.castSpell);
   if ('attack' in effect && effect.attack === 'mover') {
     // Отход: перемещение до конца хода ударов вслед не провоцирует (§П3.2).

@@ -175,6 +175,8 @@ export const ERROR_CODES = {
   CONDITION_IMMUNE: 'CONDITION_IMMUNE',
   /** Спасбросок от смерти — в начале своего хода на нуле хитов, а не в ход падения. */
   DEATH_SAVE_NOT_TURN_START: 'DEATH_SAVE_NOT_TURN_START',
+  /** Идёт легендарная вставка: ходит монстр вне очереди, перемотки и прочих действий нет. */
+  LEGENDARY_INTERLUDE: 'LEGENDARY_INTERLUDE',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

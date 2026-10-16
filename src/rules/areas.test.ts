@@ -223,3 +223,18 @@ describe('areaOriginFor', () => {
     );
   });
 });
+
+describe('линия шире клетки (дыхания, волна 7а)', () => {
+  it('10 фт шириной — две полосы', () => {
+    const cells = cellsInArea({
+      shape: 'LINE',
+      sizeFeet: 15,
+      widthFeet: 10,
+      origin: { x: 5, y: 5 },
+      towards: { x: 9, y: 5 },
+      cellSizeFeet: 5,
+      grid: { width: 20, height: 20 },
+    });
+    expect([...cells].sort()).toEqual(['6:5', '6:6', '7:5', '7:6', '8:5', '8:6']);
+  });
+});

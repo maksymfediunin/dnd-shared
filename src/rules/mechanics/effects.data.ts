@@ -223,6 +223,12 @@ export const EFFECT_MECHANICS: Readonly<Record<EffectCode, EffectMechanic>> = {
     until: { who: 'BEARER', at: 'END' },
     endsOnIncapacitated: true,
   },
+  /**
+   * Иммунитет к действию или ауре одного носителя до конца сцены: успешный
+   * спасбросок против «Frightful Presence» (р. 21 разбора). Источник —
+   * носитель, код действия — `data.code`.
+   */
+  AURA_IMMUNE: { facets: [], expires: 'COMBAT_END' },
   /** Стихийное сродство: сопротивление виду урона предка на час — переживает бой. */
   ELEMENTAL_AFFINITY: {
     facets: [{ kind: 'defense', resistance: ['SORCERER_ANCESTRY'] }],
