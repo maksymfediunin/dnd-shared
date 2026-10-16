@@ -1,6 +1,7 @@
 import type { AbilityCode } from '../enums/character.js';
 import type { ConditionCode } from '../enums/conditions.js';
 import type { AdvantageMode } from '../enums/dice.js';
+import { isAlly } from './combat.js';
 import { type AdvantageEffect, type ConditionEffects, combineAdvantage } from './conditions.js';
 import { SPELL_MECHANICS } from './spell-mechanics.data.js';
 
@@ -51,6 +52,21 @@ export interface SpellModifiers {
   noReactions?: boolean;
   /** Носитель не восстанавливает хиты («Леденящее прикосновение»). */
   noHealing?: boolean;
+  /**
+   * `ownAttacks` — только против одного существа, а не против всех:
+   * `true` — против наложившего («Наложение проклятия»: помеха к атакам
+   * по заклинателю), `'TARGET'` — против цели, названной при сотворении
+   * («Верный удар»). Без этого проклятый мазал по всем, а «Верный удар»
+   * давал преимущество и по случайному гоблину.
+   */
+  vsSourceOnly?: true | 'TARGET';
+  /**
+   * Сопротивление только немагическому урону этих видов («Каменная
+   * кожа»). Магический — заклинание и оружие с чертой «оружие
+   * магическое» (Р9 разбора) — проходит целиком: безусловное
+   * `resistances` резало и его.
+   */
+  resistNonmagical?: string[];
 }
 
 /**
@@ -83,6 +99,22 @@ export interface SpellUntil {
   at: 'START' | 'END';
 }
 
+/**
+ * Повторный спасбросок не по умолчанию «в конце хода, успех снимает»:
+ * «Призрачный убийца» и «Кошмар» бросают в НАЧАЛЕ хода цели, и провал
+ * бьёт (`onFail`); «Страх» даёт бросок, только если цель заклинателя не
+ * видит (`when`). Успех, как и прежде, снимает наложенное.
+ */
+export interface SpellRepeatSave {
+  at: 'START' | 'END';
+  /** Пусто — той же характеристикой, что и первый спасбросок. */
+  ability?: AbilityCode;
+  /** Урон на провале; `perSlot` — костей за каждый круг ячейки выше. */
+  onFail?: { damage: string; type: string; perSlot?: string };
+  /** Бросок только без линии обзора на заклинателя («Страх»). */
+  when?: 'NO_LINE_OF_SIGHT';
+}
+
 export interface SpellMechanic {
   /** Фишек-целей: `base` на своём круге, `perSlot` — за каждый круг ячейки выше. */
   targets?: { base: number; perSlot?: number };
@@ -106,12 +138,45 @@ export interface SpellMechanic {
   /**
    * Спасбросок в конце каждого хода цели; успех снимает наложенное.
    * `true` — той же характеристикой, что и первый; иначе — названной.
+   * Объект — когда ритм или следствие другие (`SpellRepeatSave`).
    */
-  repeatSave?: boolean | AbilityCode;
+  repeatSave?: boolean | AbilityCode | SpellRepeatSave;
   until?: SpellUntil;
+  /**
+   * Следствие включается не сразу: «Верный удар» даёт преимущество на
+   * СЛЕДУЮЩЕМ ходу заклинателя, а в ход сотворения не действует.
+   */
+  activeFrom?: 'CASTER_NEXT_TURN';
   temporaryHitPoints?: { dice?: string; flat?: number; perSlot?: number; addModifier?: boolean };
   hitPointBonus?: { flat: number; perSlot?: number };
+  /** Снимает все эти состояния разом («Массовое исцеление» — слепоту и глухоту). */
   removesConditions?: ConditionCode[];
+  /**
+   * Снимает ОДНО из этих состояний — на выбор заклинателя
+   * (`CastInput.removeCondition`), по умолчанию первое наложенное.
+   * «Восстановления» снимали всё из списка разом. Истощение — на
+   * степень, а не целиком («Высшее восстановление»).
+   */
+  removes?: { choose: 1; conditions: ConditionCode[] };
+  /**
+   * Лечение — общий запас на всех целей, а не каждой своё («Массовое
+   * исцеление»: 700 хитов делятся). Делит заклинатель
+   * (`CastInput.healShares`), без выбора — поровну, не выше недостающего.
+   */
+  healPool?: { total: number; distribute: 'CASTER' };
+  /**
+   * Кто вообще может быть целью: «Очарование личности» — гуманоид,
+   * «Дружба с животными» — зверь. Тип не тот — отказ сотворения;
+   * `maxInt` выше — заклинание не действует, ячейка потрачена (SRD: «the
+   * spell fails»).
+   */
+  targetFilter?: { types?: string[]; maxInt?: number };
+  /**
+   * Действие, доступное, пока держится заклинание: «Огненный клинок»
+   * сотворяется бонусом без атаки, а бьют им отдельным действием
+   * (`CastInput.followUp`) — без ячейки и не как сотворение.
+   */
+  followUp?: { economy: 'ACTION'; kind: 'REPEAT_ATTACK'; attack: 'MELEE_SPELL' };
   /** Кончается, когда носитель атакует или колдует («Невидимость», «Святилище»). */
   endsWhenBearerAttacks?: boolean;
   /** Тратится на первой атаке носителя («Меткий удар»). */
@@ -143,8 +208,13 @@ export interface SpellMechanic {
   reaction?: boolean;
   /** Эффект считает сервер своим кодом («Цветной шарик» — запас хитов, как у «Сна»). */
   scripted?: boolean;
-  /** Кончается, когда носитель получает урон («Гипнотический узор», «Очарование личности»). */
-  endsOnDamage?: boolean;
+  /**
+   * Кончается, когда носитель получает урон («Гипнотический узор»).
+   * `'casterSide'` — только урон от заклинателя или его стороны
+   * («Очарование личности»: «you or your companions»); сторона — по
+   * `isAlly`, не по виду фишки.
+   */
+  endsOnDamage?: boolean | 'casterSide';
   /**
    * Получив урон, носитель повторяет спасбросок («Подчинение личности»);
    * `'ADVANTAGE'` — с преимуществом («Жуткий смех Таши»).
@@ -180,6 +250,15 @@ export interface SpellMechanic {
     hostileOnly?: boolean;
     /** Что накладывает зона на провале — сверх урона («Паутина» — опутан). */
     conditions?: ConditionCode[];
+    /**
+     * Уже опутанный этой зоной в начале хода получает урон без броска
+     * («Чёрные щупальца»); бросают только неопутанные.
+     */
+    restrainedTakeDamage?: boolean;
+    /** Вид урона срабатывания, когда он не тот, что при появлении («Стена из шипов» — рубящий). */
+    damageType?: string;
+    /** Провал отбрасывает от заклинателя на столько футов («Порыв ветра»). */
+    push?: { feet: number };
   };
   /** Что остаётся ведущему, словами. */
   gm?: string;
@@ -191,6 +270,8 @@ export interface SpellVariant {
   conditions?: ConditionCode[];
   modifiers?: SpellModifiers;
   temporaryHitPoints?: SpellMechanic['temporaryHitPoints'];
+  /** «Сглаз»: урон будит спящего, но панику и тошноту не снимает. */
+  endsOnDamage?: SpellMechanic['endsOnDamage'];
 }
 
 export function spellMechanic(code: string): SpellMechanic | null {
@@ -208,13 +289,26 @@ export function spellMechanicFor(code: string, variant?: string | null): SpellMe
   if (!base?.variants?.length) return base;
   const chosen = base.variants.find((v) => v.key === variant) ?? base.variants[0];
   if (!chosen) return base;
-  const { conditions: _c, modifiers: _m, temporaryHitPoints: _t, ...rest } = base;
+  const { conditions: _c, modifiers: _m, temporaryHitPoints: _t, endsOnDamage: _e, ...rest } = base;
   return {
     ...rest,
     ...(chosen.conditions ? { conditions: chosen.conditions } : {}),
     ...(chosen.modifiers ? { modifiers: chosen.modifiers } : {}),
     ...(chosen.temporaryHitPoints ? { temporaryHitPoints: chosen.temporaryHitPoints } : {}),
+    ...(chosen.endsOnDamage !== undefined ? { endsOnDamage: chosen.endsOnDamage } : {}),
   };
+}
+
+/**
+ * Повторный спасбросок записи одной формой: `true` и код характеристики
+ * — прежний ритм «в конце хода», объект — как задан. `null` — повтора нет.
+ */
+export function repeatSaveOf(mechanic: SpellMechanic | null): SpellRepeatSave | null {
+  const repeat = mechanic?.repeatSave;
+  if (!repeat) return null;
+  if (repeat === true) return { at: 'END' };
+  if (typeof repeat === 'string') return { at: 'END', ability: repeat };
+  return repeat;
 }
 
 /** Ключ выбранного варианта: названный, если он есть у заклинания, иначе первый. */
@@ -234,7 +328,11 @@ export function hasSpellEffect(mechanic: SpellMechanic | null): boolean {
       mechanic.repeatSave !== undefined ||
       mechanic.temporaryHitPointsEachTurn !== undefined ||
       (mechanic.conditionImmunities?.length ?? 0) > 0 ||
-      (mechanic.variants?.length ?? 0) > 0)
+      (mechanic.variants?.length ?? 0) > 0 ||
+      // «Внушение»: ни состояния, ни поправок — но эффект на цели нужен,
+      // иначе снимать уроном нечего; «Огненный клинок» — то, чем бьют.
+      mechanic.endsOnDamage !== undefined ||
+      mechanic.followUp !== undefined)
   );
 }
 
@@ -258,6 +356,8 @@ export interface SpellEffectRow {
   code: string;
   spellCode?: string | null;
   data?: unknown;
+  /** Кто наложил — для следствий «только против наложившего» (`vsSourceOnly`). */
+  sourceId?: string | null;
 }
 
 /** Код эффекта заклинания на цели — тот же, что `SPELL_EFFECT` сервера. */
@@ -266,6 +366,20 @@ export const SPELL_EFFECT_CODE = 'SPELL';
 interface ActiveModifiers {
   spellCode: string;
   modifiers: SpellModifiers;
+  /** Против кого действует `ownAttacks` при `vsSourceOnly`; `null` — против всех. */
+  onlyAgainst: string | null;
+}
+
+/**
+ * Включилось ли следствие: «Верный удар» (`activeFrom`) спит до
+ * следующего хода заклинателя. Ход сотворения виден по сроку: конец
+ * этого хода ещё не прошёл, пока `until.skip` не сброшен (`untilData`
+ * службы сотворения).
+ */
+function isDormant(mechanic: SpellMechanic, data: unknown): boolean {
+  if (mechanic.activeFrom !== 'CASTER_NEXT_TURN') return false;
+  const skip = (data as { until?: { skip?: unknown } } | null)?.until?.skip;
+  return typeof skip === 'number' && skip > 0;
 }
 
 /**
@@ -282,15 +396,39 @@ export function activeSpellModifiers(effects: readonly SpellEffectRow[]): Active
       variant?: unknown;
     } | null;
     const variant = typeof data?.variant === 'string' ? data.variant : null;
-    const modifiers = spellMechanicFor(effect.spellCode, variant)?.modifiers;
-    if (!modifiers) return [];
+    const mechanic = spellMechanicFor(effect.spellCode, variant);
+    const modifiers = mechanic?.modifiers;
+    if (!mechanic || !modifiers || isDormant(mechanic, effect.data)) return [];
     const computed: SpellModifiers = {};
     if (typeof data?.acMinimum === 'number') computed.acMinimum = data.acMinimum;
     if (typeof data?.weaponDice === 'string' && modifiers.weaponDamage) {
       computed.weaponDamage = { ...modifiers.weaponDamage, dice: data.weaponDice };
     }
-    return [{ spellCode: effect.spellCode, modifiers: { ...modifiers, ...computed } }];
+    const targetId = (effect.data as { targetId?: unknown } | null)?.targetId;
+    const onlyAgainst =
+      modifiers.vsSourceOnly === 'TARGET'
+        ? typeof targetId === 'string'
+          ? targetId
+          : ''
+        : modifiers.vsSourceOnly
+          ? (effect.sourceId ?? '')
+          : null;
+    return [{ spellCode: effect.spellCode, modifiers: { ...modifiers, ...computed }, onlyAgainst }];
   });
+}
+
+/**
+ * Тратит ли атака по этой цели эффект «на первую атаку» носителя:
+ * спящий («Верный удар» в ход сотворения) не тратится, привязанный к
+ * цели — только атакой по ней.
+ */
+export function spentByOwnAttack(effect: SpellEffectRow, targetId: string): boolean {
+  const [active] = activeSpellModifiers([effect]);
+  if (active) return active.onlyAgainst === null || active.onlyAgainst === targetId;
+  // Без поправок атаки (`consumedOnOwnAttack` у прибавки к урону) — не
+  // моё дело решать здесь; спящее — не тратится.
+  const mechanic = effect.spellCode ? spellMechanic(effect.spellCode) : null;
+  return mechanic !== null && !isDormant(mechanic, effect.data);
 }
 
 /**
@@ -303,8 +441,13 @@ export function activeSpellModifiers(effects: readonly SpellEffectRow[]): Active
 export function spellConditionEffects(
   effects: readonly SpellEffectRow[],
   attackerType?: string | null,
+  /**
+   * С кем носитель меряется в этом броске: цель его атаки. Следствия
+   * «только против наложившего» (`vsSourceOnly`) без неё не действуют.
+   */
+  againstId?: string | null,
 ): ConditionEffects[] {
-  return activeSpellModifiers(effects).map(({ modifiers }) => {
+  return activeSpellModifiers(effects).map(({ modifiers, onlyAgainst }) => {
     const incomingApplies =
       modifiers.incomingFrom === undefined ||
       (attackerType != null && modifiers.incomingFrom.includes(attackerType.toLowerCase()));
@@ -312,7 +455,10 @@ export function spellConditionEffects(
     return {
       cannotAct: false,
       speed: 'NORMAL',
-      ownAttacks: modifiers.ownAttacks ?? 'NORMAL',
+      ownAttacks:
+        onlyAgainst === null || onlyAgainst === againstId
+          ? (modifiers.ownAttacks ?? 'NORMAL')
+          : 'NORMAL',
       incomingNear: incoming,
       incomingFar: incoming,
       meleeAutoCrit: false,
@@ -347,14 +493,75 @@ export function speedWithEffects(speed: number, effects: readonly SpellEffectRow
   return Math.max(0, Math.floor(feet * factor));
 }
 
+/**
+ * Сопротивления с заклинаниями. `magical` — урон магический (заклинание
+ * или оружие с чертой «оружие магическое», Р9): «Каменная кожа» его не
+ * режет.
+ */
 export function resistancesWithEffects(
   base: readonly string[],
   effects: readonly SpellEffectRow[],
+  magical = false,
 ): string[] {
-  const extra = activeSpellModifiers(effects).flatMap(
-    ({ modifiers }) => modifiers.resistances ?? [],
-  );
+  const extra = activeSpellModifiers(effects).flatMap(({ modifiers }) => [
+    ...(modifiers.resistances ?? []),
+    ...(magical ? [] : (modifiers.resistNonmagical ?? [])),
+  ]);
   return [...new Set([...base, ...extra])];
+}
+
+/** Участник для стороны: id, сторона и признак монстра (`sideOf`). */
+type SidedParticipant = Parameters<typeof isAlly>[0];
+
+/**
+ * Снимает ли урон эффект заклинания на носителе: «Гипнотический узор» —
+ * любой урон, «Очарование личности» (`'casterSide'`) — только урон от
+ * заклинателя или его стороны. Бьющий неизвестен (ведущий правит хиты
+ * рукой) — сторону он не называет, и такое заклинание держится.
+ */
+export function endsOnDamageBy(
+  effect: SpellEffectRow,
+  dealer: SidedParticipant | null,
+  caster: SidedParticipant | null,
+): boolean {
+  if (effect.code !== SPELL_EFFECT_CODE || !effect.spellCode) return false;
+  const variant = (effect.data as { variant?: unknown } | null)?.variant;
+  const ends = spellMechanicFor(
+    effect.spellCode,
+    typeof variant === 'string' ? variant : null,
+  )?.endsOnDamage;
+  if (ends === true) return true;
+  return ends === 'casterSide' && dealer !== null && caster !== null && isAlly(dealer, caster);
+}
+
+/**
+ * Общий запас лечения поровну (`healPool`): каждой цели не больше
+ * недостающего, а то, что ей не нужно, делится между остальными — уровень
+ * «доливается» до тех пор, пока хватает запаса. Остаток от деления — по
+ * одному первым по порядку. Возвращает долю каждой цели.
+ */
+export function distributeHealPool(
+  total: number,
+  needs: readonly { id: string; missing: number }[],
+): Record<string, number> {
+  const missing = (need: { missing: number }) => Math.max(0, need.missing);
+  const used = (level: number) =>
+    needs.reduce((sum, need) => sum + Math.min(missing(need), level), 0);
+  let level = 0;
+  let top = Math.max(0, ...needs.map(missing));
+  while (level < top) {
+    const mid = Math.ceil((level + top) / 2);
+    if (used(mid) <= total) level = mid;
+    else top = mid - 1;
+  }
+  let left = total - used(level);
+  const shares: Record<string, number> = {};
+  for (const need of needs) {
+    const extra = left > 0 && missing(need) > level ? 1 : 0;
+    left -= extra;
+    shares[need.id] = Math.min(missing(need), level) + extra;
+  }
+  return shares;
 }
 
 /** Кость прибавки со знаком: «-1d4» вычитается («Порча»). */
@@ -444,7 +651,7 @@ export type SpellEffectSummaryItem =
   | { key: 'attackDice' | 'saveDice'; value: string }
   | { key: 'ownAttacks' | 'incoming'; value: AdvantageEffect }
   | { key: 'saveAdvantage' | 'saveDisadvantage'; value: AbilityCode[] }
-  | { key: 'resistances'; value: string[] }
+  | { key: 'resistances' | 'resistNonmagical'; value: string[] }
   | { key: 'weaponDamage'; value: string; type: string }
   | { key: 'noReactions' | 'noHealing' | 'repeatSave' | 'endsWhenBearerAttacks' };
 
@@ -473,6 +680,9 @@ export function spellEffectSummary(spellCode: string, data?: unknown): SpellEffe
     items.push({ key: 'speedMultiplier', value: m.speedMultiplier });
   }
   if (m.resistances?.length) items.push({ key: 'resistances', value: m.resistances });
+  if (m.resistNonmagical?.length) {
+    items.push({ key: 'resistNonmagical', value: m.resistNonmagical });
+  }
   if (m.weaponDamage) {
     items.push({ key: 'weaponDamage', value: m.weaponDamage.dice, type: m.weaponDamage.type });
   }
