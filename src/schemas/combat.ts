@@ -132,6 +132,27 @@ export const castInputSchema = z
      * «Сглаз» — сон, паника, тошнота): ключ из `SpellMechanic.variants`.
      */
     variant: z.string().trim().min(1).max(32).optional(),
+    /**
+     * Какое состояние снять, если заклинание снимает одно на выбор
+     * («Малое восстановление», «Высшее восстановление»). Пусто — первое
+     * из наложенных по списку заклинания.
+     */
+    removeCondition: conditionCodeSchema.optional(),
+    /**
+     * Как поделить общий запас лечения («Массовое исцеление» — 700 на
+     * всех). Пусто — поровну, не выше недостающего каждой цели. Сумму и
+     * то, что доли — цели, проверяет служба: запас — свойство заклинания.
+     */
+    healShares: z
+      .array(z.object({ participantId: z.uuid(), amount: z.number().int().min(0).max(1000) }))
+      .min(1)
+      .max(20)
+      .optional(),
+    /**
+     * Повтор действием того, что заклинание уже дало («Огненный клинок»
+     * — атака клинком): не сотворение, ячейки и концентрации не трогает.
+     */
+    followUp: z.boolean().optional(),
     /** Ход властью ведущего — та же дверь, что и у удара. */
     override: z.boolean().optional(),
   })
@@ -517,6 +538,13 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     sanctuaryBlocked: z.array(z.uuid()).max(40).optional(),
     /** Выбранный вариант («Защита от энергии» — какой вид урона). */
     variant: z.string().min(1).max(32).optional(),
+    /** Повтор действием («Огненный клинок» — удар клинком), не сотворение: ячейки нет. */
+    followUp: z.boolean().optional(),
+    /**
+     * На ком заклинание не подействовало без броска: «Дружба с
+     * животными» на зверя с Интеллектом 4 и выше — ячейка потрачена.
+     */
+    spellFailedIds: z.array(z.uuid()).max(40).optional(),
   }),
   z.object({
     kind: z.literal('SAVE'),

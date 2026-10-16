@@ -479,6 +479,37 @@ describe('castInputSchema', () => {
   it('заклинание без кода не сотворяется', () => {
     expect(castInputSchema.safeParse({ spellCode: '  ', targetId }).success).toBe(false);
   });
+
+  it('выборы при сотворении: состояние, доли запаса, повтор действием', () => {
+    const parsed = castInputSchema.parse({
+      spellCode: 'mass-heal',
+      slotLevel: 9,
+      targetIds: [targetId],
+      healShares: [{ participantId: targetId, amount: 700 }],
+    });
+    expect(parsed.healShares).toEqual([{ participantId: targetId, amount: 700 }]);
+    expect(
+      castInputSchema.parse({
+        spellCode: 'lesser-restoration',
+        targetId,
+        removeCondition: 'poisoned',
+      }).removeCondition,
+    ).toBe('poisoned');
+    expect(
+      castInputSchema.safeParse({ spellCode: 'lesser-restoration', targetId, removeCondition: 'x' })
+        .success,
+    ).toBe(false);
+    expect(
+      castInputSchema.safeParse({
+        spellCode: 'mass-heal',
+        targetId,
+        healShares: [{ participantId: targetId, amount: -1 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      castInputSchema.parse({ spellCode: 'flame-blade', targetId, followUp: true }).followUp,
+    ).toBe(true);
+  });
 });
 
 describe('startCombatInputSchema', () => {

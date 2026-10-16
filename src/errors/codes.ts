@@ -119,6 +119,14 @@ export const ERROR_CODES = {
   SPELL_TARGET_NOT_ALLOWED: 'SPELL_TARGET_NOT_ALLOWED',
   /** Клетка переноса («Туманный шаг») занята или дальше дистанции. */
   SPELL_DESTINATION_BLOCKED: 'SPELL_DESTINATION_BLOCKED',
+  /**
+   * Выбор при сотворении не из того, что даёт заклинание: состояние вне
+   * списка «Восстановления», доля «Массового исцеления» сверх запаса или
+   * для фишки, которая не цель.
+   */
+  SPELL_CHOICE_NOT_ALLOWED: 'SPELL_CHOICE_NOT_ALLOWED',
+  /** Повтор действием («Огненный клинок») без заклинания, которое его даёт. */
+  SPELL_FOLLOW_UP_NOT_AVAILABLE: 'SPELL_FOLLOW_UP_NOT_AVAILABLE',
   /** Реакция до начала своего хода уже потрачена. */
   REACTION_ALREADY_USED: 'REACTION_ALREADY_USED',
   /** Переносить нечего: нет концентрации на метке или её цель ещё на ногах. */
