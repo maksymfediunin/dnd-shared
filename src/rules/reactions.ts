@@ -260,7 +260,9 @@ function effectFits(
   if ('legendaryTurn' in effect) {
     // Недееспособный и застигнутый легендарными не действуют (р. 8 плана волны 7).
     const pool = m.monster;
+    // Подлежащие конца хода — кто вставку только что сыграл (р. 9 плана волны 7).
     return (
+      !e.subjectIds.includes(m.id) &&
       pool !== undefined &&
       pool.legendaryCheapest !== null &&
       pool.legendaryLeft >= pool.legendaryCheapest &&
