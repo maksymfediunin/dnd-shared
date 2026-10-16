@@ -151,7 +151,12 @@ export function castOptionActions(input: AvailableActionsInput): CastOptionEntry
   const left = points ? Math.max(0, points.max - points.used) : 0;
   return collectCastOptions(input.holder).map(({ code, facet }) => {
     const cost = facet.cost === 'spellLevelMin1' ? 'SPELL_LEVEL' : facet.cost;
-    const reason = left < (typeof cost === 'number' ? cost : 1) ? 'RESOURCE_EXHAUSTED' : null;
+    // Упавший не колдует — и доплачивать ему не к чему (порядок причин §4.1).
+    const reason = input.isDown
+      ? 'PARTICIPANT_IS_DOWN'
+      : left < (typeof cost === 'number' ? cost : 1)
+        ? 'RESOURCE_EXHAUSTED'
+        : null;
     return {
       kind: 'CAST_OPTION',
       option: facet.option,

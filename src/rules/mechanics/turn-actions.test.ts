@@ -242,3 +242,14 @@ describe('доплата к сотворению', () => {
     ]);
   });
 });
+
+describe('упавший', () => {
+  it('и доплата к сотворению недоступна с причиной PARTICIPANT_IS_DOWN', () => {
+    const options = list(
+      holder(['metamagic-quickened-spell']),
+      { isDown: true, resources: [{ code: 'SORCERY_POINT', max: 3, used: 0 }] },
+      {},
+    ).filter((a) => a.kind === 'CAST_OPTION');
+    expect(options.map((a) => a.reason)).toEqual(['PARTICIPANT_IS_DOWN']);
+  });
+});

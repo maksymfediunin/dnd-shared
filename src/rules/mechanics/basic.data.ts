@@ -8,8 +8,20 @@ import type { ActionFacet } from './types.js';
  */
 export const BASIC_ACTION_RECORDS: Readonly<Record<BasicAction, ActionFacet>> = {
   DASH: { kind: 'action', ability: 'DASH', economy: 'ACTION', input: { target: 'NONE' } },
-  DISENGAGE: { kind: 'action', ability: 'DISENGAGE', economy: 'ACTION', input: { target: 'NONE' } },
-  DODGE: { kind: 'action', ability: 'DODGE', economy: 'ACTION', input: { target: 'NONE' } },
+  DISENGAGE: {
+    kind: 'action',
+    ability: 'DISENGAGE',
+    economy: 'ACTION',
+    applies: 'DISENGAGED',
+    input: { target: 'NONE' },
+  },
+  DODGE: {
+    kind: 'action',
+    ability: 'DODGE',
+    economy: 'ACTION',
+    applies: 'DODGING',
+    input: { target: 'NONE' },
+  },
   // Вариант — «атака» или код навыка (сервер дописывает навыки листа).
   HELP: {
     kind: 'action',
@@ -19,7 +31,13 @@ export const BASIC_ACTION_RECORDS: Readonly<Record<BasicAction, ActionFacet>> = 
   },
   HIDE: { kind: 'action', ability: 'HIDE', economy: 'ACTION', input: { target: 'NONE' } },
   // Вариант — оружие подготовленной атаки (сервер дописывает).
-  READY: { kind: 'action', ability: 'READY', economy: 'ACTION', input: { target: 'CREATURE' } },
+  READY: {
+    kind: 'action',
+    ability: 'READY',
+    economy: 'ACTION',
+    applies: 'READIED',
+    input: { target: 'CREATURE' },
+  },
   SEARCH: { kind: 'action', ability: 'SEARCH', economy: 'ACTION', input: { target: 'NONE' } },
   // Вариант — предмет, у которого есть обработчик (сервер дописывает).
   USE_AN_OBJECT: {
