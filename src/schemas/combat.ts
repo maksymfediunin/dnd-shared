@@ -358,6 +358,9 @@ export const ACTION_UNAVAILABLE_REASONS = [
   'ATTACK_ACTION_REQUIRED',
   'PARTICIPANT_CANNOT_ACT',
   'SURPRISED',
+  // Волна 5: свет и обзор решают, есть ли кнопка «в тени» и «спрятаться».
+  'NOT_IN_DARKNESS',
+  'CANNOT_HIDE_HERE',
 ] as const;
 export type ActionUnavailableReason = (typeof ACTION_UNAVAILABLE_REASONS)[number];
 
