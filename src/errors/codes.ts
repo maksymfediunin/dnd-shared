@@ -161,6 +161,20 @@ export const ERROR_CODES = {
   NO_FREE_HAND: 'NO_FREE_HAND',
   /** Застигнут врасплох — в первом ходу ни действий, ни шага. */
   SURPRISED: 'SURPRISED',
+  /** Открыто окно реакции: сцена ждёт ответов и не меняется (план волны 4, №9). */
+  REACTION_WINDOW_OPEN: 'REACTION_WINDOW_OPEN',
+  /** Окно, на которое отвечают, уже закрыто или закрывается. */
+  REACTION_WINDOW_CLOSED: 'REACTION_WINDOW_CLOSED',
+  /** Такого ответа этому участнику окно не предлагало. */
+  REACTION_NOT_OFFERED: 'REACTION_NOT_OFFERED',
+  /** Участник в этом окне уже ответил. */
+  REACTION_ALREADY_ANSWERED: 'REACTION_ALREADY_ANSWERED',
+  /** Сцена изменилась, пока действие ждало окна реакции, — повторить действие. */
+  SCENE_CHANGED: 'SCENE_CHANGED',
+  /** Цель неуязвима к этому состоянию (чистота тела, ауры паладина). */
+  CONDITION_IMMUNE: 'CONDITION_IMMUNE',
+  /** Спасбросок от смерти — в начале своего хода на нуле хитов, а не в ход падения. */
+  DEATH_SAVE_NOT_TURN_START: 'DEATH_SAVE_NOT_TURN_START',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

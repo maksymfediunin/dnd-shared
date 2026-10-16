@@ -1,5 +1,7 @@
 import type { AbilityCode, CharacterResourceCode } from '../../enums/character.js';
+import type { ConditionCode } from '../../enums/conditions.js';
 import type { AdvantageMode } from '../../enums/dice.js';
+import { SIZE_CATEGORIES } from '../../enums/size.js';
 import {
   type ActionEconomy,
   type ActionUnavailableReason,
@@ -33,9 +35,9 @@ import type {
   ModifierTarget,
   OnHitFacet,
   Predicate,
+  RerollFacet,
   RuleFacet,
   SpellModifierFacet,
-  TriggerFacet,
 } from './types.js';
 
 /**
@@ -55,8 +57,32 @@ export interface FacetOwner {
   h: MechanicsHolder;
 }
 
+function testObject(
+  p: Exclude<Predicate, string>,
+  ctx: MechanicsContext,
+  owner?: FacetOwner,
+): boolean {
+  if ('anyOf' in p) return p.anyOf.some((inner) => test(inner, ctx, owner));
+  if ('not' in p) return !test(p.not, ctx, owner);
+  if ('bearerNot' in p) {
+    const states = ctx.bearer?.conditions;
+    return states !== undefined && !p.bearerNot.some((code) => states.includes(code));
+  }
+  if ('actorImmune' in p) return ctx.actor?.conditionImmunities?.includes(p.actorImmune) === true;
+  if ('attackerSizeAtLeast' in p) {
+    const size = ctx.actor?.size;
+    return (
+      size !== undefined &&
+      SIZE_CATEGORIES.indexOf(size) >= SIZE_CATEGORIES.indexOf(p.attackerSizeAtLeast)
+    );
+  }
+  if ('vsCondition' in p) return ctx.save?.conditions?.includes(p.vsCondition) === true;
+  const feet = ctx.distances?.[p.of];
+  return feet !== undefined && feet <= p.withinFeet;
+}
+
 function test(p: Predicate, ctx: MechanicsContext, owner?: FacetOwner): boolean {
-  if (typeof p === 'object') return p.anyOf.some((inner) => test(inner, ctx, owner));
+  if (typeof p === 'object') return testObject(p, ctx, owner);
   const { armor, weapon, roll } = ctx;
   const data = owner ? owner.h.effectData?.[owner.code] : undefined;
   switch (p) {
@@ -108,6 +134,39 @@ function test(p: Predicate, ctx: MechanicsContext, owner?: FacetOwner): boolean 
       return data?.itemId !== undefined && data.itemId === weapon?.itemId;
     case 'effectTargetIsTarget':
       return data?.targetId !== undefined && data.targetId === ctx.target?.id;
+    case 'raging':
+      return owner?.h.effects.includes('RAGE') === true;
+    case 'bearerConscious':
+      return ctx.bearer?.conscious === true;
+    case 'shield':
+      return armor?.shield === true;
+    case 'actorSeen':
+      return ctx.actor?.seen === true;
+    case 'sourceSeen':
+      return ctx.save?.sourceSeen === true;
+    case 'actorHearsBearer':
+      return ctx.actor?.hearsBearer === true;
+    case 'canHearBearer':
+      return ctx.recipient?.hearsBearer === true;
+    case 'targetNotSelf':
+      return (
+        ctx.target?.id !== undefined &&
+        ctx.bearer?.id !== undefined &&
+        ctx.target.id !== ctx.bearer.id
+      );
+    case 'rangedWeaponAttack':
+      return ctx.attack?.range === 'RANGED' && ctx.attack.weapon === true;
+    case 'incomingOpportunityAttack':
+      return ctx.attack?.isOpportunity === true;
+    case 'vsMagic':
+      return ctx.save?.magical === true;
+    case 'vsPoison':
+      return (
+        ctx.save?.damageTypes?.includes('poison') === true ||
+        ctx.save?.conditions?.includes('poisoned') === true
+      );
+    case 'killedOutright':
+      return ctx.damage?.killedOutright === true;
   }
 }
 
@@ -233,6 +292,8 @@ export function advantageSources(
     facet.kind === 'advantage' &&
     facet.roll === roll.kind &&
     (facet.ability === undefined || facet.ability === roll.ability) &&
+    (facet.abilities === undefined ||
+      (roll.ability !== undefined && facet.abilities.includes(roll.ability))) &&
     (facet.skill === undefined || facet.skill === roll.skill) &&
     holds(facet.when, ctx, { code, h })
       ? [facet.mode]
@@ -249,14 +310,37 @@ export function collectAdvantage(
   return combineAdvantage(advantageSources(h, roll, ctx));
 }
 
+/** Иммунитет к состоянию: приостанавливает ли уже наложенное и от кого действует. */
+export interface ConditionImmunity {
+  code: ConditionCode;
+  suspends: boolean;
+  /** Только против источника этих типов существ; нет — против любого. */
+  vsSourceType?: readonly string[];
+}
+
+export interface CollectedDefenses {
+  resistances: string[];
+  immunities: string[];
+  conditionImmunities: ConditionImmunity[];
+}
+
+/**
+ * Защита носителя: сопротивления, иммунитеты к урону и к состояниям.
+ * Грани аур (`auraGrants`) приходят сюда вторым списком: защита ауры
+ * преданности — та же грань `defense`, только чужая.
+ */
 export function collectDefenses(
   h: MechanicsHolder,
   ctx: MechanicsContext = {},
-): { resistances: string[] } {
+  extra: readonly { code: string; facet: Facet; h: MechanicsHolder }[] = [],
+): CollectedDefenses {
   const resistances = new Set<string>();
-  for (const { facet } of facetsOf(h)) {
-    if (facet.kind !== 'defense' || !holds(facet.when, ctx)) continue;
-    for (const type of facet.resistance) {
+  const immunities = new Set<string>();
+  const conditionImmunities: ConditionImmunity[] = [];
+  const all = [...facetsOf(h).map((entry) => ({ ...entry, h })), ...extra];
+  for (const { code, facet, h: owner } of all) {
+    if (facet.kind !== 'defense' || !holds(facet.when, ctx, { code, h: owner })) continue;
+    for (const type of facet.resistance ?? []) {
       const resolved =
         type === 'ANCESTRY'
           ? h.ancestryDamageType
@@ -265,8 +349,91 @@ export function collectDefenses(
             : type;
       if (resolved) resistances.add(resolved);
     }
+    for (const type of facet.immunity ?? []) immunities.add(type);
+    for (const condition of facet.conditionImmunity ?? []) {
+      conditionImmunities.push({
+        code: condition,
+        suspends: facet.suspends === true,
+        ...(facet.vsSourceType ? { vsSourceType: facet.vsSourceType } : {}),
+      });
+    }
   }
-  return { resistances: [...resistances] };
+  return {
+    resistances: [...resistances],
+    immunities: [...immunities],
+    conditionImmunities,
+  };
+}
+
+/**
+ * Иммунен ли к состоянию от этого источника: без оговорки — всегда, с
+ * оговоркой типа (защита природы) — только против элементалей и фей.
+ * `sourceType` неизвестен — оговорка не срабатывает.
+ */
+export function immuneToCondition(
+  immunities: readonly ConditionImmunity[],
+  code: ConditionCode,
+  sourceType?: string | null,
+): boolean {
+  return immunities.some(
+    (row) =>
+      row.code === code &&
+      (row.vsSourceType === undefined ||
+        (sourceType != null && row.vsSourceType.includes(sourceType.toLowerCase()))),
+  );
+}
+
+/** Кто держит ауру глазами того, на кого она ляжет. */
+export interface AuraSource {
+  holder: MechanicsHolder;
+  /** Расстояние от носителя ауры до получателя в футах. */
+  distanceFeet: number;
+  /** Союзник получателю (себе — союзник). */
+  ally: boolean;
+  /** Носитель ауры в сознании. */
+  conscious: boolean;
+  /** Получатель слышит носителя — противодействие очарованию. */
+  recipientHearsBearer: boolean;
+}
+
+/**
+ * Грани аур, что ложатся на получателя (разбор П1.5): носитель в радиусе,
+ * союзник, условия ауры и получателя выполнены. Одноимённые не
+ * складываются — из двух аур защиты остаётся бо́льшая прибавка (П4 #33).
+ * Грань несёт своего носителя: прибавка «Харизма» — Харизма паладина.
+ */
+export function auraGrants(
+  sources: readonly AuraSource[],
+): { code: string; facet: Facet; h: MechanicsHolder }[] {
+  const best = new Map<string, { code: string; facet: Facet; h: MechanicsHolder; value: number }>();
+  for (const source of sources) {
+    if (!source.ally) continue;
+    for (const { code, facet } of facetsOf(source.holder)) {
+      if (facet.kind !== 'zone' || source.distanceFeet > facet.radiusFeet) continue;
+      const bearerCtx: MechanicsContext = { bearer: { conscious: source.conscious } };
+      if (!holds(facet.when, bearerCtx, { code, h: source.holder })) continue;
+      const recipientCtx: MechanicsContext = {
+        recipient: { hearsBearer: source.recipientHearsBearer },
+      };
+      if (!holds(facet.recipient, recipientCtx, { code, h: source.holder })) continue;
+      facet.grants.forEach((grant, index) => {
+        const key = `${code}#${index}`;
+        const value = grant.kind === 'modifier' ? amountOf(grant.amount, source.holder) : 0;
+        const kept = best.get(key);
+        if (!kept || value > kept.value) {
+          best.set(key, { code, facet: grant, h: source.holder, value });
+        }
+      });
+    }
+  }
+  return [...best.values()].map(({ code, facet, h }) => ({ code, facet, h }));
+}
+
+/** Какие выпавшие на к20 значения носитель перебрасывает сам («Везучий»: единица). */
+export function collectReroll(h: MechanicsHolder, roll: RerollFacet['rolls'][number]): number[] {
+  return facetsOf(h).flatMap(({ facet }) =>
+    facet.kind === 'reroll' && facet.rolls.includes(roll) ? [...facet.on] : [],
+  );
 }
 
 /** Порог крита — наименьший из граней, по умолчанию 20. */
@@ -335,7 +502,7 @@ export function collectSpellModifiers(
  */
 export function onKillTempHp(h: MechanicsHolder): number {
   const triggers = facetsOf(h).flatMap(({ facet }) =>
-    facet.kind === 'trigger' && facet.on === 'reduceHostileToZero' ? [facet as TriggerFacet] : [],
+    facet.kind === 'trigger' && facet.on === 'reduceHostileToZero' ? [facet] : [],
   );
   return Math.max(0, ...triggers.map((facet) => amountOf(facet.tempHp, h)));
 }

@@ -271,8 +271,47 @@ export const COMBAT_ABILITIES = [
   'PACT_WEAPON',
   'DISMISS_PACT_WEAPON',
   'BREATH_WEAPON',
+  'COUNTERCHARM',
+  'END_COUNTERCHARM',
 ] as const;
 export type CombatAbility = (typeof COMBAT_ABILITIES)[number];
+
+/**
+ * На что открывается окно реакции (разбор умений §1.1): до броска,
+ * бросок, исход, урон, после, движение. Событие волны 8
+ * (`castDeclared`, `damagedBy`, `readyTrigger`) заведёт волна 8 вместе
+ * с первым читателем.
+ */
+export const WINDOW_EVENTS = [
+  'attackDeclared',
+  'attackRolled',
+  'checkRolled',
+  'saveRolled',
+  'saveFailed',
+  'attackHit',
+  'damageRolled',
+  'reducedToZero',
+  'attackResolved',
+  'leavesReach',
+] as const;
+export type WindowEvent = (typeof WINDOW_EVENTS)[number];
+
+/** Ответы в окне: умения и черты из реестра плюс встроенные (атака при отходе, «Щит»). */
+export const REACTION_ABILITIES = [
+  'PROTECTION',
+  'CUTTING_WORDS',
+  'INSPIRATION_DIE',
+  'INDOMITABLE',
+  'DEFLECT_MISSILES',
+  'GIANT_KILLER',
+  'UNCANNY_DODGE',
+  'DARK_ONES_OWN_LUCK',
+  'RELENTLESS_ENDURANCE',
+  'OPPORTUNITY_ATTACK',
+  'SHIELD',
+  'EMPOWERED_SPELL',
+] as const;
+export type ReactionAbility = (typeof REACTION_ABILITIES)[number];
 
 /** Базовые действия хода — есть у всякого персонажа (§П3 разбора умений). */
 export const BASIC_ACTIONS = [
@@ -385,8 +424,70 @@ export const availableActionSchema = z.discriminatedUnion('kind', [
     available: z.boolean(),
     reason: z.enum(ACTION_UNAVAILABLE_REASONS).nullable(),
   }),
+  /** Ответ в открытом окне реакции — есть, только пока окно открыто (план волны 4, №28). */
+  z.object({
+    kind: z.literal('REACTION'),
+    ability: z.enum(REACTION_ABILITIES),
+    windowId: z.uuid(),
+    featureCode: z.string().min(1).max(64).nullable(),
+    ...availability,
+  }),
 ]);
 export type AvailableAction = z.infer<typeof availableActionSchema>;
+
+/** Вариант ответа участнику в окне. */
+export const reactionOptionSchema = z.object({
+  ability: z.enum(REACTION_ABILITIES),
+  /** Умение или черта, давшая ответ; у встроенных (атака при отходе, «Щит») — null. */
+  featureCode: z.string().min(1).max(64).nullable(),
+  economy: z.enum(['REACTION', 'FREE']),
+  resource: z
+    .object({ code: characterResourceCodeSchema, left: z.number().int().min(0) })
+    .nullable(),
+  /** Отражение снарядов: можно ли заранее выбрать «метнуть, если поймаю» (есть ци). */
+  canThrowBack: z.boolean().optional(),
+});
+export type ReactionOption = z.infer<typeof reactionOptionSchema>;
+
+/**
+ * Окно реакции в снимке сцены (план волны 4, §5.2). Исход в фазе
+ * броска не показывается: открытие окна не должно выдавать провал.
+ */
+export const reactionWindowViewSchema = z.object({
+  id: z.uuid(),
+  event: z.enum(WINDOW_EVENTS),
+  expiresAt: z.iso.datetime(),
+  actorParticipantId: z.uuid().nullable(),
+  subjectIds: z.array(z.uuid()).max(40),
+  /** Фаза 1: кости и итог, без исхода и без сложности. */
+  roll: z
+    .object({
+      results: z.array(z.number().int().min(1).max(100)).max(20),
+      total: z.number().int(),
+    })
+    .optional(),
+  /** Фаза 3: брошенный урон до вычитаний. */
+  damage: z.object({ amount: z.number().int().min(0), damageType: z.string().max(40) }).optional(),
+  responders: z
+    .array(
+      z.object({
+        participantId: z.uuid(),
+        options: z.array(reactionOptionSchema).max(12),
+        answered: z.boolean(),
+      }),
+    )
+    .max(40),
+});
+export type ReactionWindowView = z.infer<typeof reactionWindowViewSchema>;
+
+/** Ответ в окне: вариант или `null` — «пропустить». */
+export const reactionAnswerSchema = z.object({
+  participantId: z.uuid(),
+  ability: z.enum(REACTION_ABILITIES).nullable(),
+  /** Отражение снарядов: метнуть пойманный снаряд за очко ци. */
+  throwBack: z.boolean().optional(),
+});
+export type ReactionAnswerInput = z.infer<typeof reactionAnswerSchema>;
 
 export const participantActionsResponseSchema = z.object({ data: z.array(availableActionSchema) });
 export type ParticipantActionsResponse = z.infer<typeof participantActionsResponseSchema>;
@@ -455,6 +556,25 @@ const rollShape = {
   results: z.array(z.number().int().min(1).max(100)).min(1).max(20),
 };
 
+/**
+ * Что ответы в окне сделали с броском или уроном (вдохновение +4,
+ * словцо −3, уклонение вдвое): кто, чем и на сколько.
+ */
+const adjustmentsSchema = z
+  .array(
+    z.object({
+      ability: z.enum(REACTION_ABILITIES),
+      participantId: z.uuid(),
+      /** Со знаком; у деления пополам — сколько срезано. */
+      value: z.number().int(),
+    }),
+  )
+  .max(10)
+  .optional();
+
+/** Переброшенная кость («Везучий», «Несгибаемость») — что выпало до переброса. */
+const rerolledSchema = z.number().int().min(1).max(20).optional();
+
 /** Проверка навыка в строке умения: чей бросок и из чего сложен. */
 const checkSchema = z.object({
   skill: z.string().min(1).max(64),
@@ -468,6 +588,8 @@ const checkSchema = z.object({
   participantId: z.uuid().optional(),
   /** Преимущество или помеха проверки (ярость — Сила, засада — бег): две кости в `results`. */
   advantageMode: advantageModeSchema.optional(),
+  adjustments: adjustmentsSchema,
+  rerolled: rerolledSchema,
 });
 
 /**
@@ -499,6 +621,8 @@ export const MODIFIER_SOURCES = [
   'jackOfAllTrades',
   /** Священное оружие паладина — Харизма к атаке выбранным оружием. */
   'sacredWeapon',
+  /** Аура защиты паладина — его Харизма к спасброску. */
+  'aura',
   /** Стихийное сродство чародея — Харизма к одному броску урона. */
   'elementalAffinity',
   /**
@@ -610,6 +734,10 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
      * волны 3.
      */
     advantageMode: advantageModeSchema.optional(),
+    /** Ответы в окне, менявшие бросок (вдохновение, словцо), — уже внутри `total`. */
+    adjustments: adjustmentsSchema,
+    /** «Везучий»: единица, переброшенная до окна. */
+    rerolled: rerolledSchema,
   }),
   z.object({
     kind: z.literal('DAMAGE'),
@@ -660,6 +788,10 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     damageParts: modifierPartsSchema,
     temporaryAbsorbed: z.number().int().min(0),
     hitPointsLeft: z.number().int().min(0),
+    /** Ответы в окне урона (словцо, уклонение, отражение) — уже внутри `amount`. */
+    adjustments: adjustmentsSchema,
+    /** Урон не прошёл: иммунитет цели к его виду. */
+    immune: z.literal(true).optional(),
   }),
   z.object({
     kind: z.literal('CAST'),
@@ -789,6 +921,12 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
       trigger: z.enum(['ENTER', 'START', 'END']).optional(),
       /** Заклинатель, чья это сложность, — если не он сейчас ходит («Святилище»). */
       casterParticipantId: z.uuid().optional(),
+      /** Ответы в окне (вдохновение, удача Тёмного) — уже внутри `total`. */
+      adjustments: adjustmentsSchema,
+      /** Прежний к20 до переброса («Везучий», «Несгибаемость»). */
+      rerolled: rerolledSchema,
+      /** Броска не было: цель неуязвима ко всему, что даёт провал (план волны 4, №21). */
+      immune: z.literal(true).optional(),
     })
     .refine((v) => (v.spellCode === undefined) !== (v.featureCode === undefined), {
       path: ['spellCode'],
@@ -855,6 +993,10 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     outcome: deathSaveOutcomeSchema,
     successes: z.number().int().min(0).max(3),
     failures: z.number().int().min(0).max(3),
+    /** Прибавки к спасброску (аура защиты, «Благословение») — уже внутри `total`. */
+    bonusParts: modifierPartsSchema,
+    adjustments: adjustmentsSchema,
+    rerolled: rerolledSchema,
   }),
   z.object({
     kind: z.literal('STABILIZE'),
@@ -900,5 +1042,15 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     roundsRemaining: z.number().int().min(0).nullable().optional(),
   }),
   z.object({ kind: z.literal('ROUND'), round: z.number().int().min(1) }),
+  /**
+   * Ответ в окне реакции: кто (`actorParticipantId`) и чем; на кого —
+   * `targetParticipantId`. Число — брошенная кость ответа, если была.
+   */
+  z.object({
+    kind: z.literal('REACTION'),
+    ability: z.enum(REACTION_ABILITIES),
+    featureCode: z.string().min(1).max(64).nullable(),
+    value: z.number().int().optional(),
+  }),
 ]);
 export type EncounterEventPayload = z.infer<typeof encounterEventPayloadSchema>;
