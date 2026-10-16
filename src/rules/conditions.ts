@@ -248,6 +248,8 @@ export interface ReachableCellsInput {
   walls: Set<string>;
   /** Трудная местность — шаг в неё стоит две клетки (см. `reachableCells`). */
   difficult?: Set<string>;
+  /** Цена клеток зон («Рост растений» — 4), из `movementGrid` (волна 5). */
+  multipliers?: ReadonlyMap<string, number>;
   /** Проходимое, но не для остановки: чужие живые фишки. */
   tokens: Set<string>;
   /** Источники испуга, ещё стоящие на сцене — фишку-источник могли снять со стола, и тогда бояться уже некого. */
@@ -298,6 +300,7 @@ export function reachableCellsFor(input: ReachableCellsInput): Set<string> {
         grid: input.grid,
         walls: input.walls,
         difficult: input.difficult,
+        ...(input.multipliers ? { multipliers: input.multipliers } : {}),
         tokens: input.tokens,
         maxSteps: Math.floor(budgetFeet / input.cellSizeFeet),
       });

@@ -441,7 +441,8 @@ export function hasSpellEffect(mechanic: SpellMechanic | null): boolean {
       mechanic.endsOnDamage !== undefined ||
       mechanic.followUp !== undefined ||
       // Свет на носителе и подсветка невидимого («Свет» на щите, «Огонь фей»).
-      mechanic.light !== undefined ||
+      // Свет зоны («Пляшущие огоньки») живёт на клетках, а не на фишке.
+      (mechanic.light !== undefined && mechanic.light.on !== 'ZONE') ||
       mechanic.revealInvisible === true)
   );
 }

@@ -175,8 +175,12 @@ export const battleMapSaveSchema = z
     monsters: z.array(mapMonsterPresetInputSchema).max(MAP_MAX_MONSTER_PRESETS).default([]),
     terrain: mapTerrainSchema.default({}),
     drawings: mapDrawingsSchema.default([]),
-    /** Освещённость при подготовке; яркий — по умолчанию, как у заготовок до волны 5. */
-    lighting: sceneLightingSchema.default('BRIGHT'),
+    /**
+     * Освещённость при подготовке. Необязательна: редактор до волны 5 её не
+     * шлёт, и сохранение не должно гасить уже выбранный свет; новой
+     * заготовке база ставит яркий.
+     */
+    lighting: sceneLightingSchema.optional(),
   })
   .superRefine((value, ctx) => {
     const grid = { width: value.gridWidth, height: value.gridHeight };
