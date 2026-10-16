@@ -86,6 +86,31 @@ export type Predicate =
   | 'vsPoison'
   /** Лишний урон не меньше максимума хитов — стойкость полуорка не спасает. */
   | 'killedOutright'
+  // Волна 8а (разбор умений, П1.1).
+  /** Бьют предметом-оружием, а не без оружия: у удара без оружия кости оружия нет. */
+  | 'weaponItem'
+  /** Атака оружием (не заклинанием): `ctx.attack.weapon`. */
+  | 'weaponAttack'
+  /** Рукопашная атака оружием: `ctx.attack.weapon` и `ctx.weapon.rangeType`. */
+  | 'meleeWeaponAttack'
+  /** Рукопашная атака — любая (жестокий крит), `ctx.attack.range`. */
+  | 'meleeAttack'
+  /** Оружие взято двумя руками: двуручное или универсальное без щита и второго оружия. */
+  | 'twoHandedGrip'
+  /** У цели хитов меньше максимума — до урона этой атаки (губитель колоссов). */
+  | 'targetBelowMaxHp'
+  /** Проверка без владения навыком — выдающийся атлет. */
+  | 'notProficientCheck'
+  /** Заклинание восстанавливает хиты — ученик жизни (`ctx.spell.restoresHp`). */
+  | 'spellRestoresHp'
+  /** Заговор (круг 0). */
+  | 'cantrip'
+  /** Заклинание требует спасброска — мощный заговор. */
+  | 'spellForcesSave'
+  /** Заклинание из списка класса, а не дар расы или воззвания — усиленное воплощение. */
+  | 'classSpell'
+  /** Урон заклинания — вида драконьего предка чародея (стихийное сродство). */
+  | 'sorcererAncestryDamage'
   | { anyOf: readonly Predicate[] }
   | { not: Predicate }
   /** На носителе нет ни одного из этих состояний — чувство опасности. */
@@ -97,7 +122,13 @@ export type Predicate =
   /** Провал спасброска накладывает это состояние — храбрость, стальная воля. */
   | { vsCondition: ConditionCode }
   /** Носитель не дальше стольких футов от цели или атакующего (`ctx.distances`). */
-  | { withinFeet: number; of: 'target' | 'attacker' };
+  | { withinFeet: number; of: 'target' | 'attacker' }
+  /** Проверка одной из этих характеристик (`ctx.check.ability`). */
+  | { checkAbility: readonly AbilityCode[] }
+  /** Заклинание не ниже этого круга (`ctx.spell.level`). */
+  | { spellLevelAtLeast: number }
+  /** Школа заклинания (`ctx.spell.school`, код справочника: `evocation`). */
+  | { spellSchool: string };
 
 /** Таблицы `progression.ts` по уровню носителя — закрытый перечень. */
 export type AmountTable =
@@ -105,7 +136,10 @@ export type AmountTable =
   | 'martialArtsDie'
   | 'sneakAttackDice'
   | 'unarmoredMovement'
-  | 'bardicInspirationDie';
+  | 'bardicInspirationDie'
+  | 'songOfRestDie'
+  | 'brutalCriticalDice'
+  | 'divineStrikeDice';
 
 /**
  * Число грани. `{ ability }` — модификатор характеристики носителя: он
@@ -114,8 +148,14 @@ export type AmountTable =
 export type Amount =
   | number
   | 'halfProficiency'
+  /** Половина мастерства с округлением вверх — выдающийся атлет. */
+  | 'halfProficiencyUp'
   | 'proficiency'
   | 'level'
+  /** Круг ячейки сотворения (`amountOf(…, { spellLevel })`); вне сотворения — 0. */
+  | 'spellLevel'
+  /** Половина с округлением вверх — бюджет восстановления ячеек. */
+  | { halfUp: Amount }
   | { table: AmountTable }
   | { ability: AbilityCode; min?: number }
   | { times: number; of: Amount }
@@ -188,11 +228,23 @@ export interface DefenseFacet extends Conditional {
   suspends?: true;
   /** Иммунитет к болезням; болезни читают черты монстров волны 7. */
   disease?: true;
+  /**
+   * Сопротивление не режет урон магического или серебряного оружия
+   * (исчадная стойкость). `'CHOSEN'` в `resistance` — вид, выбранный на
+   * отдыхе (`holder.fiendishResilienceType`).
+   */
+  except?: readonly ('magicalWeapon' | 'silveredWeapon')[];
 }
 
-export interface CritFacet {
+/**
+ * Крит: порог (улучшенный крит) и лишние кости оружия на крите —
+ * жестокий крит варвара, свирепые атаки полуорка (П1.3). Источники
+ * складываются: это разные умения.
+ */
+export interface CritFacet extends Conditional {
   kind: 'crit';
-  threshold: number;
+  threshold?: number;
+  extraWeaponDice?: Amount;
 }
 
 /** Следствие попадания по выбору на шаге урона: спасбросок цели и что на провале. */
@@ -210,7 +262,13 @@ export interface OnHitFacet extends Conditional {
   /** Нет — грань не бросает костей, а несёт следствие (`rider`). */
   dice?: { count: Amount; sides: number; perSlotAbove?: number; max?: number };
   damageType?: 'WEAPON' | string;
+  /** Раз в ход — скрытая атака (счётчик `sneakAttackUsed`). */
   oncePerTurn?: true;
+  /**
+   * Раз в ход своим счётчиком (`onHitUsed`): `turn` — в любой ход
+   * (губитель колоссов), `ownTurn` — только в свой (божественный удар).
+   */
+  oncePer?: 'turn' | 'ownTurn';
   cost?: 'spellSlot' | { resource: CharacterResourceCode; amount: number };
   rider?: Rider;
   extraVs?: { creatureTypes: readonly string[]; count: number };
@@ -236,7 +294,8 @@ export type EffectCode =
   | 'STUNNING_STRIKE'
   | 'ELEMENTAL_AFFINITY'
   | 'MULTIATTACK_DEFENSE'
-  | 'COUNTERCHARM';
+  | 'COUNTERCHARM'
+  | 'GAZE_OF_TWO_MINDS';
 
 /**
  * Что нужно ввести, нажимая кнопку. Постоянные варианты лежат здесь;
@@ -288,7 +347,9 @@ export interface RuleFacet {
     /** Уклонение: спасбросок Ловкости на половину урона — успех 0, провал половина. */
     | 'evasion'
     /** Магия не усыпляет — наследие фей: «Сон» пропускает, не тратя запас. */
-    | 'immuneMagicalSleep';
+    | 'immuneMagicalSleep'
+    /** Удары без оружия магические — удары, усиленные ци. */
+    | 'magicalUnarmed';
 }
 
 /** Ресурс вне таблиц классов: максимум 1, свой отдых (§П2 разбора умений). */
@@ -315,12 +376,61 @@ export interface CastOptionFacet {
   exclusive?: true;
 }
 
-/** Поправка заклинания: стихийное сродство — модификатор к одному броску урона. */
-export interface SpellModifierFacet {
+/**
+ * Поправка заклинания носителя (П1.3): условия — предикаты заклинания
+ * (`ctx.spell`), `spell` — только это заклинание (воззвания «Таинственного
+ * взрыва»).
+ */
+export interface SpellModifierFacet extends Conditional {
   kind: 'spellModifier';
-  effect: 'addAbilityToOneDamageRoll';
-  ability: AbilityCode;
-  when: 'sorcererAncestryDamage';
+  spell?: string;
+  effect: SpellModifierEffect;
+}
+
+export type SpellModifierEffect =
+  /** Модификатор к одному броску урона — стихийное сродство, усиленное воплощение. */
+  | { addToOneDamageRoll: { ability: AbilityCode } }
+  /** Модификатор к урону каждого попавшего луча — мучительный взрыв. */
+  | { addToEachBeamDamage: { ability: AbilityCode } }
+  /** Дистанция заклинания в футах — таинственное копьё. */
+  | { rangeFeet: number }
+  /** Попавший луч отталкивает от заклинателя — отталкивающий взрыв. */
+  | { pushOnHitFeet: number }
+  /** Успех спасброска — половина урона и без прочих следствий — мощный заговор. */
+  | { halfOnSave: true; noRiderOnSave: true }
+  /** Прибавка к лечению каждого вылеченного — ученик жизни. */
+  | { healingBonus: Amount };
+
+/**
+ * Заклинание, дарованное умением или чертой (П1.10): творится по своей
+ * записи `SPELL_MECHANICS`, грань задаёт только цену. `slot: 'none'` —
+ * без ячейки (кругом `castLevel` или своим), `'pact'` — ячейкой договора
+ * и счётчиком `uses`.
+ */
+export interface SpellGrantFacet {
+  kind: 'spellGrant';
+  spell: string;
+  slot: 'none' | 'pact';
+  /** Неограниченно — без счётчика. */
+  atWill?: true;
+  selfOnly?: true;
+  noMaterial?: true;
+  castLevel?: number;
+  uses?: CharacterResourceCode;
+  /** С какого уровня носителя (тифлинг: «Адское возмездие» с 3). */
+  fromLevel?: number;
+}
+
+/**
+ * Действие на коротком отдыхе — магическое и природное восстановление:
+ * вернуть ячейки общим кругом не выше бюджета, ни одной выше `maxSlotLevel`.
+ */
+export interface RestActionFacet {
+  kind: 'restAction';
+  on: 'SHORT';
+  budget: Amount;
+  maxSlotLevel: number;
+  uses: CharacterResourceCode;
 }
 
 /**
@@ -329,7 +439,14 @@ export interface SpellModifierFacet {
  */
 export type TriggerFacet =
   | { kind: 'trigger'; on: 'reduceHostileToZero'; tempHp: Amount }
-  | { kind: 'trigger'; on: 'hitByAttack'; applyEffect: EffectCode };
+  | { kind: 'trigger'; on: 'hitByAttack'; applyEffect: EffectCode }
+  /** Песнь отдыха: потратившим кость хитов на коротком отдыхе — ещё кость. */
+  | { kind: 'trigger'; on: 'shortRestHitDice'; extraHeal: { sides: Amount } }
+  /**
+   * Благословенный целитель: заклинание лечит другого — заклинатель
+   * лечится сам, раз за сотворение (условия — предикаты заклинания).
+   */
+  | { kind: 'trigger'; on: 'healOtherWithSpell'; when?: readonly Predicate[]; healSelf: Amount };
 
 /**
  * Ответ в окне реакции (дизайн 15 октября, §5; разбор умений §1.1).
@@ -378,13 +495,18 @@ export interface ZoneFacet extends Conditional {
   grants: readonly Facet[];
 }
 
-/** Переброс кости, ушедшей в итог, — «Везучий» (П4 #56). */
-export interface RerollFacet {
-  kind: 'reroll';
-  die: 'd20';
-  on: readonly number[];
-  rolls: readonly ('attack' | 'check' | 'save')[];
-}
+/**
+ * Переброс: к20, ушедший в итог, — «Везучий» (П4 #56); кость урона атаки —
+ * бой большим оружием (каждая кость один раз, новое значение берётся).
+ */
+export type RerollFacet =
+  | {
+      kind: 'reroll';
+      die: 'd20';
+      on: readonly number[];
+      rolls: readonly ('attack' | 'check' | 'save')[];
+    }
+  | { kind: 'reroll'; die: 'damageDie'; on: readonly number[]; when?: readonly Predicate[] };
 
 export type Facet =
   | ModifierFacet
@@ -402,7 +524,9 @@ export type Facet =
   | TriggerFacet
   | ReactionFacet
   | ZoneFacet
-  | RerollFacet;
+  | RerollFacet
+  | SpellGrantFacet
+  | RestActionFacet;
 
 type MarkKey = 'outOfCombat' | 'holder' | 'tableDriven' | 'sheet';
 /** Ровно одно поле из перечисленных — прочие запрещены типом (`never`). */
@@ -474,6 +598,8 @@ export interface MechanicsHolder {
   abilityModifiers?: Readonly<Partial<Record<AbilityCode, number>>>;
   /** Данные эффектов по коду — для предикатов `effect*` (священное оружие, помощь). */
   effectData?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  /** Вид урона исчадной стойкости, выбранный на отдыхе; пусто — сопротивления нет. */
+  fiendishResilienceType?: string | null;
 }
 
 export interface MechanicsContext {
@@ -487,6 +613,8 @@ export interface MechanicsContext {
     itemId?: string;
     /** Клинок договора колдуна. */
     pact?: boolean;
+    /** Взято двумя руками — бой большим оружием. */
+    twoHanded?: boolean;
   };
   roll?: {
     mode: AdvantageMode;
@@ -495,7 +623,25 @@ export interface MechanicsContext {
     targetSeesAttacker?: boolean;
   };
   turn?: { isOwn: boolean; movedAtMostHalf: boolean };
-  target?: { id: string };
+  target?: {
+    id: string;
+    /** Хитов меньше максимума до этого урона — губитель колоссов. */
+    belowMaxHp?: boolean;
+  };
+  /** Проверка характеристики: какой и с владением ли — выдающийся атлет. */
+  check?: { ability: AbilityCode; proficient: boolean };
+  /** Сотворение: поля заклинания для поправок (П1.3). */
+  spell?: {
+    code: string;
+    /** Круг заклинания (0 — заговор). */
+    level: number;
+    school: string | null;
+    restoresHp: boolean;
+    forcesSave: boolean;
+    /** Из списка класса — не дар расы и не воззвание. */
+    classSpell: boolean;
+    damageType: string | null;
+  };
   attack?: {
     via?: AttackVia;
     range?: 'MELEE' | 'RANGED';
@@ -503,6 +649,8 @@ export interface MechanicsContext {
     weapon?: boolean;
     spell?: boolean;
     isOpportunity?: boolean;
+    /** Оружие магическое или серебряное — исчадная стойкость его не режет. */
+    magicalWeapon?: boolean;
   };
   bearer?: {
     alert?: boolean;

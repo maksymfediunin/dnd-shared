@@ -1,3 +1,4 @@
+import type { CharacterResourceCode } from '../../enums/character.js';
 import type { Facet, MechanicRecord } from './types.js';
 
 /*
@@ -21,6 +22,35 @@ const DUELING: MechanicRecord = {
 const TWO_WEAPON_FIGHTING: MechanicRecord = {
   facets: [{ kind: 'rule', rule: 'offHandAbilityDamage' }],
 };
+/**
+ * Бой большим оружием (воин и паладин): 1 и 2 на кости урона рукопашной
+ * атаки оружием, взятым двумя руками, перебрасываются — все кости атаки,
+ * включая кару и крит (П4 №23).
+ */
+const GREAT_WEAPON_FIGHTING: MechanicRecord = {
+  facets: [
+    { kind: 'reroll', die: 'damageDie', on: [1, 2], when: ['meleeWeaponAttack', 'twoHandedGrip'] },
+  ],
+};
+/** Восстановление ячеек на коротком отдыхе: половина уровня вверх, не выше 5 круга. */
+const RECOVER_SLOTS = (uses: 'ARCANE_RECOVERY' | 'NATURAL_RECOVERY'): Facet => ({
+  kind: 'restAction',
+  on: 'SHORT',
+  budget: { halfUp: 'level' },
+  maxSlotLevel: 5,
+  uses,
+});
+/** Воззвание «раз ячейкой колдуна»: ячейка договора и счётчик до длинного отдыха. */
+const PACT_GRANT = (spell: string, uses: CharacterResourceCode): MechanicRecord => ({
+  facets: [
+    { kind: 'resource', code: uses, recovery: 'LONG' },
+    { kind: 'spellGrant', spell, slot: 'pact', uses },
+  ],
+});
+/** Воззвание «неограниченно, без ячейки». */
+const AT_WILL = (spell: string): MechanicRecord => ({
+  facets: [{ kind: 'spellGrant', spell, slot: 'none', atWill: true }],
+});
 /**
  * «Оборона» — у воина и паладина код разный, правило одно: реакцией
  * помеха атаке по соседу носителя щита, которого атакующий видит.
@@ -389,9 +419,8 @@ export const FEATURE_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
     facets: [
       {
         kind: 'spellModifier',
-        effect: 'addAbilityToOneDamageRoll',
-        ability: 'charisma',
-        when: 'sorcererAncestryDamage',
+        effect: { addToOneDamageRoll: { ability: 'charisma' } },
+        when: ['sorcererAncestryDamage'],
       },
       { kind: 'castOption', option: 'ELEMENTAL_RESISTANCE', cost: 1 },
     ],
@@ -574,36 +603,237 @@ export const FEATURE_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
       },
     ],
   },
+  // Волна 8а (план w8, §5.1): восстановление ячеек — ресурс и действие отдыха.
   'arcane-recovery': {
-    facets: [{ kind: 'resource', code: 'ARCANE_RECOVERY', recovery: 'LONG' }],
+    facets: [
+      { kind: 'resource', code: 'ARCANE_RECOVERY', recovery: 'LONG' },
+      RECOVER_SLOTS('ARCANE_RECOVERY'),
+    ],
   },
   'natural-recovery': {
-    facets: [{ kind: 'resource', code: 'NATURAL_RECOVERY', recovery: 'LONG' }],
+    facets: [
+      { kind: 'resource', code: 'NATURAL_RECOVERY', recovery: 'LONG' },
+      RECOVER_SLOTS('NATURAL_RECOVERY'),
+    ],
   },
+  // «Раз в 7 дней» — запертый ресурс (р. 23): успех запирает на 7 долгих отдыхов.
   'divine-intervention': {
-    facets: [{ kind: 'resource', code: 'DIVINE_INTERVENTION', recovery: 'LONG' }],
+    facets: [
+      { kind: 'resource', code: 'DIVINE_INTERVENTION', recovery: 'LONG' },
+      {
+        kind: 'action',
+        ability: 'DIVINE_INTERVENTION',
+        economy: 'ACTION',
+        resource: 'DIVINE_INTERVENTION',
+      },
+    ],
   },
-  'eldritch-invocation-thief-of-five-fates': {
-    facets: [{ kind: 'resource', code: 'THIEF_OF_FIVE_FATES', recovery: 'LONG' }],
+  // «Раз ячейкой колдуна» — и ячейка договора, и свой счётчик (разбор §12).
+  'eldritch-invocation-thief-of-five-fates': PACT_GRANT('bane', 'THIEF_OF_FIVE_FATES'),
+  'eldritch-invocation-mire-the-mind': PACT_GRANT('slow', 'MIRE_THE_MIND'),
+  'eldritch-invocation-sign-of-ill-omen': PACT_GRANT('bestow-curse', 'SIGN_OF_ILL_OMEN'),
+  'eldritch-invocation-bewitching-whispers': PACT_GRANT('compulsion', 'BEWITCHING_WHISPERS'),
+  'eldritch-invocation-dreadful-word': PACT_GRANT('confusion', 'DREADFUL_WORD'),
+  'eldritch-invocation-sculptor-of-flesh': PACT_GRANT('polymorph', 'SCULPTOR_OF_FLESH'),
+  'eldritch-invocation-minions-of-chaos': PACT_GRANT('conjure-elemental', 'MINIONS_OF_CHAOS'),
+  // «Неограниченно» — без ячейки; в бою решает запись самого заклинания (р. 20).
+  'eldritch-invocation-armor-of-shadows': {
+    facets: [
+      {
+        kind: 'spellGrant',
+        spell: 'mage-armor',
+        slot: 'none',
+        atWill: true,
+        selfOnly: true,
+        noMaterial: true,
+      },
+    ],
   },
-  'eldritch-invocation-mire-the-mind': {
-    facets: [{ kind: 'resource', code: 'MIRE_THE_MIND', recovery: 'LONG' }],
+  'eldritch-invocation-beast-speech': AT_WILL('speak-with-animals'),
+  'eldritch-invocation-eldritch-sight': AT_WILL('detect-magic'),
+  'eldritch-invocation-fiendish-vigor': {
+    facets: [
+      {
+        kind: 'spellGrant',
+        spell: 'false-life',
+        slot: 'none',
+        atWill: true,
+        selfOnly: true,
+        castLevel: 1,
+        noMaterial: true,
+      },
+    ],
   },
-  'eldritch-invocation-sign-of-ill-omen': {
-    facets: [{ kind: 'resource', code: 'SIGN_OF_ILL_OMEN', recovery: 'LONG' }],
+  'eldritch-invocation-mask-of-many-faces': AT_WILL('disguise-self'),
+  'eldritch-invocation-misty-visions': {
+    facets: [
+      { kind: 'spellGrant', spell: 'silent-image', slot: 'none', atWill: true, noMaterial: true },
+    ],
   },
-  'eldritch-invocation-bewitching-whispers': {
-    facets: [{ kind: 'resource', code: 'BEWITCHING_WHISPERS', recovery: 'LONG' }],
+  'eldritch-invocation-ascendant-step': {
+    facets: [
+      {
+        kind: 'spellGrant',
+        spell: 'levitate',
+        slot: 'none',
+        atWill: true,
+        selfOnly: true,
+        noMaterial: true,
+      },
+    ],
   },
-  'eldritch-invocation-dreadful-word': {
-    facets: [{ kind: 'resource', code: 'DREADFUL_WORD', recovery: 'LONG' }],
+  'eldritch-invocation-otherworldly-leap': {
+    facets: [
+      {
+        kind: 'spellGrant',
+        spell: 'jump',
+        slot: 'none',
+        atWill: true,
+        selfOnly: true,
+        noMaterial: true,
+      },
+    ],
   },
-  'eldritch-invocation-sculptor-of-flesh': {
-    facets: [{ kind: 'resource', code: 'SCULPTOR_OF_FLESH', recovery: 'LONG' }],
+  'eldritch-invocation-whispers-of-the-grave': AT_WILL('speak-with-dead'),
+  // Воззвания «Таинственного взрыва» — каждый попавший луч отдельно (разбор §12).
+  'eldritch-invocation-agonizing-blast': {
+    facets: [
+      {
+        kind: 'spellModifier',
+        spell: 'eldritch-blast',
+        effect: { addToEachBeamDamage: { ability: 'charisma' } },
+      },
+    ],
   },
-  'eldritch-invocation-minions-of-chaos': {
-    facets: [{ kind: 'resource', code: 'MINIONS_OF_CHAOS', recovery: 'LONG' }],
+  'eldritch-invocation-eldritch-spear': {
+    facets: [{ kind: 'spellModifier', spell: 'eldritch-blast', effect: { rangeFeet: 300 } }],
   },
+  'eldritch-invocation-repelling-blast': {
+    facets: [{ kind: 'spellModifier', spell: 'eldritch-blast', effect: { pushOnHitFeet: 10 } }],
+  },
+  'eldritch-invocation-gaze-of-two-minds': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'GAZE_OF_TWO_MINDS',
+        economy: 'ACTION',
+        applies: 'GAZE_OF_TWO_MINDS',
+        input: { target: 'CREATURE', rangeFeet: 5 },
+      },
+      {
+        kind: 'action',
+        ability: 'GAZE_EXTEND',
+        economy: 'ACTION',
+        requiresEffect: 'GAZE_OF_TWO_MINDS',
+      },
+    ],
+  },
+  'song-of-rest-d6': {
+    facets: [
+      { kind: 'trigger', on: 'shortRestHitDice', extraHeal: { sides: { table: 'songOfRestDie' } } },
+    ],
+  },
+  // «Круг» — круг ячейки; на каждое вылеченное существо (П4 №13).
+  'disciple-of-life': {
+    facets: [
+      {
+        kind: 'spellModifier',
+        when: ['spellRestoresHp', { spellLevelAtLeast: 1 }],
+        effect: { healingBonus: { sum: [2, 'spellLevel'] } },
+      },
+    ],
+  },
+  // Раз за сотворение, только если вылечен кто-то кроме заклинателя.
+  'blessed-healer': {
+    facets: [
+      {
+        kind: 'trigger',
+        on: 'healOtherWithSpell',
+        when: ['spellRestoresHp', { spellLevelAtLeast: 1 }],
+        healSelf: { sum: [2, 'spellLevel'] },
+      },
+    ],
+  },
+  'divine-strike': {
+    facets: [
+      {
+        kind: 'onHit',
+        dice: { count: { table: 'divineStrikeDice' }, sides: 8 },
+        damageType: 'radiant',
+        oncePer: 'ownTurn',
+        when: ['weaponAttack'],
+      },
+    ],
+  },
+  'brutal-critical-1-die': {
+    facets: [
+      {
+        kind: 'crit',
+        extraWeaponDice: { table: 'brutalCriticalDice' },
+        when: ['meleeAttack', 'weaponItem'],
+      },
+    ],
+  },
+  'fighter-fighting-style-great-weapon-fighting': GREAT_WEAPON_FIGHTING,
+  'fighting-style-great-weapon-fighting': GREAT_WEAPON_FIGHTING,
+  // «Ниже максимума» — до урона этой атаки (П4 №18), раз в любой ход.
+  'hunters-prey-colossus-slayer': {
+    facets: [
+      {
+        kind: 'onHit',
+        dice: { count: 1, sides: 8 },
+        damageType: 'WEAPON',
+        oncePer: 'turn',
+        when: ['weaponAttack', 'targetBelowMaxHp'],
+      },
+    ],
+  },
+  // Инициатива — проверка Ловкости, прибавка к ней тоже (разбор §6).
+  'remarkable-athlete': {
+    facets: [
+      {
+        kind: 'modifier',
+        target: 'skill',
+        amount: 'halfProficiencyUp',
+        source: 'remarkableAthlete',
+        when: [{ checkAbility: ['strength', 'dexterity', 'constitution'] }, 'notProficientCheck'],
+      },
+      {
+        kind: 'modifier',
+        target: 'initiative',
+        amount: 'halfProficiencyUp',
+        source: 'remarkableAthlete',
+      },
+    ],
+  },
+  'sculpt-spells': {
+    facets: [{ kind: 'castOption', option: 'SCULPT', cost: 0 }],
+  },
+  // Любой заговор волшебника, не только воплощения (разбор §13).
+  'potent-cantrip': {
+    facets: [
+      {
+        kind: 'spellModifier',
+        when: ['cantrip', 'spellForcesSave'],
+        effect: { halfOnSave: true, noRiderOnSave: true },
+      },
+    ],
+  },
+  'empowered-evocation': {
+    facets: [
+      {
+        kind: 'spellModifier',
+        when: [{ spellSchool: 'evocation' }, 'classSpell'],
+        effect: { addToOneDamageRoll: { ability: 'intelligence' } },
+      },
+    ],
+  },
+  'fiendish-resilience': {
+    facets: [
+      { kind: 'defense', resistance: ['CHOSEN'], except: ['magicalWeapon', 'silveredWeapon'] },
+    ],
+  },
+  'ki-empowered-strikes': { facets: [{ kind: 'rule', rule: 'magicalUnarmed' }] },
 
   'barbarian-unarmored-defense': {
     facets: [{ kind: 'acFormula', base: 10, ability: 'constitution', shield: true }],
