@@ -129,19 +129,28 @@ export type Facet =
   | ActionFacet
   | RuleFacet;
 
+type MarkKey = 'outOfCombat' | 'holder' | 'tableDriven' | 'sheet';
+/** Ровно одно поле из перечисленных — прочие запрещены типом (`never`). */
+type Only<K extends 'facets' | MarkKey, V> = { [P in K]: V } & {
+  [P in Exclude<'facets' | MarkKey, K>]?: never;
+};
+
 /**
  * Запись: грани или ровно одна пометка, почему граней нет (§3.3
- * дизайна). Поля `gm` в типе нет — его и не напишешь.
+ * дизайна). Поля `gm` в типе нет — его и не напишешь; запись с гранями
+ * пометок не несёт, и две пометки разом тип тоже не пропустит. Что
+ * строка пометки не пустая, проверяет тест полноты — типом это не
+ * выразить.
  */
 export type MechanicRecord =
-  | { facets: readonly Facet[] }
-  | { outOfCombat: string }
+  | Only<'facets', readonly Facet[]>
+  | Only<'outOfCombat', string>
   /** `subclassStep` — заглушка ступени подкласса: в окне повышения не показывается. */
-  | { holder: 'choice' | 'subclassStep' }
+  | Only<'holder', 'choice' | 'subclassStep'>
   /** Ступенька, чьё число приходит из `progression.ts`; значение — код первой ступени. */
-  | { tableDriven: string }
+  | Only<'tableDriven', string>
   /** Действует через лист: владения, компетентность, ячейки, заклинания подкласса. */
-  | { sheet: string };
+  | Only<'sheet', string>;
 
 export interface EffectMechanic {
   facets: readonly Facet[];

@@ -96,7 +96,7 @@ export function amountOf(amount: Amount, h: MechanicsHolder): number {
 }
 
 function facetsOfRecord(record: MechanicRecord | undefined): readonly Facet[] {
-  return record && 'facets' in record ? record.facets : [];
+  return record?.facets ?? [];
 }
 
 /**
@@ -254,6 +254,13 @@ export interface AvailableActionsInput {
   resources: readonly { code: CharacterResourceCode; max: number; used: number }[];
   economy: { hasUsedAction: boolean; hasUsedBonusAction: boolean; hasUsedReaction: boolean };
   isTurn: boolean;
+  /** На нуле хитов не действуют — причина раньше всех прочих. */
+  isDown?: boolean;
+  /**
+   * Обход ведущего: он правит стол и снимает очередь и экономику хода (так
+   * было и до волны 2); пустой ресурс не снимает — заряда нет и у него.
+   */
+  override?: boolean;
 }
 
 const ECONOMY_REASON: Partial<Record<ActionEconomy, ActionUnavailableReason>> = {
@@ -271,7 +278,7 @@ const ECONOMY_REASON: Partial<Record<ActionEconomy, ActionUnavailableReason>> = 
  * потраченный вид действия, исчерпанный ресурс.
  */
 export function availableActions(input: AvailableActionsInput): AvailableAction[] {
-  const { holder: h, economy, isTurn } = input;
+  const { holder: h, economy, isTurn, override = false } = input;
   const used = {
     ACTION: economy.hasUsedAction,
     BONUS_ACTION: economy.hasUsedBonusAction,
@@ -293,10 +300,11 @@ export function availableActions(input: AvailableActionsInput): AvailableAction[
       if (!owned) continue;
       if (facet.applies && h.effects.includes(facet.applies)) continue;
       const left = resource ? Math.max(0, resource.max - resource.used) : null;
-      const reason: ActionUnavailableReason | null =
-        !isTurn && facet.economy !== 'REACTION'
+      const reason: ActionUnavailableReason | null = input.isDown
+        ? 'PARTICIPANT_IS_DOWN'
+        : !override && !isTurn && facet.economy !== 'REACTION'
           ? 'NOT_YOUR_TURN'
-          : used[facet.economy]
+          : !override && used[facet.economy]
             ? (ECONOMY_REASON[facet.economy] ?? null)
             : left === 0
               ? 'RESOURCE_EXHAUSTED'
