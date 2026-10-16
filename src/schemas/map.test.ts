@@ -415,3 +415,19 @@ describe('сторона фишки в правке участника', () => {
     expect(() => participantUpdateSchema.parse({ side: 'ALLY' })).toThrow();
   });
 });
+
+describe('волна 5: свет и высота в контракте', () => {
+  it('старая правка фишки {x, y} проходит; высота 7 при клетке 5 проходит схему — кратность решает служба', () => {
+    expect(participantUpdateSchema.safeParse({ x: 1, y: 2 }).success).toBe(true);
+    expect(participantUpdateSchema.safeParse({ x: 1, y: 2, elevationFeet: 7 }).success).toBe(true);
+    expect(participantUpdateSchema.safeParse({ carriesTorch: true }).success).toBe(true);
+    expect(participantUpdateSchema.safeParse({ elevationFeet: -5 }).success).toBe(false);
+  });
+
+  it('заготовка без освещённости — яркий свет; настройки сцены принимают одну освещённость', () => {
+    expect(battleMapSaveSchema.parse(validMap).lighting).toBe('BRIGHT');
+    expect(battleMapSaveSchema.parse({ ...validMap, lighting: 'DARK' }).lighting).toBe('DARK');
+    expect(encounterSettingsSchema.safeParse({ lighting: 'DIM' }).success).toBe(true);
+    expect(encounterSettingsSchema.safeParse({ lighting: 'NIGHT' }).success).toBe(false);
+  });
+});

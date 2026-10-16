@@ -251,24 +251,36 @@ describe('варианты, зоны и следствия урона', () => {
 
 describe('пустые записи', () => {
   // Без записи тест полноты не отличил бы «считает SRD» от «забыли».
-  it('14 заклинаний, которые целиком считают поля SRD и код, — с записью {}', () => {
+  // Волна 5: туман, «Тьма» и облако получили свойства зоны, а заклинания
+  // «по существу, которое вы видите» — поле `seen` (план волны 5, §5.2,
+  // решение 14). Прочего у них по-прежнему нет.
+  it('8 заклинаний, которые целиком считают поля SRD и код, — с записью {}', () => {
     for (const code of [
       'circle-of-death',
       'cure-wounds',
-      'darkness',
       'fireball',
-      'fog-cloud',
-      'healing-word',
-      'hunters-mark',
       'inflict-wounds',
       'lightning-bolt',
-      'poison-spray',
       'sleep',
       'spare-the-dying',
-      'stinking-cloud',
       'thunderwave',
     ]) {
       expect(SPELL_MECHANICS[code], code).toEqual({});
+    }
+  });
+
+  it('волна 5: у тумана, «Тьмы» и облака — только зона, у трёх «видимых» — только seen', () => {
+    expect(SPELL_MECHANICS['fog-cloud']).toEqual({
+      zone: { obscure: 'HEAVY', dispersedBy: 'WIND' },
+    });
+    expect(SPELL_MECHANICS.darkness).toEqual({
+      zone: { obscure: 'HEAVY', magicalDarkness: true },
+    });
+    expect(SPELL_MECHANICS['stinking-cloud']).toEqual({
+      zone: { obscure: 'HEAVY', dispersedBy: 'WIND' },
+    });
+    for (const code of ['healing-word', 'hunters-mark', 'poison-spray']) {
+      expect(SPELL_MECHANICS[code], code).toEqual({ seen: 'TARGET' });
     }
   });
 });

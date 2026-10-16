@@ -15,6 +15,9 @@ export const TRAIT_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
     ],
   },
   // Перебрасывается кость, ушедшая в итог, — сама, до окна (П4 #56).
+  darkvision: { facets: [{ kind: 'sense', sense: 'darkvision', rangeFeet: 60 }] },
+  'halfling-nimbleness': { facets: [{ kind: 'rule', rule: 'moveThroughLargerCreatures' }] },
+  'naturally-stealthy': { facets: [{ kind: 'rule', rule: 'hideBehindLargerCreature' }] },
   lucky: { facets: [{ kind: 'reroll', die: 'd20', on: [1], rolls: ['attack', 'check', 'save'] }] },
   brave: {
     facets: [

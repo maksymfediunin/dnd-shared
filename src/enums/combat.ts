@@ -84,6 +84,9 @@ export const CONTINUATION_OPS = [
   'REACTION_ATTACK',
   'ZONES_ON_MOVE',
   'FOLLOW_UP',
+  // Волна 5: зоны на смене хода и падение — операции окна (решения 20–21).
+  'ZONES_ON_TURN',
+  'FALL',
 ] as const;
 export type ContinuationOp = (typeof CONTINUATION_OPS)[number];
 

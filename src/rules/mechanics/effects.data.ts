@@ -169,6 +169,8 @@ export const EFFECT_MECHANICS: Readonly<Record<EffectCode, EffectMechanic>> = {
         source: 'sacredWeapon',
         when: ['effectItemIsWeapon'],
       },
+      // Оружие светит: 20 футов яркого и 20 тусклого (SRD «emits bright light»).
+      { kind: 'light', bright: 20, dim: 20 },
     ],
     expires: 'COMBAT_END',
     rounds: 10,
@@ -222,6 +224,18 @@ export const EFFECT_MECHANICS: Readonly<Record<EffectCode, EffectMechanic>> = {
     expires: 'COMBAT_END',
     until: { who: 'BEARER', at: 'END' },
     endsOnIncapacitated: true,
+  },
+  /**
+   * Единство с тенями: невидим, пока не двинется, не совершит действие или
+   * реакцию. Бонусное действие не снимает.
+   */
+  ONE_WITH_SHADOWS: {
+    facets: [],
+    expires: 'COMBAT_END',
+    condition: 'invisible',
+    endsOnMove: true,
+    endsOnAction: true,
+    endsOnReaction: true,
   },
   /** Стихийное сродство: сопротивление виду урона предка на час — переживает бой. */
   ELEMENTAL_AFFINITY: {

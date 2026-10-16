@@ -20,7 +20,7 @@ import type { MechanicsContext, MechanicsHolder, ReactionFacet } from './mechani
 export const REACTION_WINDOW_MS = 30_000;
 
 /** Заклинания-реакции, которые предлагает окно (остальные — волна 8). */
-export const WINDOW_REACTION_SPELLS = ['shield'] as const;
+export const WINDOW_REACTION_SPELLS = ['shield', 'feather-fall'] as const;
 
 /**
  * Ответы не из реестра: атака при отходе есть у каждого, «Щит» — у
@@ -43,6 +43,15 @@ export const BASE_REACTIONS: readonly ReactionFacet[] = [
     economy: 'REACTION',
     who: 'target',
     effect: { castSpell: 'shield' },
+  },
+  // «Пёрышко» (волна 5): реакция на падение — своё или союзника в 60 футах.
+  {
+    kind: 'reaction',
+    ability: 'FEATHER_FALL',
+    event: ['falling'],
+    economy: 'REACTION',
+    who: 'other',
+    effect: { castSpell: 'feather-fall' },
   },
 ];
 
@@ -100,6 +109,7 @@ function rollerIds(e: ReactionEvent): readonly string[] {
     case 'saveRolled':
     case 'saveFailed':
     case 'reducedToZero':
+    case 'falling':
       return e.subjectIds;
     default:
       return e.actorId ? [e.actorId] : [];
@@ -222,7 +232,15 @@ function effectFits(
   // Невероятное уклонение — от попавшей атаки, а не от урона по площади.
   if ('halveDamage' in effect) return e.attack !== undefined;
   if ('empower' in effect) return e.spellDamage === true;
-  if ('castSpell' in effect) return m.reactionSpells.includes(effect.castSpell);
+  if ('castSpell' in effect) {
+    if (!m.reactionSpells.includes(effect.castSpell)) return false;
+    // «Пёрышко» — падающий в 60 футах от заклинателя (SRD).
+    if (effect.castSpell !== 'feather-fall') return true;
+    return e.subjectIds.some((id) => {
+      const faller = members.get(id);
+      return faller !== undefined && reachDistance(m, faller) * e.cellSizeFeet <= 60;
+    });
+  }
   if ('attack' in effect && effect.attack === 'mover') {
     // Отход: перемещение до конца хода ударов вслед не провоцирует (§П3.2).
     const mover = e.actorId ? members.get(e.actorId) : undefined;
