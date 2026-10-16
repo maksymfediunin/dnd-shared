@@ -125,8 +125,24 @@ export const EFFECT_MECHANICS: Readonly<Record<EffectCode, EffectMechanic>> = {
   HIDDEN: { facets: [], expires: 'COMBAT_END', spentBy: 'ownAttack' },
   /** Подготовленная атака: оружие и цель — в данных; реакцией в чужой ход. */
   READIED: { facets: [], expires: 'OWN_TURN_START' },
-  /** Кость вдохновения (`data.die`); трата — окно волны 4, вне боя кость не живёт. */
-  INSPIRED: { facets: [], expires: 'COMBAT_END', rounds: 100 },
+  /**
+   * Кость вдохновения (`data.die`): свой ответ в окне фазы броска — к
+   * атаке, проверке или спасброску; ответ снимает эффект. Вне боя кость не живёт.
+   */
+  INSPIRED: {
+    facets: [
+      {
+        kind: 'reaction',
+        ability: 'INSPIRATION_DIE',
+        event: ['attackRolled', 'checkRolled', 'saveRolled'],
+        economy: 'FREE',
+        who: 'self',
+        effect: { addDie: 'effect.die' },
+      },
+    ],
+    expires: 'COMBAT_END',
+    rounds: 100,
+  },
   /** Изгнание нежити и нечестивых: минута или до любого урона, без реакций. */
   TURNED: {
     facets: [{ kind: 'rule', rule: 'noReactions' }],
@@ -170,6 +186,42 @@ export const EFFECT_MECHANICS: Readonly<Record<EffectCode, EffectMechanic>> = {
     expires: 'COMBAT_END',
     until: { who: 'SOURCE', at: 'END' },
     condition: 'stunned',
+  },
+  /**
+   * Защита от мультиатаки: +4 к КД против того, кто попал (`data.attackerId`),
+   * до конца текущего хода. Атакующего сверяет сборка носителя:
+   * эффект с чужим `attackerId` в него не входит.
+   */
+  MULTIATTACK_DEFENSE: {
+    facets: [{ kind: 'modifier', target: 'ac', amount: 4 }],
+    expires: 'TURN_END',
+  },
+  /**
+   * Противодействие очарованию: до конца следующего хода барда он и
+   * союзники в 30 футах, кто его слышит, — с преимуществом против испуга
+   * и очарования. Тишина — волна 5.
+   */
+  COUNTERCHARM: {
+    facets: [
+      {
+        kind: 'zone',
+        anchor: 'bearer',
+        radiusFeet: 30,
+        who: 'selfAndAllies',
+        recipient: ['canHearBearer'],
+        grants: [
+          {
+            kind: 'advantage',
+            roll: 'save',
+            mode: 'ADVANTAGE',
+            when: [{ anyOf: [{ vsCondition: 'frightened' }, { vsCondition: 'charmed' }] }],
+          },
+        ],
+      },
+    ],
+    expires: 'COMBAT_END',
+    until: { who: 'BEARER', at: 'END' },
+    endsOnIncapacitated: true,
   },
   /** Стихийное сродство: сопротивление виду урона предка на час — переживает бой. */
   ELEMENTAL_AFFINITY: {

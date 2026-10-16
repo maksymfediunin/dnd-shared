@@ -50,16 +50,23 @@ export function basicActions(input: AvailableActionsInput): Basic[] {
       input: actionInputOf(record.input ?? { target: 'NONE' }),
     };
   };
+  // Что действие кладёт, уже лежит (уклонение, подготовка) — его нет в
+  // списке: тем же правилом, что и у умений (`availableActions`).
+  const applied = (ability: Basic['ability']) => {
+    const effect = BASIC_ACTION_RECORDS[ability].applies;
+    return effect !== undefined && input.holder.effects.includes(effect);
+  };
   for (const ability of BASIC_ACTIONS) {
     // Высвобождаться не из чего.
     if (ability === 'ESCAPE' && !input.state?.grappled) continue;
+    if (applied(ability)) continue;
     out.push(entry(ability, BASIC_ACTION_RECORDS[ability].economy, null));
   }
   // Бонусные версии — гранями умений носителя, в порядке реестра.
   for (const [code, record] of Object.entries(FEATURE_MECHANICS)) {
     if (!input.holder.features.has(code)) continue;
     for (const facet of 'facets' in record && record.facets ? record.facets : []) {
-      if (facet.kind === 'action' && isBasicAction(facet.ability)) {
+      if (facet.kind === 'action' && isBasicAction(facet.ability) && !applied(facet.ability)) {
         out.push(entry(facet.ability, facet.economy, code));
       }
     }

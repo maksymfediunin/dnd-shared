@@ -6,6 +6,7 @@ import type {
 } from '../../enums/character.js';
 import type { ConditionCode } from '../../enums/conditions.js';
 import type { AdvantageMode } from '../../enums/dice.js';
+import type { SizeCategory } from '../../enums/size.js';
 import type {
   ActionEconomy,
   AttackVia,
@@ -13,6 +14,8 @@ import type {
   CastOption,
   CombatAbility,
   ModifierPart,
+  ReactionAbility,
+  WindowEvent,
 } from '../../schemas/combat.js';
 
 /**
@@ -55,7 +58,46 @@ export type Predicate =
   | 'effectItemIsWeapon'
   /** Бьют того, кто записан в данных эффекта, — помощь. */
   | 'effectTargetIsTarget'
-  | { anyOf: readonly Predicate[] };
+  // Волна 4 (разбор умений, П1.1). Обзор и слух до волны 5 — приближение:
+  // смотрящий не ослеплён, цель не невидима, слушатель не оглох.
+  /** На носителе ярость — бездумная ярость (`holder.effects`). */
+  | 'raging'
+  /** Носитель в сознании — ауры паладина (`ctx.bearer.conscious`). */
+  | 'bearerConscious'
+  /** В руке щит — «Оборона» (`ctx.armor.shield`). */
+  | 'shield'
+  /** Носитель видит бросающего — «Острое словцо» (`ctx.actor.seen`). */
+  | 'actorSeen'
+  /** Носитель видит источник эффекта со спасброском — чувство опасности. */
+  | 'sourceSeen'
+  /** Бросающий слышит носителя — «Острое словцо» (`ctx.actor.hearsBearer`). */
+  | 'actorHearsBearer'
+  /** Получатель ауры слышит её носителя — противодействие очарованию. */
+  | 'canHearBearer'
+  /** Цель — не носитель: «Оборона» прикрывает другого (`ctx.target.id`, `ctx.bearer.id`). */
+  | 'targetNotSelf'
+  /** Дальнобойная атака оружием — отражение снарядов (`ctx.attack`). */
+  | 'rangedWeaponAttack'
+  /** Входящая атака — при отходе: уход от орды (`ctx.attack.isOpportunity`). */
+  | 'incomingOpportunityAttack'
+  /** Источник спасброска магический — гномья хитрость (`ctx.save.magical`). */
+  | 'vsMagic'
+  /** Провал даёт урон ядом или «отравлен» — дварфийская стойкость. */
+  | 'vsPoison'
+  /** Лишний урон не меньше максимума хитов — стойкость полуорка не спасает. */
+  | 'killedOutright'
+  | { anyOf: readonly Predicate[] }
+  | { not: Predicate }
+  /** На носителе нет ни одного из этих состояний — чувство опасности. */
+  | { bearerNot: readonly ConditionCode[] }
+  /** У бросающего иммунитет к состоянию — «Острое словцо» и очарование. */
+  | { actorImmune: ConditionCode }
+  /** Атакующий не меньше этого размера — убийца великанов (`ctx.actor.size`). */
+  | { attackerSizeAtLeast: SizeCategory }
+  /** Провал спасброска накладывает это состояние — храбрость, стальная воля. */
+  | { vsCondition: ConditionCode }
+  /** Носитель не дальше стольких футов от цели или атакующего (`ctx.distances`). */
+  | { withinFeet: number; of: 'target' | 'attacker' };
 
 /** Таблицы `progression.ts` по уровню носителя — закрытый перечень. */
 export type AmountTable =
@@ -84,6 +126,8 @@ export type SaveDc = 'spell' | { ability: AbilityCode };
 
 export type ModifierTarget =
   | 'attack'
+  /** Спасброски — аура защиты. */
+  | 'save'
   | 'damage'
   | 'ac'
   | 'speed'
@@ -118,6 +162,8 @@ export interface AdvantageFacet extends Conditional {
   kind: 'advantage';
   roll: 'save' | 'check' | 'attack' | 'incoming' | 'initiative';
   ability?: AbilityCode;
+  /** Несколько характеристик — гномья хитрость (ИНТ, МДР, ХАР). */
+  abilities?: readonly AbilityCode[];
   /** Код навыка справочника («stealth»): проверка только этого навыка. */
   skill?: string;
   mode: 'ADVANTAGE' | 'DISADVANTAGE';
@@ -131,7 +177,17 @@ export interface AdvantageFacet extends Conditional {
  */
 export interface DefenseFacet extends Conditional {
   kind: 'defense';
-  resistance: readonly string[];
+  resistance?: readonly string[];
+  /** Виды урона, которые не проходят вовсе — чистота тела, защита природы. */
+  immunity?: readonly string[];
+  /** Состояния, которые не ложатся. */
+  conditionImmunity?: readonly ConditionCode[];
+  /** Иммунитет к состояниям — только от источника этих типов (защита природы). */
+  vsSourceType?: readonly string[];
+  /** Уже наложенное не снимается, а приостанавливается (бездумная ярость, ауры). */
+  suspends?: true;
+  /** Иммунитет к болезням; болезни читают черты монстров волны 7. */
+  disease?: true;
 }
 
 export interface CritFacet {
@@ -178,7 +234,9 @@ export type EffectCode =
   | 'SACRED_WEAPON'
   | 'NO_REACTIONS'
   | 'STUNNING_STRIKE'
-  | 'ELEMENTAL_AFFINITY';
+  | 'ELEMENTAL_AFFINITY'
+  | 'MULTIATTACK_DEFENSE'
+  | 'COUNTERCHARM';
 
 /**
  * Что нужно ввести, нажимая кнопку. Постоянные варианты лежат здесь;
@@ -226,7 +284,11 @@ export interface RuleFacet {
     | 'frenzy'
     | 'noReactions'
     /** Уничтожение нежити: провалившая изгнание нежить с ПО не выше порога гибнет. */
-    | 'destroyUndead';
+    | 'destroyUndead'
+    /** Уклонение: спасбросок Ловкости на половину урона — успех 0, провал половина. */
+    | 'evasion'
+    /** Магия не усыпляет — наследие фей: «Сон» пропускает, не тратя запас. */
+    | 'immuneMagicalSleep';
 }
 
 /** Ресурс вне таблиц классов: максимум 1, свой отдых (§П2 разбора умений). */
@@ -261,11 +323,67 @@ export interface SpellModifierFacet {
   when: 'sorcererAncestryDamage';
 }
 
-/** Следствие события, а не броска: благословение Тёмного на добивании. */
-export interface TriggerFacet {
-  kind: 'trigger';
-  on: 'reduceHostileToZero';
-  tempHp: Amount;
+/**
+ * Следствие события, а не броска: благословение Тёмного на добивании,
+ * защита от мультиатаки на попадании по носителю.
+ */
+export type TriggerFacet =
+  | { kind: 'trigger'; on: 'reduceHostileToZero'; tempHp: Amount }
+  | { kind: 'trigger'; on: 'hitByAttack'; applyEffect: EffectCode };
+
+/**
+ * Ответ в окне реакции (дизайн 15 октября, §5; разбор умений §1.1).
+ * `who` — кто вправе: бросающий сам (`self`), цель события (`target`)
+ * или другой участник (`other`).
+ */
+export interface ReactionFacet extends Conditional {
+  kind: 'reaction';
+  ability: ReactionAbility;
+  event: readonly WindowEvent[];
+  economy: 'REACTION' | 'FREE';
+  who: 'self' | 'target' | 'other';
+  /** Дальность до бросающего. */
+  rangeFeet?: number;
+  cost?: { resource: CharacterResourceCode; amount: number };
+  effect: ReactionEffect;
+}
+
+export type ReactionEffect =
+  | { imposeDisadvantage: true }
+  /** Кость к броску: своя грань или из данных эффекта (вдохновение — `data.die`). */
+  | { addDie: { sides: number } | 'effect.die' }
+  /** Кость из броска: число граней — `Amount` (кость вдохновения барда). */
+  | { subtractDie: Amount }
+  | { rerollSave: true }
+  | { halveDamage: true }
+  /** Уменьшение урона на кость и прибавки; поймал — метнуть за ци (отражение). */
+  | { reduceDamage: { sides: number; plus: readonly Amount[] }; catchMissile?: true }
+  | { setHp: 1 }
+  | { attack: 'attacker' | 'mover' }
+  | { castSpell: 'shield' }
+  /** Переброс малых костей урона своего заклинания (усиленное). */
+  | { empower: true };
+
+/**
+ * Аура (разбор П1.5, `zone anchor:'bearer'`): грани получают носитель и
+ * союзники в радиусе. Зоны-объекты на карте — волна 5.
+ */
+export interface ZoneFacet extends Conditional {
+  kind: 'zone';
+  anchor: 'bearer';
+  radiusFeet: number;
+  who: 'selfAndAllies';
+  /** Условия на получателе (слышит носителя). */
+  recipient?: readonly Predicate[];
+  grants: readonly Facet[];
+}
+
+/** Переброс кости, ушедшей в итог, — «Везучий» (П4 #56). */
+export interface RerollFacet {
+  kind: 'reroll';
+  die: 'd20';
+  on: readonly number[];
+  rolls: readonly ('attack' | 'check' | 'save')[];
 }
 
 export type Facet =
@@ -281,7 +399,10 @@ export type Facet =
   | AttackOptionFacet
   | CastOptionFacet
   | SpellModifierFacet
-  | TriggerFacet;
+  | TriggerFacet
+  | ReactionFacet
+  | ZoneFacet
+  | RerollFacet;
 
 type MarkKey = 'outOfCombat' | 'holder' | 'tableDriven' | 'sheet';
 /** Ровно одно поле из перечисленных — прочие запрещены типом (`never`). */
@@ -308,7 +429,8 @@ export type MechanicRecord =
 
 export interface EffectMechanic {
   facets: readonly Facet[];
-  expires: 'OWN_TURN_START' | 'OWN_TURN_END' | 'COMBAT_END' | 'MANUAL';
+  /** `TURN_END` — конец текущего хода, чей бы он ни был (защита от мультиатаки). */
+  expires: 'OWN_TURN_START' | 'OWN_TURN_END' | 'TURN_END' | 'COMBAT_END' | 'MANUAL';
   rounds?: number;
   /**
    * «До конца следующего хода наложившего» — тем же механизмом `data.until`,
@@ -318,6 +440,8 @@ export interface EffectMechanic {
   /** Ярость: свой ход кончился без атаки и без полученного урона. */
   endsWhenIdle?: true;
   endsOnUnconscious?: true;
+  /** Носитель стал недееспособен — противодействие очарованию. */
+  endsOnIncapacitated?: true;
   /** Кончается вместе с этим эффектом носителя (бешенство — с яростью). */
   endsWithEffect?: EffectCode;
   /** Что оставляет по себе (бешенство — степень истощения). */
@@ -372,6 +496,38 @@ export interface MechanicsContext {
   };
   turn?: { isOwn: boolean; movedAtMostHalf: boolean };
   target?: { id: string };
-  attack?: { via?: AttackVia };
-  bearer?: { alert: boolean };
+  attack?: {
+    via?: AttackVia;
+    range?: 'MELEE' | 'RANGED';
+    /** Атака оружием (не заклинанием). */
+    weapon?: boolean;
+    spell?: boolean;
+    isOpportunity?: boolean;
+  };
+  bearer?: {
+    alert?: boolean;
+    id?: string;
+    conscious?: boolean;
+    conditions?: readonly ConditionCode[];
+  };
+  /** Тот, кто бросает (атакует, проверяет), глазами носителя грани. */
+  actor?: {
+    seen?: boolean;
+    hearsBearer?: boolean;
+    conditionImmunities?: readonly ConditionCode[];
+    size?: SizeCategory;
+  };
+  /** Получатель ауры — слышит ли носителя (противодействие очарованию). */
+  recipient?: { hearsBearer: boolean };
+  /** Спасбросок: против чего (П1.1). */
+  save?: {
+    ability?: AbilityCode;
+    magical?: boolean;
+    conditions?: readonly ConditionCode[];
+    damageTypes?: readonly string[];
+    sourceSeen?: boolean;
+  };
+  damage?: { killedOutright: boolean };
+  /** Расстояние от носителя в футах. */
+  distances?: { target?: number; attacker?: number };
 }

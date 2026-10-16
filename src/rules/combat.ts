@@ -158,7 +158,13 @@ export interface DeathSaveResult {
  * сознании.
  */
 export function deathSave(input: {
+  /** Кость к20 — натуральные 1 и 20 решают по ней. */
   roll: number;
+  /**
+   * Итог с прибавками (аура защиты, «Благословение», вдохновение) —
+   * успех от десяти по нему; нет — голая кость.
+   */
+  total?: number;
   successes: number;
   failures: number;
 }): DeathSaveResult {
@@ -171,7 +177,7 @@ export function deathSave(input: {
     return { outcome: failures >= 3 ? 'DEAD' : 'FAILURE', successes: input.successes, failures };
   }
 
-  if (input.roll >= 10) {
+  if ((input.total ?? input.roll) >= 10) {
     const successes = Math.min(3, input.successes + 1);
     return { outcome: successes >= 3 ? 'STABLE' : 'SUCCESS', successes, failures: input.failures };
   }

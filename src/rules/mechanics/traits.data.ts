@@ -2,8 +2,36 @@ import type { MechanicRecord } from './types.js';
 
 /** Расовые черты (`traits.json`) — по коду источника, без хвоста расы. */
 export const TRAIT_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
-  // Преимущество на спасброски от яда — волна 4 (`PARTIAL`).
-  'dwarven-resilience': { facets: [{ kind: 'defense', resistance: ['poison'] }] },
+  'dwarven-resilience': {
+    facets: [
+      { kind: 'defense', resistance: ['poison'] },
+      { kind: 'advantage', roll: 'save', mode: 'ADVANTAGE', when: ['vsPoison'] },
+    ],
+  },
+  'fey-ancestry': {
+    facets: [
+      { kind: 'advantage', roll: 'save', mode: 'ADVANTAGE', when: [{ vsCondition: 'charmed' }] },
+      { kind: 'rule', rule: 'immuneMagicalSleep' },
+    ],
+  },
+  // Перебрасывается кость, ушедшая в итог, — сама, до окна (П4 #56).
+  lucky: { facets: [{ kind: 'reroll', die: 'd20', on: [1], rolls: ['attack', 'check', 'save'] }] },
+  brave: {
+    facets: [
+      { kind: 'advantage', roll: 'save', mode: 'ADVANTAGE', when: [{ vsCondition: 'frightened' }] },
+    ],
+  },
+  'gnome-cunning': {
+    facets: [
+      {
+        kind: 'advantage',
+        roll: 'save',
+        abilities: ['intelligence', 'wisdom', 'charisma'],
+        mode: 'ADVANTAGE',
+        when: ['vsMagic'],
+      },
+    ],
+  },
   'hellish-resistance': { facets: [{ kind: 'defense', resistance: ['fire'] }] },
   'damage-resistance': { facets: [{ kind: 'defense', resistance: ['ANCESTRY'] }] },
   'dwarven-toughness': { facets: [{ kind: 'modifier', target: 'hpPerLevel', amount: 1 }] },
@@ -20,9 +48,21 @@ export const TRAIT_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
       },
     ],
   },
-  // Реакция — окно волны 4 (`PARTIAL`); счётчик уже на листе.
+  // Окно, а не само: у черты цена, её берегут (П4 #57).
   'relentless-endurance': {
-    facets: [{ kind: 'resource', code: 'RELENTLESS_ENDURANCE', recovery: 'LONG' }],
+    facets: [
+      { kind: 'resource', code: 'RELENTLESS_ENDURANCE', recovery: 'LONG' },
+      {
+        kind: 'reaction',
+        ability: 'RELENTLESS_ENDURANCE',
+        event: ['reducedToZero'],
+        economy: 'FREE',
+        who: 'self',
+        when: [{ not: 'killedOutright' }],
+        cost: { resource: 'RELENTLESS_ENDURANCE', amount: 1 },
+        effect: { setHp: 1 },
+      },
+    ],
   },
   // Заклинания черты — волна 8 (`PARTIAL`).
   'infernal-legacy': {

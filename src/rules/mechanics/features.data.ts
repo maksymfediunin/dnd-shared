@@ -1,4 +1,4 @@
-import type { MechanicRecord } from './types.js';
+import type { Facet, MechanicRecord } from './types.js';
 
 /*
  * Стили боя — одна запись на все коды: у воина, паладина и следопыта
@@ -21,6 +21,38 @@ const DUELING: MechanicRecord = {
 const TWO_WEAPON_FIGHTING: MechanicRecord = {
   facets: [{ kind: 'rule', rule: 'offHandAbilityDamage' }],
 };
+/**
+ * «Оборона» — у воина и паладина код разный, правило одно: реакцией
+ * помеха атаке по соседу носителя щита, которого атакующий видит.
+ */
+const PROTECTION: MechanicRecord = {
+  facets: [
+    {
+      kind: 'reaction',
+      ability: 'PROTECTION',
+      event: ['attackDeclared'],
+      economy: 'REACTION',
+      who: 'other',
+      when: ['shield', 'attackerSeen', 'targetNotSelf', { withinFeet: 5, of: 'target' }],
+      effect: { imposeDisadvantage: true },
+    },
+  ],
+};
+/** Уклонение монаха и плута: спасбросок Ловкости на половину урона. */
+const EVASION: MechanicRecord = { facets: [{ kind: 'rule', rule: 'evasion' }] };
+/** Аура паладина: грани на себя и союзников в 10 футах, пока носитель в сознании. */
+const aura = (grants: readonly Facet[]): MechanicRecord => ({
+  facets: [
+    {
+      kind: 'zone',
+      anchor: 'bearer',
+      radiusFeet: 10,
+      who: 'selfAndAllies',
+      when: ['bearerConscious'],
+      grants,
+    },
+  ],
+});
 const CHOICE: MechanicRecord = { holder: 'choice' };
 const SUBCLASS_STEP: MechanicRecord = { holder: 'subclassStep' };
 const EXTRA_ATTACK: MechanicRecord = {
@@ -321,10 +353,21 @@ export const FEATURE_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
   'metamagic-distant-spell': {
     facets: [{ kind: 'castOption', option: 'DISTANT', cost: 1, exclusive: true }],
   },
-  // Выбор костей после броска — окно волны 4 (`PARTIAL`); в волне 3 сервер
-  // перебрасывает сам самые малые кости ниже среднего.
+  // Решение — после броска урона, ответом в окне (волна 4); заранее при
+  // сотворении — как в волне 3. Кости выбирает сервер: самые малые ниже среднего.
   'metamagic-empowered-spell': {
-    facets: [{ kind: 'castOption', option: 'EMPOWERED', cost: 1 }],
+    facets: [
+      { kind: 'castOption', option: 'EMPOWERED', cost: 1 },
+      {
+        kind: 'reaction',
+        ability: 'EMPOWERED_SPELL',
+        event: ['damageRolled'],
+        economy: 'FREE',
+        who: 'self',
+        cost: { resource: 'SORCERY_POINT', amount: 1 },
+        effect: { empower: true },
+      },
+    ],
   },
   'metamagic-extended-spell': {
     facets: [{ kind: 'castOption', option: 'EXTENDED', cost: 1, exclusive: true }],
@@ -366,13 +409,170 @@ export const FEATURE_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
     facets: [{ kind: 'modifier', target: 'attacksPerAction', amount: 2, when: ['pactWeapon'] }],
   },
 
-  // Ресурсы §П2 без кнопки: счётчик виден на листе и тратится рукой,
-  // читатель — своя волна (`PARTIAL`).
+  // Волна 4: реакции и спасброски (план волны 4, §3.2).
   'indomitable-1-use': {
-    facets: [{ kind: 'resource', code: 'INDOMITABLE', recovery: 'LONG' }],
+    facets: [
+      { kind: 'resource', code: 'INDOMITABLE', recovery: 'LONG' },
+      {
+        kind: 'reaction',
+        ability: 'INDOMITABLE',
+        event: ['saveFailed'],
+        economy: 'FREE',
+        who: 'self',
+        cost: { resource: 'INDOMITABLE', amount: 1 },
+        effect: { rerollSave: true },
+      },
+    ],
   },
+  // Фаза броска, а не исхода — сознательно строже буквы (П4 #47).
   'dark-ones-own-luck': {
-    facets: [{ kind: 'resource', code: 'DARK_ONES_OWN_LUCK', recovery: 'SHORT' }],
+    facets: [
+      { kind: 'resource', code: 'DARK_ONES_OWN_LUCK', recovery: 'SHORT' },
+      {
+        kind: 'reaction',
+        ability: 'DARK_ONES_OWN_LUCK',
+        event: ['checkRolled', 'saveRolled'],
+        economy: 'FREE',
+        who: 'self',
+        cost: { resource: 'DARK_ONES_OWN_LUCK', amount: 1 },
+        effect: { addDie: { sides: 10 } },
+      },
+    ],
+  },
+  'danger-sense': {
+    facets: [
+      {
+        kind: 'advantage',
+        roll: 'save',
+        ability: 'dexterity',
+        mode: 'ADVANTAGE',
+        when: ['sourceSeen', { bearerNot: ['blinded', 'deafened', 'incapacitated'] }],
+      },
+    ],
+  },
+  'mindless-rage': {
+    facets: [
+      {
+        kind: 'defense',
+        conditionImmunity: ['charmed', 'frightened'],
+        suspends: true,
+        when: ['raging'],
+      },
+    ],
+  },
+  // Болезней в приложении нет — флаг читают черты монстров волны 7.
+  'natures-ward': {
+    facets: [
+      {
+        kind: 'defense',
+        conditionImmunity: ['charmed', 'frightened'],
+        vsSourceType: ['elemental', 'fey'],
+      },
+      { kind: 'defense', immunity: ['poison'], conditionImmunity: ['poisoned'], disease: true },
+    ],
+  },
+  'fighter-fighting-style-protection': PROTECTION,
+  'fighting-style-protection': PROTECTION,
+  'deflect-missiles': {
+    facets: [
+      {
+        kind: 'reaction',
+        ability: 'DEFLECT_MISSILES',
+        event: ['damageRolled'],
+        economy: 'REACTION',
+        who: 'target',
+        when: ['rangedWeaponAttack'],
+        effect: {
+          reduceDamage: { sides: 10, plus: [{ ability: 'dexterity' }, 'level'] },
+          catchMissile: true,
+        },
+      },
+    ],
+  },
+  'monk-evasion': EVASION,
+  'rogue-evasion': EVASION,
+  'purity-of-body': {
+    facets: [
+      { kind: 'defense', immunity: ['poison'], conditionImmunity: ['poisoned'], disease: true },
+    ],
+  },
+  // Прибавка — Харизма носителя ауры, а не получателя: грань несёт его лист.
+  'aura-of-protection': aura([
+    { kind: 'modifier', target: 'save', amount: { ability: 'charisma', min: 1 }, source: 'aura' },
+  ]),
+  'aura-of-devotion': aura([{ kind: 'defense', conditionImmunity: ['charmed'], suspends: true }]),
+  'aura-of-courage': aura([{ kind: 'defense', conditionImmunity: ['frightened'], suspends: true }]),
+  'hunters-prey-giant-killer': {
+    facets: [
+      {
+        kind: 'reaction',
+        ability: 'GIANT_KILLER',
+        event: ['attackResolved'],
+        economy: 'REACTION',
+        who: 'target',
+        when: [{ attackerSizeAtLeast: 'LARGE' }, { withinFeet: 5, of: 'attacker' }, 'attackerSeen'],
+        effect: { attack: 'attacker' },
+      },
+    ],
+  },
+  'defensive-tactics-escape-the-horde': {
+    facets: [
+      {
+        kind: 'advantage',
+        roll: 'incoming',
+        mode: 'DISADVANTAGE',
+        when: ['incomingOpportunityAttack'],
+      },
+    ],
+  },
+  'defensive-tactics-multiattack-defense': {
+    facets: [{ kind: 'trigger', on: 'hitByAttack', applyEffect: 'MULTIATTACK_DEFENSE' }],
+  },
+  'defensive-tactics-steel-will': {
+    facets: [
+      { kind: 'advantage', roll: 'save', mode: 'ADVANTAGE', when: [{ vsCondition: 'frightened' }] },
+    ],
+  },
+  'uncanny-dodge': {
+    facets: [
+      {
+        kind: 'reaction',
+        ability: 'UNCANNY_DODGE',
+        event: ['damageRolled'],
+        economy: 'REACTION',
+        who: 'target',
+        when: ['attackerSeen'],
+        effect: { halveDamage: true },
+      },
+    ],
+  },
+  // Иммунные к очарованию — волна 7: иммунитетов монстров в справочнике
+  // пока нет, предикат объявлен сразу (решение 23 плана волны 4).
+  'cutting-words': {
+    facets: [
+      {
+        kind: 'reaction',
+        ability: 'CUTTING_WORDS',
+        event: ['attackRolled', 'checkRolled', 'damageRolled'],
+        economy: 'REACTION',
+        who: 'other',
+        rangeFeet: 60,
+        when: ['actorSeen', 'actorHearsBearer', { not: { actorImmune: 'charmed' } }],
+        cost: { resource: 'BARDIC_INSPIRATION', amount: 1 },
+        effect: { subtractDie: { table: 'bardicInspirationDie' } },
+      },
+    ],
+  },
+  countercharm: {
+    facets: [
+      { kind: 'action', ability: 'COUNTERCHARM', economy: 'ACTION', applies: 'COUNTERCHARM' },
+      {
+        kind: 'action',
+        ability: 'END_COUNTERCHARM',
+        economy: 'FREE',
+        requiresEffect: 'COUNTERCHARM',
+      },
+    ],
   },
   'arcane-recovery': {
     facets: [{ kind: 'resource', code: 'ARCANE_RECOVERY', recovery: 'LONG' }],

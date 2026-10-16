@@ -20,6 +20,7 @@ export * from './mechanics/types.js';
 export * from './monster-actions.js';
 export * from './obstacles.js';
 export * from './progression.js';
+export * from './reactions.js';
 export * from './spell-effect.js';
 export * from './spell-mechanics.data.js';
 export * from './spell-mechanics.js';

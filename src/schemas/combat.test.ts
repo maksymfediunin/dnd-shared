@@ -8,6 +8,8 @@ import {
   encounterEventPayloadSchema,
   initiativeInputSchema,
   participantActionsResponseSchema,
+  reactionAnswerSchema,
+  reactionWindowViewSchema,
   startCombatInputSchema,
 } from './combat.js';
 
@@ -666,5 +668,78 @@ describe('контракт волны 3', () => {
     expect(
       attackInputSchema.safeParse({ targetId: uuid, weaponItemId: 'x', via: 'SNEAK' }).success,
     ).toBe(false);
+  });
+});
+
+describe('окно реакции (волна 4)', () => {
+  const id = '00000000-0000-4000-8000-000000000001';
+
+  it('снимок окна: фаза броска без исхода, ответчики с вариантами', () => {
+    const view = reactionWindowViewSchema.parse({
+      id,
+      event: 'attackRolled',
+      expiresAt: '2026-10-16T12:00:00.000Z',
+      actorParticipantId: id,
+      subjectIds: [id],
+      roll: { results: [14], total: 20 },
+      responders: [
+        {
+          participantId: id,
+          options: [
+            {
+              ability: 'CUTTING_WORDS',
+              featureCode: 'cutting-words',
+              economy: 'REACTION',
+              resource: { code: 'BARDIC_INSPIRATION', left: 2 },
+            },
+          ],
+          answered: false,
+        },
+      ],
+    });
+    expect(view.responders[0]?.options[0]?.ability).toBe('CUTTING_WORDS');
+  });
+
+  it('ответ: вариант или null — «пропустить»', () => {
+    expect(reactionAnswerSchema.parse({ participantId: id, ability: null }).ability).toBeNull();
+    expect(() => reactionAnswerSchema.parse({ participantId: id, ability: 'FIREBALL' })).toThrow();
+  });
+
+  it('список действий: вид REACTION с окном', () => {
+    const entry = availableActionSchema.parse({
+      kind: 'REACTION',
+      ability: 'SHIELD',
+      windowId: id,
+      featureCode: null,
+      economy: 'REACTION',
+      available: true,
+      reason: null,
+    });
+    expect(entry.kind).toBe('REACTION');
+  });
+
+  it('журнал: строка REACTION и отметки ответов у броска', () => {
+    expect(
+      encounterEventPayloadSchema.parse({
+        kind: 'REACTION',
+        ability: 'UNCANNY_DODGE',
+        featureCode: 'uncanny-dodge',
+        value: 8,
+      }).kind,
+    ).toBe('REACTION');
+    const save = encounterEventPayloadSchema.parse({
+      kind: 'SAVE',
+      featureCode: 'x',
+      ability: 'wisdom',
+      notation: '1d20',
+      results: [9],
+      total: 9,
+      dc: 15,
+      outcome: 'FAILURE',
+      adjustments: [{ ability: 'INSPIRATION_DIE', participantId: id, value: 4 }],
+      rerolled: 1,
+      immune: true,
+    });
+    expect(save.kind === 'SAVE' && save.immune).toBe(true);
   });
 });
