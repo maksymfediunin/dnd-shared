@@ -182,6 +182,7 @@ export type ActionEconomy = (typeof ACTION_ECONOMY)[number];
 
 /** Почему действия сейчас нет — код из ERROR_CODES: переводы `errors.*` у фронта уже есть. */
 export const ACTION_UNAVAILABLE_REASONS = [
+  'PARTICIPANT_IS_DOWN',
   'NOT_YOUR_TURN',
   'ACTION_ALREADY_USED',
   'BONUS_ACTION_ALREADY_USED',
@@ -626,6 +627,11 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     notation: z.string().min(1).max(32).optional(),
     results: z.array(z.number().int().min(1).max(100)).max(20).optional(),
     amount: z.number().int().min(0).optional(),
+    /**
+     * Снятие ярости само (бездействие, ноль хитов, срок): сколько раундов
+     * у неё оставалось — по ним перемотка хода восстанавливает эффект.
+     */
+    roundsRemaining: z.number().int().min(0).nullable().optional(),
   }),
   z.object({ kind: z.literal('ROUND'), round: z.number().int().min(1) }),
 ]);

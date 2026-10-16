@@ -519,3 +519,11 @@ describe('список доступных действий', () => {
     expect(() => availableActionSchema.parse({ ...rage, reason: 'TIRED' })).toThrow();
   });
 });
+
+describe('строка снятия ярости', () => {
+  // Перемотка хода восстанавливает ярость с прежним остатком раундов.
+  it('несёт остаток раундов', () => {
+    const payload = { kind: 'ABILITY', ability: 'END_RAGE', roundsRemaining: 7 };
+    expect(encounterEventPayloadSchema.parse(payload)).toEqual(payload);
+  });
+});

@@ -329,3 +329,38 @@ describe('целостность записей', () => {
     }
   });
 });
+
+describe('доступные действия — упавший и обход ведущего', () => {
+  const economy = { hasUsedAction: true, hasUsedBonusAction: true, hasUsedReaction: true };
+  const resources = [{ code: 'RAGE' as const, max: 2, used: 0 }];
+
+  it('упавшему всё недоступно с причиной PARTICIPANT_IS_DOWN — раньше прочих причин', () => {
+    const [rage] = availableActions({
+      holder: holder(),
+      resources,
+      economy,
+      isTurn: false,
+      isDown: true,
+    });
+    expect(rage).toMatchObject({ available: false, reason: 'PARTICIPANT_IS_DOWN' });
+  });
+
+  it('обход ведущего снимает очередь и экономику, но не пустой ресурс', () => {
+    const [rage] = availableActions({
+      holder: holder(),
+      resources,
+      economy,
+      isTurn: false,
+      override: true,
+    });
+    expect(rage).toMatchObject({ available: true, reason: null });
+    const [spent] = availableActions({
+      holder: holder(),
+      resources: [{ code: 'RAGE', max: 2, used: 2 }],
+      economy,
+      isTurn: false,
+      override: true,
+    });
+    expect(spent?.reason).toBe('RESOURCE_EXHAUSTED');
+  });
+});
