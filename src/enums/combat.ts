@@ -84,6 +84,8 @@ export const CONTINUATION_OPS = [
   'REACTION_ATTACK',
   'ZONES_ON_MOVE',
   'FOLLOW_UP',
+  /** «Parry» монстра после попадания (волна 7а). */
+  'PARRY',
 ] as const;
 export type ContinuationOp = (typeof CONTINUATION_OPS)[number];
 

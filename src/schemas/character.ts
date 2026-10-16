@@ -68,6 +68,12 @@ export const characterItemInputSchema = z
     quantity: z.number().int().min(1).max(9999).default(1),
     isEquipped: z.boolean().default(false),
     slot: z.string().trim().max(50).optional(),
+    /**
+     * Оговорки защиты монстров (план волны 7, р. 13): магическое оружие и
+     * материал — серебро, адамантин. Нет — немагическая сталь.
+     */
+    isMagical: z.boolean().optional(),
+    material: z.enum(['SILVERED', 'ADAMANTINE']).nullable().optional(),
   })
   .refine((item) => Boolean(item.itemCode ?? item.customName), {
     message: 'Нужен код справочного предмета или своё название',

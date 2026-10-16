@@ -810,6 +810,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     magical: z.literal(true).optional(),
     silvered: z.literal(true).optional(),
     adamantine: z.literal(true).optional(),
+    /** Действие монстра, которым ударили: его наездники бросает урон. */
+    monsterActionCode: z.string().min(1).max(120).optional(),
     /** Легендарное действие, которым ударили, и его цена. */
     legendaryActionCode: z.string().min(1).max(120).optional(),
     legendaryCost: z.number().int().min(1).max(3).optional(),
