@@ -96,6 +96,17 @@ describe('базовые действия', () => {
     expect(barbarian[0]?.available).toBe(true);
   });
 
+  // Уклонение уже идёт (терпеливая оборона монаха) — второго сервер не
+  // даст (ABILITY_NOT_AVAILABLE), и список его не предлагает: тем же
+  // правилом, что и у умений с `applies` (находка симулятора, зерно 3109).
+  it('уклоняющемуся — без «Уклонения»', () => {
+    const abilities = list(holder([], { effects: ['DODGING'] }))
+      .filter((e) => e.kind === 'BASIC')
+      .map((e) => (e as { ability: string }).ability);
+    expect(abilities).not.toContain('DODGE');
+    expect(abilities).toContain('DASH');
+  });
+
   it('плут 2: рывок, отход и засада ещё и бонусом; вор 3 — и предмет', () => {
     const bonus = (features: string[]) =>
       kinds(list(holder(features)), 'BASIC')
