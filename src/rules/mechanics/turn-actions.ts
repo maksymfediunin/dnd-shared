@@ -58,7 +58,7 @@ export function basicActions(input: AvailableActionsInput): Basic[] {
   };
   for (const ability of BASIC_ACTIONS) {
     // Высвобождаться не из чего.
-    if (ability === 'ESCAPE' && !input.state?.grappled) continue;
+    if (ability === 'ESCAPE' && !input.state?.grappled && !input.state?.restrainedByZone) continue;
     if (applied(ability)) continue;
     out.push(entry(ability, BASIC_ACTION_RECORDS[ability].economy, null));
   }

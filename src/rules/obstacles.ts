@@ -82,6 +82,75 @@ export const MAP_OBSTACLE_FOOTPRINT: Record<MapObstacleKind, Footprint> = {
   CANNON: { w: 1, h: 1 },
 };
 
+/**
+ * Как препятствие закрывает обзор и прикрывает (план волны 5, решение 11).
+ * Свойство вида, а не клетки и не строки: переключателя в редакторе нет,
+ * и все нынешние строки несут `blocksSight = false` — расставлять его
+ * заново никто не станет. `HIGH` — непрозрачно (колонна, дерево, шатёр):
+ * гасит обзор и свет, полное укрытие. `LOW` — по пояс (ящик, бочка,
+ * ограда): укрытие не больше трёх четвертей, обзор не заслоняет. `NONE` —
+ * ветка и камыш, сквозь них видно и стреляют.
+ */
+export const MAP_OBSTACLE_COVER: Record<MapObstacleKind, 'NONE' | 'LOW' | 'HIGH'> = {
+  BRANCH: 'NONE',
+  BARREL: 'LOW',
+  CRATE: 'LOW',
+  COLUMN: 'HIGH',
+  ROCK: 'LOW',
+  TABLE: 'LOW',
+  BUSH: 'LOW',
+  STUMP: 'LOW',
+  STICK_H: 'NONE',
+  STICK_V: 'NONE',
+  LOG_H: 'LOW',
+  LOG_V: 'LOW',
+  TABLE_LONG_H: 'LOW',
+  TABLE_LONG_V: 'LOW',
+  COLUMN_FALLEN_H: 'LOW',
+  COLUMN_FALLEN_V: 'LOW',
+  ROCK_2: 'HIGH',
+  BUSH_2: 'HIGH',
+  CRATES_2: 'HIGH',
+  RUBBLE_2: 'LOW',
+  ROCKS_3: 'HIGH',
+  THICKET_H: 'HIGH',
+  THICKET_V: 'HIGH',
+  TREE: 'HIGH',
+  DEAD_TREE: 'HIGH',
+  PALM: 'HIGH',
+  STALAGMITE: 'HIGH',
+  CRYSTAL: 'HIGH',
+  REEDS: 'NONE',
+  CACTUS: 'LOW',
+  ICE_BLOCK: 'LOW',
+  SNOWDRIFT_2: 'HIGH',
+  STATUE: 'HIGH',
+  ALTAR: 'LOW',
+  SARCOPHAGUS_H: 'LOW',
+  SARCOPHAGUS_V: 'LOW',
+  TOMBSTONE: 'LOW',
+  CHEST: 'LOW',
+  WELL: 'LOW',
+  CAMPFIRE: 'LOW',
+  TENT: 'HIGH',
+  CART_H: 'HIGH',
+  CART_V: 'HIGH',
+  FENCE_H: 'LOW',
+  FENCE_V: 'LOW',
+  BOOKSHELF_H: 'HIGH',
+  BOOKSHELF_V: 'HIGH',
+  BED_H: 'LOW',
+  BED_V: 'LOW',
+  MAST: 'HIGH',
+  CANNON: 'LOW',
+};
+
+/** Препятствия-источники света: костёр светит как факел (PHB: 20 футов яркого и 20 тусклого). */
+export const MAP_OBSTACLE_LIGHT: Partial<Record<MapObstacleKind, { bright: number; dim: number }>> =
+  {
+    CAMPFIRE: { bright: 20, dim: 20 },
+  };
+
 /** Отпечаток вида с множителем размера — пропорционально по обеим сторонам. */
 export function obstacleFootprint(kind: MapObstacleKind, scale = 1): Footprint {
   const { w, h } = MAP_OBSTACLE_FOOTPRINT[kind];

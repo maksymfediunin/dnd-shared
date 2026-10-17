@@ -172,9 +172,26 @@ export interface ReachInput {
   /** Проходимое, но не для остановки: чужие живые фишки. */
   tokens: Set<string>;
   /** Трудная местность: шаг, задевающий её отпечатком, стоит две клетки. */
-  difficult?: Set<string>;
+  difficult?: ReadonlySet<string>;
+  /**
+   * Множитель цены клетки (план волны 5, §4.4): «Рост растений» — 4.
+   * Трудность не складывается (PHB): цена шага — большее из двойки
+   * трудной местности и множителя, а не произведение.
+   */
+  multipliers?: ReadonlyMap<string, number>;
   /** Бюджет в клетках: трудный шаг тратит из него две. */
   maxSteps: number;
+}
+
+/** Цена шага в клетку отпечатком: 1, 2 на трудной, множитель зоны — что больше. */
+function stepCost(input: ReachInput, cell: Cell): number {
+  let cost = 1;
+  for (const c of cellsOf(cell, input.span)) {
+    const key = cellKey(c);
+    if (input.difficult?.has(key)) cost = Math.max(cost, 2);
+    cost = Math.max(cost, input.multipliers?.get(key) ?? 1);
+  }
+  return cost;
 }
 
 /**
@@ -195,7 +212,6 @@ export interface ReachInput {
  * от сетки, и живёт в правилах боя.
  */
 export function reachableCells(input: ReachInput): Map<string, number> {
-  const difficult = input.difficult ?? new Set<string>();
   const reached = new Map<string, number>();
   const seen = new Set([cellKey(input.from)]);
   const buckets: Cell[][] = [[input.from]];
@@ -211,8 +227,7 @@ export function reachableCells(input: ReachInput): Map<string, number> {
           if (seen.has(key)) continue;
           if (!isFree(cell, input.span, input.grid, input.walls)) continue;
 
-          const hard = cellsOf(cell, input.span).some((c) => difficult.has(cellKey(c)));
-          const next = cost + (hard ? 2 : 1);
+          const next = cost + stepCost(input, cell);
           if (next > input.maxSteps) continue;
 
           seen.add(key);
@@ -227,6 +242,67 @@ export function reachableCells(input: ReachInput): Map<string, number> {
   }
 
   return reached;
+}
+
+/**
+ * Путь до клетки той же ценой, что у `reachableCells` (план волны 5,
+ * решение 22): нужен входу в зону посреди пути и урону «Шипов» за
+ * пройденное. Среди путей одной цены — тот, что меньше клеток проводит
+ * в `avoid` (вредные зоны). Ответ — клетки шагов без начальной, с
+ * конечной; `null` — не дойти в бюджет.
+ */
+export function pathTo(
+  input: ReachInput,
+  target: Cell,
+  avoid: ReadonlySet<string> = new Set(),
+): Cell[] | null {
+  const startKey = cellKey(input.from);
+  const targetKey = cellKey(target);
+  if (startKey === targetKey) return [];
+  type Entry = { cell: Cell; harm: number; parent: string | null };
+  const settled = new Map<string, { cell: Cell; parent: string | null }>();
+  const best = new Map<string, [number, number]>([[startKey, [0, 0]]]);
+  const buckets: Entry[][] = [[{ cell: input.from, harm: 0, parent: null }]];
+  const harmOf = (cell: Cell) =>
+    cellsOf(cell, input.span).some((c) => avoid.has(cellKey(c))) ? 1 : 0;
+
+  for (let cost = 0; cost <= input.maxSteps && cost < buckets.length; cost += 1) {
+    const bucket = (buckets[cost] ?? []).sort((a, b) => a.harm - b.harm);
+    for (const entry of bucket) {
+      const key = cellKey(entry.cell);
+      if (settled.has(key)) continue;
+      settled.set(key, { cell: entry.cell, parent: entry.parent });
+      if (key === targetKey) {
+        const path: Cell[] = [];
+        let at: string | null = key;
+        while (at && at !== startKey) {
+          const node = settled.get(at);
+          if (!node) break;
+          path.unshift(node.cell);
+          at = node.parent;
+        }
+        return path;
+      }
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          if (dx === 0 && dy === 0) continue;
+          const cell = { x: entry.cell.x + dx, y: entry.cell.y + dy };
+          const next = cellKey(cell);
+          if (settled.has(next)) continue;
+          if (!isFree(cell, input.span, input.grid, input.walls)) continue;
+          const nextCost = cost + stepCost(input, cell);
+          if (nextCost > input.maxSteps) continue;
+          const harm = entry.harm + harmOf(cell);
+          const known = best.get(next);
+          if (known && (known[0] < nextCost || (known[0] === nextCost && known[1] <= harm)))
+            continue;
+          best.set(next, [nextCost, harm]);
+          (buckets[nextCost] ??= []).push({ cell, harm, parent: key });
+        }
+      }
+    }
+  }
+  return null;
 }
 
 /**

@@ -67,6 +67,16 @@ export interface SpellModifiers {
    * `resistances` резало и его.
    */
   resistNonmagical?: string[];
+  /** Чувства носителя («Тёмное зрение», «Видение невидимого», «Истинное зрение»). */
+  senses?: { darkvision?: number; truesight?: number; seeInvisible?: true };
+  /** Скорости сверх ходьбы («Полёт» — 60 футов). */
+  speeds?: { fly?: number };
+  /** Помеха по носителю не действует на атакующих со слепым или истинным зрением («Размытый образ»). */
+  sightOnlyIncoming?: true;
+  /** Преимущество по носителю — только у атакующего, который его видит («Огонь фей»). */
+  incomingNeedsSight?: true;
+  /** Висит в воздухе: по горизонтали не ходит, вверх и вниз — до 20 футов за ход («Левитация»). */
+  levitating?: true;
   // Волна 8а (план w8, §3.1): проверки, иммунитеты, урон Силой, лечение.
   /** Преимущество к проверкам этих характеристик носителя; `ALL` — всех («Предвидение»). */
   checkAdvantage?: (AbilityCode | 'ALL')[];
@@ -179,6 +189,86 @@ export interface SpellRepeatSave {
   when?: 'NO_LINE_OF_SIGHT';
 }
 
+/** Когда срабатывает зона: вход, начало и конец хода стоящего, начало и конец хода заклинателя. */
+export type ZoneTrigger = 'ENTER' | 'START' | 'END' | 'CASTER_TURN_START' | 'CASTER_TURN_END';
+
+export interface LightSpec {
+  /** Футы яркого света; тусклый — сверх него, как в SRD. */
+  bright: number;
+  dim: number;
+  /** Клетки зоны, фишка носителя эффекта или предмет (у существа — как носитель, иначе точка). */
+  on: 'ZONE' | 'BEARER' | 'OBJECT';
+}
+
+/** Статические свойства зоны (план волны 5, §3.1). */
+export interface ZoneProps {
+  /** Срабатывания; нет — зона без срабатываний (туман, «Тишина»). */
+  on?: readonly ZoneTrigger[];
+  /** Срабатывает и при сотворении на тех, кто уже внутри. */
+  onCast?: boolean;
+  /** Аура — радиус в футах вокруг заклинателя, идёт с ним. */
+  aura?: number;
+  hostileOnly?: boolean;
+  /** Что накладывает на провале — сверх урона. */
+  conditions?: ConditionCode[];
+  /** Только стоящих на земле (высота 0): «Шипы», «Жир», «Опутывание». */
+  ground?: true;
+  /**
+   * Высота зоны в футах, если её не дают форма и размер области:
+   * цилиндр «Лунного луча» — 40 футов при радиусе 5 (ревью 5а, В7).
+   */
+  heightFeet?: number;
+  obscure?: 'LIGHT' | 'HEAVY';
+  magicalDarkness?: true;
+  silence?: true;
+  /** Цена клетки внутри: 2 — труднопроходимо, 4 — «Рост растений». */
+  difficult?: 2 | 4;
+  /** Пока внутри: скорость вдвое («Духовные стражи»). */
+  inside?: { speedMultiplier?: number; hostileOnly?: boolean };
+  /** Урон за каждые `perFeet` пути внутри («Шипы»). */
+  perMove?: { dice: string; perFeet: number; type: string };
+  /** Опутанный этой зоной в начале хода получает урон без броска («Чёрные щупальца»). */
+  restrainedTakeDamage?: boolean;
+  /** Вырваться — проверка характеристики действием против СЛ заклинания. */
+  escape?: { checks: readonly AbilityCode[]; economy?: 'ACTION' };
+  /** Концентрирующийся внутри бросает спасбросок концентрации («Ледяная буря»). */
+  concentrationSave?: { ability: AbilityCode; on: readonly ZoneTrigger[] };
+  /** Двигается: действием, бонусом или сама в начале хода заклинателя. */
+  move?: {
+    economy: 'ACTION' | 'BONUS_ACTION' | 'CASTER_TURN_START';
+    feet?: number;
+    direction?: 'ANY' | 'AWAY_FROM_CASTER';
+    /** Таран: сдвинутая на существо — спасбросок сразу и встаёт («Пылающая сфера»). */
+    ram?: true;
+    /** Поворот линии вокруг заклинателя («Порыв ветра»). */
+    rotate?: true;
+    /** Отдельные точки, а не одна область («Пляшущие огоньки»). */
+    points?: number;
+  };
+  /** Толчок на провале («Порыв ветра»): `on` — когда, `ALONG_LINE` — по линии сотворения. */
+  push?: {
+    feet: number;
+    on?: readonly ZoneTrigger[];
+    save?: AbilityCode;
+    direction?: 'ALONG_LINE';
+  };
+  /** Шаг к заклинателю внутри стоит вдвое («Порыв ветра»). */
+  approachCost?: 2;
+  /** Рассеивается ветром / рассеивает. */
+  dispersedBy?: 'WIND';
+  disperses?: true;
+  /** Снимает магическую тьму: круга не выше `upToLevel` или любую. */
+  dispelDarkness?: { upToLevel: number } | 'ALL';
+  /** Скрыта от тех, кто не видел сотворения и не нашёл её поиском («Шипы»). */
+  hidden?: { check: 'perception' };
+  /** Исчезает, нанеся столько урона («Страж веры»). */
+  damageCap?: number;
+  /** Держится до конца следующего хода заклинателя («Ледяной шторм»). */
+  lasts?: 'CASTER_NEXT_TURN_END';
+  /** Вид урона срабатывания, когда он не тот, что при появлении («Стена из шипов» — 5б). */
+  damageType?: string;
+}
+
 export interface SpellMechanic {
   /** Фишек-целей: `base` на своём круге, `perSlot` — за каждый круг ячейки выше. */
   targets?: { base: number; perSlot?: number };
@@ -191,6 +281,8 @@ export interface SpellMechanic {
   notSelf?: boolean;
   selfOnly?: boolean;
   override?: SpellFieldOverride;
+  /** Ширина линии области в футах («Порыв ветра» — 10); нет — одна клетка. */
+  lineWidthFeet?: number;
   /**
    * Накладывается: со спасброском — на провале, с атакой — при
    * попадании, иначе — на каждую цель при сотворении.
@@ -340,30 +432,29 @@ export interface SpellMechanic {
    */
   variants?: SpellVariant[];
   /**
-   * Зона на карте («Духовные стражи», «Лунный луч», «Облачко смерти»):
-   * держится, пока держится заклинание, и срабатывает на тех, кто в неё
-   * входит, начинает или кончает в ней ход. Урон и спасбросок — из
-   * полей SRD; `onCast` — срабатывает и при сотворении на тех, кто уже
-   * внутри. `aura` — зона идёт с заклинателем, радиус в футах.
-   * `hostileOnly` — только по врагам заклинателя.
+   * Зона на карте («Духовные стражи», «Лунный луч», «Туманное облако»):
+   * статические свойства (план волны 5, решение 2). Экземпляр — клетки,
+   * СЛ, урон, счётчики — лежит в `data` эффекта `SPELL_AREA`, а свойства
+   * читаются отсюда при каждом обращении: старые зоны получают новые
+   * свойства без миграции.
    */
-  zone?: {
-    on: ('ENTER' | 'START' | 'END')[];
-    onCast?: boolean;
-    aura?: number;
-    hostileOnly?: boolean;
-    /** Что накладывает зона на провале — сверх урона («Паутина» — опутан). */
-    conditions?: ConditionCode[];
-    /**
-     * Уже опутанный этой зоной в начале хода получает урон без броска
-     * («Чёрные щупальца»); бросают только неопутанные.
-     */
-    restrainedTakeDamage?: boolean;
-    /** Вид урона срабатывания, когда он не тот, что при появлении («Стена из шипов» — рубящий). */
-    damageType?: string;
-    /** Провал отбрасывает от заклинателя на столько футов («Порыв ветра»). */
-    push?: { feet: number };
-  };
+  zone?: ZoneProps;
+  /** Свет заклинания (решение 28): на клетках зоны, на носителе или на предмете. */
+  light?: LightSpec;
+  /**
+   * «Существо или точку, которую вы видите» (решение 14): цель или клетка
+   * вне обзора заклинателя — 422 `TARGET_NOT_SEEN`. Сверено с текстом SRD
+   * тестом `spell-sight.test.ts`.
+   */
+  seen?: 'TARGET' | 'POINT' | 'BOTH';
+  /** Подсвеченный не получает выгоды от невидимости («Огонь фей», «Клеймящая кара»). */
+  revealInvisible?: true;
+  /** Цель не получает выгоды от укрытия («Священное пламя»). */
+  ignoresCover?: true;
+  /** Метки для предикатов спасброска: растения, мешающие движению (поступь по земле). */
+  tags?: readonly 'impedingPlants'[];
+  /** Чем кончается для носителя на высоте: падением («Полёт») или плавным спуском («Левитация»). */
+  falls?: 'FLY' | 'LEVITATE';
   /** Что остаётся ведущему, словами. */
   gm?: string;
 }
@@ -459,6 +550,10 @@ export function hasSpellEffect(mechanic: SpellMechanic | null): boolean {
       // иначе снимать уроном нечего; «Огненный клинок» — то, чем бьют.
       mechanic.endsOnDamage !== undefined ||
       mechanic.followUp !== undefined ||
+      // Свет на носителе и подсветка невидимого («Свет» на щите, «Огонь фей»).
+      // Свет зоны («Пляшущие огоньки») живёт на клетках, а не на фишке.
+      (mechanic.light !== undefined && mechanic.light.on !== 'ZONE') ||
+      mechanic.revealInvisible === true ||
       mechanic.weaponEnchant !== undefined ||
       (mechanic.endsOn?.length ?? 0) > 0)
   );
@@ -585,16 +680,26 @@ export function spentByOwnAttack(
   return mechanic !== null && !isDormant(mechanic, effect.data);
 }
 
+/** Атакующий глазами следствий на носителе: тип существа и видит ли он носителя. */
+export interface AttackerView {
+  type?: string | null;
+  /** Видит ли носителя — «Огонь фей» помогает только видящему. Нет — видит. */
+  seesBearer?: boolean;
+  /** Слепое или истинное зрение в досягаемости — «Размытый образ» не мешает. */
+  nonSightSense?: boolean;
+}
+
 /**
  * Следствия заклинаний в форме таблицы состояний — чтобы бросок
- * сводился одним `combineConditions`. `attackerType` — тип существа
- * атакующего: «Защита от добра и зла» мешает не всем, а исчадиям,
- * нежити и прочим из `incomingFrom`. Не назван — такая помеха не
- * действует: угадывать атакующего правило не берётся.
+ * сводился одним `combineConditions`. `attacker` — тип существа
+ * атакующего (строкой, как до волны 5) или его вид целиком: «Защита от
+ * добра и зла» мешает не всем, а исчадиям и нежити; «Размытый образ» не
+ * мешает слепому и истинному зрению; «Огонь фей» помогает только
+ * видящему. Тип не назван — такая помеха не действует.
  */
 export function spellConditionEffects(
   effects: readonly SpellEffectRow[],
-  attackerType?: string | null,
+  attacker?: string | null | AttackerView,
   /**
    * С кем носитель меряется в этом броске: цель его атаки. Следствия
    * «только против наложившего» (`vsSourceOnly`) без неё не действуют.
@@ -603,10 +708,15 @@ export function spellConditionEffects(
   /** Сейчас ход носителя; не назван — считается, что да. */
   bearerTurn = true,
 ): ConditionEffects[] {
+  const view: AttackerView =
+    typeof attacker === 'object' && attacker !== null ? attacker : { type: attacker ?? null };
+  const attackerType = view.type ?? null;
   return activeSpellModifiers(effects).map(({ modifiers, onlyAgainst, ownTurnOnly }) => {
     const incomingApplies =
-      modifiers.incomingFrom === undefined ||
-      (attackerType != null && modifiers.incomingFrom.includes(attackerType.toLowerCase()));
+      (modifiers.incomingFrom === undefined ||
+        (attackerType != null && modifiers.incomingFrom.includes(attackerType.toLowerCase()))) &&
+      !(modifiers.sightOnlyIncoming && view.nonSightSense) &&
+      !(modifiers.incomingNeedsSight && view.seesBearer === false);
     const incoming = incomingApplies ? (modifiers.incoming ?? 'NORMAL') : 'NORMAL';
     return {
       cannotAct: false,
@@ -882,6 +992,53 @@ export function spellEffectSummary(spellCode: string, data?: unknown): SpellEffe
   }
   if (mechanic.endsWhenBearerAttacks) items.push({ key: 'endsWhenBearerAttacks' });
   return items;
+}
+
+/** Чувства от заклинаний на носителе: большее из радиусов, «видит невидимое» — любое. */
+export function spellSensesFrom(effects: readonly SpellEffectRow[]): {
+  darkvision: number;
+  truesight: number;
+  seeInvisible: boolean;
+} {
+  const out = { darkvision: 0, truesight: 0, seeInvisible: false };
+  for (const { modifiers } of activeSpellModifiers(effects)) {
+    out.darkvision = Math.max(out.darkvision, modifiers.senses?.darkvision ?? 0);
+    out.truesight = Math.max(out.truesight, modifiers.senses?.truesight ?? 0);
+    out.seeInvisible ||= modifiers.senses?.seeInvisible === true;
+  }
+  return out;
+}
+
+/** Скорость полёта от заклинаний («Полёт»); ноль — не летает. */
+export function flySpeedFrom(effects: readonly SpellEffectRow[]): number {
+  return Math.max(0, ...activeSpellModifiers(effects).map((m) => m.modifiers.speeds?.fly ?? 0));
+}
+
+/** Висит ли носитель «Левитацией». */
+export function isLevitating(effects: readonly SpellEffectRow[]): boolean {
+  return activeSpellModifiers(effects).some((m) => m.modifiers.levitating === true);
+}
+
+/**
+ * Свет и подсветка эффекта на носителе. «Клеймящая кара» лежит на
+ * заклинателе до удара и светить не должна: её свет — на поражённом,
+ * куда эффект переходит с пометкой `data.branded`.
+ */
+export function bearerLightOf(effect: SpellEffectRow): {
+  light: LightSpec | null;
+  reveals: boolean;
+} {
+  if (effect.code !== SPELL_EFFECT_CODE || !effect.spellCode)
+    return { light: null, reveals: false };
+  const variant = (effect.data as { variant?: unknown } | null)?.variant;
+  const mechanic = spellMechanicFor(effect.spellCode, typeof variant === 'string' ? variant : null);
+  if (!mechanic) return { light: null, reveals: false };
+  const branded = (effect.data as { branded?: unknown } | null)?.branded === true;
+  if (mechanic.consumedOnOwnAttack && !branded) return { light: null, reveals: false };
+  return {
+    light: mechanic.light && mechanic.light.on !== 'ZONE' ? mechanic.light : null,
+    reveals: mechanic.revealInvisible === true,
+  };
 }
 
 /** Плоская прибавка к спасброскам от заклинаний. */

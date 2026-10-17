@@ -86,6 +86,11 @@ export type Predicate =
   | 'vsPoison'
   /** Лишний урон не меньше максимума хитов — стойкость полуорка не спасает. */
   | 'killedOutright'
+  // Волна 5 (план, §3.2).
+  /** Носитель в тусклом свете или темноте — «Единство с тенями» (`ctx.bearer.light`). */
+  | 'bearerInDimOrDark'
+  /** Спасбросок против растений, мешающих движению, — поступь по земле (`ctx.save.spellTags`). */
+  | 'vsImpedingPlants'
   // Волна 8а (разбор умений, П1.1).
   /** Бьют предметом-оружием, а не без оружия: у удара без оружия кости оружия нет. */
   | 'weaponItem'
@@ -295,6 +300,7 @@ export type EffectCode =
   | 'ELEMENTAL_AFFINITY'
   | 'MULTIATTACK_DEFENSE'
   | 'COUNTERCHARM'
+  | 'ONE_WITH_SHADOWS'
   | 'GAZE_OF_TWO_MINDS';
 
 /**
@@ -330,7 +336,7 @@ export interface ActionFacet {
 }
 
 /** Переключатели, меняющие выбор характеристики и кости, а не число. */
-export interface RuleFacet {
+export interface RuleFacet extends Conditional {
   kind: 'rule';
   rule:
     | 'martialArts'
@@ -348,8 +354,31 @@ export interface RuleFacet {
     | 'evasion'
     /** Магия не усыпляет — наследие фей: «Сон» пропускает, не тратя запас. */
     | 'immuneMagicalSleep'
+    // Волна 5: движение и засада.
+    /** Немагическая трудная местность бесплатна — поступь по земле. */
+    | 'ignoreNonmagicalDifficultTerrain'
+    /** Сквозь пространство существа крупнее себя — проворство полуросликов. */
+    | 'moveThroughLargerCreatures'
+    /** Прятаться за существом хотя бы на размер крупнее — прирождённая скрытность. */
+    | 'hideBehindLargerCreature'
+    /** По жидкости в свой ход, не останавливаясь на ней, — движение без доспехов 9. */
+    | 'wallAndWaterWalk'
     /** Удары без оружия магические — удары, усиленные ци. */
     | 'magicalUnarmed';
+}
+
+/** Чувство носителя (план волны 5, §3.2): тёмное или дьявольское зрение. */
+export interface SenseFacet {
+  kind: 'sense';
+  sense: 'darkvision' | 'devilsSight';
+  rangeFeet: number;
+}
+
+/** Свет от носителя — «Священное оружие» светит как факел. */
+export interface LightFacet {
+  kind: 'light';
+  bright: number;
+  dim: number;
 }
 
 /** Ресурс вне таблиц классов: максимум 1, свой отдых (§П2 разбора умений). */
@@ -477,7 +506,9 @@ export type ReactionEffect =
   | { reduceDamage: { sides: number; plus: readonly Amount[] }; catchMissile?: true }
   | { setHp: 1 }
   | { attack: 'attacker' | 'mover' }
-  | { castSpell: 'shield' }
+  | { castSpell: 'shield' | 'feather-fall' }
+  /** Урон падения меньше на число («Медленное падение» — 5 × уровень монаха). */
+  | { reduceFallDamage: Amount }
   /** Переброс малых костей урона своего заклинания (усиленное). */
   | { empower: true };
 
@@ -525,6 +556,8 @@ export type Facet =
   | ReactionFacet
   | ZoneFacet
   | RerollFacet
+  | SenseFacet
+  | LightFacet
   | SpellGrantFacet
   | RestActionFacet;
 
@@ -576,6 +609,14 @@ export interface EffectMechanic {
   spentBy?: 'ownAttack' | 'firstAttackVsTarget' | 'check';
   /** Состояние, которое эффект держит на носителе (испуг устрашения, ошеломление). */
   condition?: ConditionCode;
+  /**
+   * Снимается шагом, действием или реакцией носителя («Единство с тенями»:
+   * «until you move or take an action or a reaction»). Бонусное — не снимает.
+   * Снимает общий хук после операции, сравнивая экономику и пройденное.
+   */
+  endsOnMove?: true;
+  endsOnAction?: true;
+  endsOnReaction?: true;
 }
 
 /**
@@ -657,6 +698,8 @@ export interface MechanicsContext {
     id?: string;
     conscious?: boolean;
     conditions?: readonly ConditionCode[];
+    /** Освещённость клетки носителя — «Единство с тенями». */
+    light?: 'BRIGHT' | 'DIM' | 'DARK';
   };
   /** Тот, кто бросает (атакует, проверяет), глазами носителя грани. */
   actor?: {
@@ -674,6 +717,8 @@ export interface MechanicsContext {
     conditions?: readonly ConditionCode[];
     damageTypes?: readonly string[];
     sourceSeen?: boolean;
+    /** Метки заклинания источника (`SpellMechanic.tags`) — поступь по земле. */
+    spellTags?: readonly string[];
   };
   damage?: { killedOutright: boolean };
   /** Расстояние от носителя в футах. */

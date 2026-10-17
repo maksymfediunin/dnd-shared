@@ -743,3 +743,27 @@ describe('окно реакции (волна 4)', () => {
     expect(save.kind === 'SAVE' && save.immune).toBe(true);
   });
 });
+
+describe('волна 5: журнал и действия', () => {
+  it('сдвиг зоны — с id зоны и клетками; урон падения и укрытие атаки — в журнале', () => {
+    expect(
+      abilityInputSchema.safeParse({
+        ability: 'MOVE_ZONE',
+        zoneId: '00000000-0000-4000-8000-000000000001',
+        cells: [{ x: 1, y: 1 }],
+      }).success,
+    ).toBe(true);
+    expect(
+      encounterEventPayloadSchema.safeParse({
+        kind: 'DAMAGE',
+        notation: '3d6',
+        results: [2, 3, 4],
+        amount: 9,
+        damageType: 'bludgeoning',
+        temporaryAbsorbed: 0,
+        hitPointsLeft: 3,
+        cause: 'FALL',
+      }).success,
+    ).toBe(true);
+  });
+});

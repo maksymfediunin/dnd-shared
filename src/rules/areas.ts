@@ -1,5 +1,6 @@
 import type { SpellAreaShape } from '../enums/spells.js';
 import { type Cell, cellKey, fitsInGrid, type Grid } from './grid.js';
+import { segmentClear } from './vision.js';
 
 /**
  * Площади поражения на сетке. Живут в пакете по той же причине, что и
@@ -33,6 +34,15 @@ export interface AreaInput {
   towards?: Cell | null;
   cellSizeFeet: number;
   grid: Grid;
+  /**
+   * Непрозрачное и сплошное (план волны 5, решение 12): клетка без чистого
+   * отрезка от точки исхода в область не входит — «Огненный шар» за угол
+   * стены не заворачивает. Нет — стены область не останавливают (как до
+   * волны 5 и в упрощённом бою).
+   */
+  blockers?: ReadonlySet<string>;
+  /** Ширина линии в футах; нет — одна клетка («Порыв ветра» — 10, ревью 5а). */
+  widthFeet?: number;
 }
 
 /**
@@ -74,10 +84,31 @@ function inDirectionAxes(offset: Cell, direction: Cell): { forward: number; side
  * выглядит конус без направления и область, целиком ушедшая за край
  * сетки.
  *
- * Стены область не останавливают: укрытие и линия видимости — своя
- * работа, и делать её заодно волна не будет (§7 дизайна).
+ * Стены режет `blockers` (волна 5): клетка за стеной от точки исхода
+ * в область не входит.
  */
 export function cellsInArea(input: AreaInput): Set<string> {
+  const cells = shapeCells(input);
+  const blockers = input.blockers;
+  if (!blockers || blockers.size === 0) return cells;
+  // Точка исхода: у сферы и куба от точки — пересечение линий сетки, у
+  // прочего — центр клетки, откуда идёт область (заклинатель).
+  const fromPoint =
+    !input.fromCreature &&
+    (input.shape === 'SPHERE' || input.shape === 'CYLINDER' || input.shape === 'CUBE');
+  const origin = fromPoint
+    ? { x: input.origin.x, y: input.origin.y }
+    : { x: input.origin.x + 0.5, y: input.origin.y + 0.5 };
+  for (const key of [...cells]) {
+    const [x = 0, y = 0] = key.split(':').map(Number);
+    if (blockers.has(key) || !segmentClear(origin, { x: x + 0.5, y: y + 0.5 }, blockers)) {
+      cells.delete(key);
+    }
+  }
+  return cells;
+}
+
+function shapeCells(input: AreaInput): Set<string> {
   const size = sizeInCells(input.sizeFeet, input.cellSizeFeet);
   const cells = new Set<string>();
   const add = (cell: Cell): void => {
@@ -152,8 +183,18 @@ export function cellsInArea(input: AreaInput): Set<string> {
   if (input.shape === 'LINE') {
     // Клетка заклинателя в линию не входит: линия идёт от него, а не
     // из-под него.
+    // Ширина — клетками вбок от оси, по часовой: перпендикуляр (−dy, dx).
+    const width = Math.max(
+      1,
+      sizeInCells(input.widthFeet ?? input.cellSizeFeet, input.cellSizeFeet),
+    );
     for (let step = 1; step <= size; step += 1) {
-      add({ x: input.origin.x + direction.x * step, y: input.origin.y + direction.y * step });
+      for (let lane = 0; lane < width; lane += 1) {
+        add({
+          x: input.origin.x + direction.x * step - direction.y * lane,
+          y: input.origin.y + direction.y * step + direction.x * lane,
+        });
+      }
     }
     return cells;
   }
