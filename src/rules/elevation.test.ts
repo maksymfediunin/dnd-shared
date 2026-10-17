@@ -15,12 +15,11 @@ describe('высота и падение', () => {
     levitating: false,
     speedZero: false,
     prone: false,
-    incapacitated: false,
   };
 
-  it('орёл без сознания падает, бехолдер с парением ошеломлён — висит', () => {
-    expect(staysAloft({ ...flier, incapacitated: true })).toBe(false);
-    expect(staysAloft({ ...flier, hover: true, incapacitated: true, speedZero: true })).toBe(true);
+  it('орёл без сознания (скорость 0) падает, бехолдер с парением ошеломлён — висит', () => {
+    expect(staysAloft({ ...flier, speedZero: true })).toBe(false);
+    expect(staysAloft({ ...flier, hover: true, speedZero: true })).toBe(true);
     expect(staysAloft({ ...flier, prone: true })).toBe(false);
     expect(staysAloft({ ...flier, flySpeed: 0 })).toBe(false);
     expect(staysAloft({ ...flier, flySpeed: 0, levitating: true })).toBe(true);

@@ -8,9 +8,11 @@ export function fallDice(feet: number): number {
 }
 
 /**
- * Держится ли участник в воздухе (решение 19). Падает тот, у кого нет
- * скорости полёта, скорость 0, кто лежит или недееспособен — кроме
- * парящего (`hover`: бехолдер ошеломлён и висит). Левитирующий не падает.
+ * Держится ли участник в воздухе (решение 19). По букве PHB падает тот, у
+ * кого нет скорости полёта, скорость 0 или кто лежит — кроме парящего
+ * (`hover`: бехолдер ошеломлён и висит). Недееспособность сама по себе не
+ * роняет: без сознания, ошеломлён, парализован — это уже скорость 0.
+ * Левитирующий не падает.
  */
 export function staysAloft(p: {
   flySpeed: number;
@@ -18,10 +20,9 @@ export function staysAloft(p: {
   levitating: boolean;
   speedZero: boolean;
   prone: boolean;
-  incapacitated: boolean;
 }): boolean {
   if (p.levitating) return true;
   if (p.flySpeed <= 0) return false;
   if (p.hover) return true;
-  return !(p.speedZero || p.prone || p.incapacitated);
+  return !(p.speedZero || p.prone);
 }

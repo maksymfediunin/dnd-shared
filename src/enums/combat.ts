@@ -87,6 +87,8 @@ export const CONTINUATION_OPS = [
   // Волна 5: зоны на смене хода и падение — операции окна (решения 20–21).
   'ZONES_ON_TURN',
   'FALL',
+  // Хук после операции (ревью 5а, В2): его сбой — строкой, а не молча в лог.
+  'AFTER_OP',
 ] as const;
 export type ContinuationOp = (typeof CONTINUATION_OPS)[number];
 
