@@ -515,6 +515,11 @@ export const reactionAnswerSchema = z.object({
   ability: z.enum(REACTION_ABILITIES).nullable(),
   /** Отражение снарядов: метнуть пойманный снаряд за очко ци. */
   throwBack: z.boolean().optional(),
+  /**
+   * Кого берёт ответ, если выбор за отвечающим (ревью 5а): «Пёрышко» —
+   * до пяти падающих по выбору заклинателя. Нет — все, до кого достаёт.
+   */
+  targetIds: z.array(z.uuid()).min(1).max(5).optional(),
 });
 export type ReactionAnswerInput = z.infer<typeof reactionAnswerSchema>;
 
