@@ -33,6 +33,13 @@ export interface AreaInput {
   towards?: Cell | null;
   /** Ширина линии в футах — у пяти дыханий 10 фт; нет — одна клетка. */
   widthFeet?: number;
+  /**
+   * Сторона фишки в клетках, от которой идут конус и линия (`origin` — её
+   * левый верхний угол). Огромный дракон дышит из-под центра, а не из
+   * угла: сторона берётся от центра фишки, начало — клетка её края со
+   * стороны цели. Нет — одна клетка, как у средней фишки.
+   */
+  span?: number;
   cellSizeFeet: number;
   grid: Grid;
 }
@@ -69,6 +76,32 @@ function inDirectionAxes(offset: Cell, direction: Cell): { forward: number; side
   const alongX = offset.x * direction.x;
   const alongY = offset.y * direction.y;
   return { forward: Math.max(alongX, alongY), side: alongX - alongY };
+}
+
+/**
+ * Откуда и куда идут конус и линия. У средней фишки — от её клетки. У
+ * крупной сторона берётся от фишки целиком: по оси, где цель в пределах
+ * фишки, хода нет, иначе — к цели; начало — клетка края со стороны цели,
+ * поперёк — та, что напротив цели (SRD: точка начала конуса — любая на
+ * краю существа). От геометрического центра у фишки 2×2 цель прямо под
+ * левым столбцом ушла бы в диагональ мимо себя.
+ */
+function edgeTowards(
+  corner: Cell,
+  span: number,
+  towards: Cell,
+): { origin: Cell; direction: Cell } | null {
+  const step = (axis: 'x' | 'y') =>
+    towards[axis] < corner[axis] ? -1 : towards[axis] > corner[axis] + span - 1 ? 1 : 0;
+  const direction = { x: step('x'), y: step('y') };
+  if (direction.x === 0 && direction.y === 0) return null;
+  const along = (axis: 'x' | 'y') =>
+    direction[axis] > 0
+      ? corner[axis] + span - 1
+      : direction[axis] < 0
+        ? corner[axis]
+        : towards[axis];
+  return { origin: { x: along('x'), y: along('y') }, direction };
 }
 
 /**
@@ -148,8 +181,9 @@ export function cellsInArea(input: AreaInput): Set<string> {
   // Дальше только конус и линия, и обоим нужно направление. Без него
   // области нет: выдумывать сторону за игрока значило бы накрыть не
   // тех, на кого он показывал.
-  const direction = input.towards ? directionTo(input.origin, input.towards) : null;
-  if (!direction) return cells;
+  const from = input.towards ? edgeTowards(input.origin, input.span ?? 1, input.towards) : null;
+  if (!from) return cells;
+  const { origin, direction } = from;
 
   if (input.shape === 'LINE') {
     // Клетка заклинателя в линию не входит: линия идёт от него, а не
@@ -162,8 +196,8 @@ export function cellsInArea(input: AreaInput): Set<string> {
     for (let step = 1; step <= size; step += 1) {
       for (let lane = 0; lane < width; lane += 1) {
         add({
-          x: input.origin.x + direction.x * step - direction.y * lane,
-          y: input.origin.y + direction.y * step + direction.x * lane,
+          x: origin.x + direction.x * step - direction.y * lane,
+          y: origin.y + direction.y * step + direction.x * lane,
         });
       }
     }
@@ -180,7 +214,7 @@ export function cellsInArea(input: AreaInput): Set<string> {
       const { forward, side } = inDirectionAxes({ x: dx, y: dy }, direction);
       if (forward < 1 || forward > size) continue;
       if (2 * Math.abs(side) > forward) continue;
-      add({ x: input.origin.x + dx, y: input.origin.y + dy });
+      add({ x: origin.x + dx, y: origin.y + dy });
     }
   }
 

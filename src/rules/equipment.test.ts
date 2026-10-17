@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { inEquipmentCategory, isKnownEquipmentCategory } from './equipment.js';
+import {
+  ammunitionFits,
+  inEquipmentCategory,
+  isAmmunition,
+  isKnownEquipmentCategory,
+  shootsAmmunition,
+} from './equipment.js';
 
 const quarterstaff = {
   code: 'quarterstaff',
@@ -33,5 +39,18 @@ describe('inEquipmentCategory', () => {
     expect(isKnownEquipmentCategory('simple-weapons')).toBe(true);
     expect(isKnownEquipmentCategory('spaceships')).toBe(false);
     expect(inEquipmentCategory('spaceships', lute)).toBe(false);
+  });
+});
+
+describe('боеприпасы', () => {
+  it('стрела — к луку, не к арбалету; к самодельному — любой', () => {
+    expect(isAmmunition('arrow')).toBe(true);
+    expect(isAmmunition('dagger')).toBe(false);
+    expect(ammunitionFits('longbow', 'arrow')).toBe(true);
+    expect(ammunitionFits('crossbow-light', 'arrow')).toBe(false);
+    expect(ammunitionFits(null, 'sling-bullet')).toBe(true);
+    expect(ammunitionFits('longbow', null)).toBe(false);
+    expect(shootsAmmunition('sling')).toBe(true);
+    expect(shootsAmmunition('dagger')).toBe(false);
   });
 });

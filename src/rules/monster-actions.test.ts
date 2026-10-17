@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { MONSTER_ACTION_OVERRIDES } from './mechanics/monster-actions.data.js';
 import {
-  legendaryCandidates,
   legendaryLeft,
   monsterActionMechanicSchema,
   multiattackDice,
   multiattackNext,
   rechargeReady,
   rolledCountOf,
-  spentRecharges,
   usageSpent,
   usageState,
 } from './monster-actions.js';
@@ -168,34 +166,12 @@ describe('перезарядка, «в день», легендарные', () =
     expect(usageState(breath, {}, 'acid').ready).toBe(true);
     expect(usageSpent(breath, {}, 'acid')).toEqual({ 'recharge:acid': true });
     expect(usageState(breath, { 'recharge:acid': true }, 'acid').ready).toBe(false);
-    expect(spentRecharges({ 'recharge:acid': true, 'day:x': 1 })).toEqual(['acid']);
     const daily = { kind: 'PER_DAY' as const, times: 3 };
     expect(usageState(daily, {}, 'x')).toMatchObject({ left: 3, max: 3, ready: true });
     expect(usageSpent(daily, { 'day:x': 1 }, 'x')).toEqual({ 'day:x': 0 });
     expect(usageState(daily, { 'day:x': 0 }, 'x').ready).toBe(false);
     expect(legendaryLeft({})).toBe(3);
     expect(legendaryLeft({ legendary: 1 })).toBe(1);
-  });
-
-  it('кандидаты вставки: застигнутый, недееспособный, сам закончивший ход, пул 0 — нет', () => {
-    const base = {
-      legendary: true,
-      left: 3,
-      cheapest: 1,
-      dead: false,
-      incapacitated: false,
-      surprised: false,
-    };
-    const members = [
-      { ...base, id: 'ok' },
-      { ...base, id: 'surprised', surprised: true },
-      { ...base, id: 'stunned', incapacitated: true },
-      { ...base, id: 'ended' },
-      { ...base, id: 'empty', left: 0 },
-      { ...base, id: 'cheap', left: 1, cheapest: 2 },
-      { ...base, id: 'none', legendary: false },
-    ];
-    expect(legendaryCandidates(members, 'ended')).toEqual(['ok']);
   });
 });
 

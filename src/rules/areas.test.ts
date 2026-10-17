@@ -238,3 +238,46 @@ describe('линия шире клетки (дыхания, волна 7а)', ()
     expect([...cells].sort()).toEqual(['6:5', '6:6', '7:5', '7:6', '8:5', '8:6']);
   });
 });
+
+describe('конус и линия от крупной фишки (волна 7а)', () => {
+  // Огромный дракон 3×3 в (10,10): центр — (11,11), нижний край — ряд 12.
+  const big = { ...base, grid: { width: 30, height: 30 }, origin: { x: 10, y: 10 }, span: 3 };
+
+  it('линия 60 фт вниз из-под центра: от края, двенадцать клеток, цель под центром — в ней', () => {
+    const cells = cellsInArea({ ...big, shape: 'LINE', sizeFeet: 60, towards: { x: 11, y: 20 } });
+
+    expect(cells.size).toBe(12);
+    expect(cells.has('11:13')).toBe(true);
+    expect(cells.has('11:20')).toBe(true);
+    expect(cells.has('11:24')).toBe(true);
+    expect(cells.has('11:25')).toBe(false);
+    expect(cells.has('11:12')).toBe(false);
+  });
+
+  it('конус 30 фт вниз: от края на шесть клеток, своих клеток не задевает', () => {
+    const cells = cellsInArea({ ...big, shape: 'CONE', sizeFeet: 30, towards: { x: 11, y: 16 } });
+
+    expect(cells.has('11:16')).toBe(true);
+    expect(cells.has('11:18')).toBe(true);
+    expect(cells.has('11:19')).toBe(false);
+    for (const key of cells) expect(Number(key.split(':')[1])).toBeGreaterThan(12);
+  });
+
+  it('направление — от центра: цель вниз-вправо от центра — диагональ от угла', () => {
+    const cells = cellsInArea({ ...big, shape: 'LINE', sizeFeet: 15, towards: { x: 20, y: 20 } });
+
+    expect([...cells].sort()).toEqual(['13:13', '14:14', '15:15']);
+  });
+
+  it('большая 2×2: цель прямо под левым столбцом — линия прямо вниз из-под него', () => {
+    const cells = cellsInArea({
+      ...big,
+      span: 2,
+      shape: 'LINE',
+      sizeFeet: 15,
+      towards: { x: 10, y: 20 },
+    });
+
+    expect([...cells].sort()).toEqual(['10:12', '10:13', '10:14']);
+  });
+});

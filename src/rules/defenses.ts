@@ -89,7 +89,9 @@ function applies(code: DamageDefenseCode, type: string, source: DamageSource): b
     case 'nonmagical-nonadamantine':
       return nonmagicalAttack && source.adamantine !== true;
     case 'magical-good':
-      return source.isAttack && source.magical && source.attackerGood === true;
+      // «Magic weapons wielded by good creatures» — оружие: атака
+      // заклинанием доброго жреца ракшасу вдвое не бьёт.
+      return source.isAttack && source.magical && !source.fromSpell && source.attackerGood === true;
   }
 }
 

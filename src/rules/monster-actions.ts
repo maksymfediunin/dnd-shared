@@ -344,45 +344,8 @@ export function rechargeReady(min: number, roll: number): boolean {
   return roll >= min;
 }
 
-/** Потраченные перезарядки фишки — кому в начале хода бросать к6. */
-export function spentRecharges(resources: MonsterResources): string[] {
-  return Object.entries(resources)
-    .filter(([key, value]) => key.startsWith('recharge:') && value === true)
-    .map(([key]) => key.slice('recharge:'.length));
-}
-
 /** Остаток пула легендарных; нет ключа — полный. */
 export function legendaryLeft(resources: MonsterResources): number {
   const value = resources.legendary;
   return typeof value === 'number' ? value : LEGENDARY_ACTIONS_PER_ROUND;
-}
-
-/** Кто из монстров вправе на легендарную вставку после конца хода `endedId` (р. 8). */
-export interface LegendaryMember {
-  id: string;
-  /** Есть легендарные действия в статблоке. */
-  legendary: boolean;
-  left: number;
-  /** Самое дешёвое легендарное — дороже остатка пула кнопок нет. */
-  cheapest: number;
-  dead: boolean;
-  incapacitated: boolean;
-  surprised: boolean;
-}
-
-export function legendaryCandidates(
-  members: readonly LegendaryMember[],
-  endedId: string,
-): string[] {
-  return members
-    .filter(
-      (m) =>
-        m.legendary &&
-        m.id !== endedId &&
-        !m.dead &&
-        !m.incapacitated &&
-        !m.surprised &&
-        m.left >= Math.max(1, m.cheapest),
-    )
-    .map((m) => m.id);
 }

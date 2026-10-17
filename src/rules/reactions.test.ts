@@ -262,3 +262,23 @@ describe('кто вправе ответить', () => {
     ).toEqual([]);
   });
 });
+
+describe('«Parry» (волна 7а)', () => {
+  const knight = member('knight', 1, {
+    monster: { legendaryResistanceLeft: 0, legendaryLeft: 0, legendaryCheapest: null, parryAc: 2 },
+  });
+  const hit = (attack: ReactionEvent['attack']) =>
+    abilitiesOf([member('caster', 0), knight], {
+      event: 'attackHit',
+      actorId: 'caster',
+      subjectIds: ['knight'],
+      ...(attack ? { attack } : {}),
+    });
+
+  // SRD: «one melee attack that would hit it» — любой рукопашной, заклинанием тоже.
+  it('рукопашная атака заклинанием — есть; дальняя — нет', () => {
+    const melee = { range: 'MELEE', weapon: false, spell: true, isOpportunity: false } as const;
+    expect(hit(melee)).toContain('knight:PARRY');
+    expect(hit({ ...melee, range: 'RANGED' })).not.toContain('knight:PARRY');
+  });
+});

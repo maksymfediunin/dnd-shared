@@ -83,3 +83,44 @@ export function inEquipmentCategory(category: string, item: CategoryCandidate): 
     (weapon.rangeType === undefined || item.weapon.rangeType === weapon.rangeType)
   );
 }
+
+/**
+ * Боеприпасы SRD и чем ими стреляют. Серебро и адамантин стрелы решает
+ * стопка боеприпаса, а не лук (р. 13 плана волны 7, ревью 7а п. 9):
+ * серебрёный лук оборотню ничего не делает, серебряная стрела — делает.
+ * ponytail: таблица SRD; свои боеприпасы — когда появится категория у Item.
+ */
+const AMMUNITION_BY_WEAPON: Readonly<Record<string, string>> = {
+  longbow: 'arrow',
+  shortbow: 'arrow',
+  'crossbow-light': 'crossbow-bolt',
+  'crossbow-hand': 'crossbow-bolt',
+  'crossbow-heavy': 'crossbow-bolt',
+  sling: 'sling-bullet',
+  blowgun: 'blowgun-needle',
+};
+
+const AMMUNITION_CODES: ReadonlySet<string> = new Set(Object.values(AMMUNITION_BY_WEAPON));
+
+/** Оружие SRD стреляет боеприпасом (лук, арбалет, праща, духовая трубка). */
+export function shootsAmmunition(weaponCode: string | null | undefined): boolean {
+  return weaponCode != null && AMMUNITION_BY_WEAPON[weaponCode] !== undefined;
+}
+
+/** Стопка — боеприпас вообще (строка инвентаря с кодом стрелы, болта…). */
+export function isAmmunition(itemCode: string | null | undefined): boolean {
+  return itemCode != null && AMMUNITION_CODES.has(itemCode);
+}
+
+/**
+ * Годится ли боеприпас к оружию: у оружия SRD — свой вид, у самодельного
+ * со свойством «боеприпас» — любой.
+ */
+export function ammunitionFits(
+  weaponCode: string | null | undefined,
+  ammoCode: string | null | undefined,
+): boolean {
+  if (!isAmmunition(ammoCode)) return false;
+  const wanted = weaponCode ? AMMUNITION_BY_WEAPON[weaponCode] : undefined;
+  return wanted === undefined || wanted === ammoCode;
+}

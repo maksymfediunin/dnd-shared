@@ -271,12 +271,13 @@ function effectFits(
     );
   }
   if ('acBonus' in effect) {
-    // «Parry»: рукопашная атака оружием, которую монстр видит (р. 12).
+    // «Parry»: «one melee attack that would hit it» — любая рукопашная,
+    // заклинанием тоже, которую монстр видит (р. 12). Крит окна
+    // `attackHit` не открывает вовсе — КД против него ничего не решает.
     const actor = e.actorId ? members.get(e.actorId) : undefined;
     return (
       (m.monster?.parryAc ?? null) !== null &&
       e.attack?.range === 'MELEE' &&
-      e.attack.weapon === true &&
       actor !== undefined &&
       sees(m.id, actor.id)
     );

@@ -91,6 +91,13 @@ describe('защита с оговорками (р. 13)', () => {
     expect(plainDamageTypes(['fire', 'slashing@nonmagical', 'spell'])).toEqual(['fire']);
   });
 
+  it('ракшас: колющий магическим оружием доброго — вдвое; заклинанием доброго — нет', () => {
+    const rakshasa = set({ vulnerabilities: ['piercing@magical-good'] });
+    const good = { isAttack: true, magical: true, attackerGood: true };
+    expect(defendedAmount(6, 'piercing', rakshasa, good)).toBe(12);
+    expect(defendedAmount(6, 'piercing', rakshasa, { ...good, fromSpell: true })).toBe(6);
+  });
+
   it('доброе мировоззрение', () => {
     expect(isGoodAlignment('LAWFUL_GOOD')).toBe(true);
     expect(isGoodAlignment('lawful evil')).toBe(false);
