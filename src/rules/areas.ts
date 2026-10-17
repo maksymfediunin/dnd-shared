@@ -41,6 +41,8 @@ export interface AreaInput {
    * волны 5 и в упрощённом бою).
    */
   blockers?: ReadonlySet<string>;
+  /** Ширина линии в футах; нет — одна клетка («Порыв ветра» — 10, ревью 5а). */
+  widthFeet?: number;
 }
 
 /**
@@ -181,8 +183,18 @@ function shapeCells(input: AreaInput): Set<string> {
   if (input.shape === 'LINE') {
     // Клетка заклинателя в линию не входит: линия идёт от него, а не
     // из-под него.
+    // Ширина — клетками вбок от оси, по часовой: перпендикуляр (−dy, dx).
+    const width = Math.max(
+      1,
+      sizeInCells(input.widthFeet ?? input.cellSizeFeet, input.cellSizeFeet),
+    );
     for (let step = 1; step <= size; step += 1) {
-      add({ x: input.origin.x + direction.x * step, y: input.origin.y + direction.y * step });
+      for (let lane = 0; lane < width; lane += 1) {
+        add({
+          x: input.origin.x + direction.x * step - direction.y * lane,
+          y: input.origin.y + direction.y * step + direction.x * lane,
+        });
+      }
     }
     return cells;
   }

@@ -557,6 +557,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     until: { who: 'CASTER', at: 'END' },
   },
   'gust-of-wind': {
+    lineWidthFeet: 10,
     zone: {
       on: ['START'],
       push: { feet: 15, on: ['START'], save: 'strength', direction: 'ALONG_LINE' },

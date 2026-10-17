@@ -179,6 +179,19 @@ describe('линия', () => {
     ).toEqual(new Set(['5:4', '5:3', '5:2', '5:1']));
   });
 
+  it('шириной в 10 футов — две клетки поперёк оси («Порыв ветра»)', () => {
+    expect(
+      cellsInArea({
+        ...base,
+        shape: 'LINE',
+        sizeFeet: 15,
+        widthFeet: 10,
+        origin,
+        towards: { x: 6, y: 5 },
+      }),
+    ).toEqual(new Set(['6:5', '7:5', '8:5', '6:6', '7:6', '8:6']));
+  });
+
   it('упирается в край сетки', () => {
     const cells = cellsInArea({
       ...base,

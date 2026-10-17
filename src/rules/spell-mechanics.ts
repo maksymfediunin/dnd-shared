@@ -217,6 +217,8 @@ export interface SpellMechanic {
   notSelf?: boolean;
   selfOnly?: boolean;
   override?: SpellFieldOverride;
+  /** Ширина линии области в футах («Порыв ветра» — 10); нет — одна клетка. */
+  lineWidthFeet?: number;
   /**
    * Накладывается: со спасброском — на провале, с атакой — при
    * попадании, иначе — на каждую цель при сотворении.
