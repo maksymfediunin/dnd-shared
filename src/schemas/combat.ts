@@ -53,6 +53,8 @@ export const ATTACK_VIA = [
   'FRENZY',
   'HORDE_BREAKER',
   'READIED',
+  /** Легендарное действие монстра в конце чужого хода (волна 7а, р. 8). */
+  'LEGENDARY',
 ] as const;
 export type AttackVia = (typeof ATTACK_VIA)[number];
 
@@ -112,6 +114,17 @@ export const attackInputSchema = z
     via: z.enum(ATTACK_VIA).optional(),
     /** Безрассудная атака варвара — решается на первой атаке хода. */
     reckless: z.boolean().optional(),
+    /**
+     * Легендарное действие, которым бьют (`via: 'LEGENDARY'`): «Tail
+     * Attack» дракона ссылается на его же «Tail». Цену из пула берёт служба.
+     */
+    legendaryActionCode: z.string().trim().min(1).max(64).optional(),
+    /**
+     * Стопка боеприпасов, из которой стреляют (серебряные стрелы против
+     * оборотня). Пусто — обычные: материал и магия стрелы не читаются.
+     * Годится ли стопка к оружию, проверяет служба.
+     */
+    ammoItemId: z.string().trim().min(1).max(64).optional(),
     /**
      * Ход властью ведущего, вне правил очереди и бюджета футов. Раньше
      * ведущий был вне правил всегда — и за столом это выходило боком:
@@ -284,6 +297,10 @@ export const COMBAT_ABILITIES = [
   'BREATH_WEAPON',
   'COUNTERCHARM',
   'END_COUNTERCHARM',
+  /** Действие монстра из статблока — какое, говорит `actionCode` (волна 7а). */
+  'MONSTER_ACTION',
+  /** Бросок перезарядки в начале хода монстра — только строка журнала. */
+  'RECHARGE',
   // Волна 5: невидимость в тени и сдвиг зоны заклинания (лунный луч, сфера, огоньки).
   'ONE_WITH_SHADOWS',
   'MOVE_ZONE',
@@ -310,6 +327,8 @@ export const WINDOW_EVENTS = [
   'reducedToZero',
   'attackResolved',
   'leavesReach',
+  /** Конец чужого хода — легендарная вставка ведущему (волна 7а, р. 8). */
+  'turnEnded',
   /** Участник падает с высоты (волна 5): «Пёрышко», «Медленное падение». */
   'falling',
   /** Божественное вмешательство удалось — ведущий выбирает заклинание (план волны 8, р. 24). */
@@ -331,6 +350,12 @@ export const REACTION_ABILITIES = [
   'OPPORTUNITY_ATTACK',
   'SHIELD',
   'EMPOWERED_SPELL',
+  /** Монстр с пулом ходит легендарными действиями до начала следующего хода. */
+  'LEGENDARY_TURN',
+  /** Проваленный спасбросок монстра — успех за счёт «Legendary Resistance». */
+  'LEGENDARY_RESISTANCE',
+  /** «Parry»: +N к КД против попавшей рукопашной атаки. */
+  'PARRY',
   'FEATHER_FALL',
   'SLOW_FALL',
   /** Выбор ведущего во вмешательстве: заклинание жреца или домена. */
@@ -359,7 +384,15 @@ export type BasicAction = (typeof BASIC_ACTIONS)[number];
  * снятие ярости). `ATTACK` — одна атака из действия «Атака» (захват,
  * толчок): у воина пятого уровня после неё остаётся вторая.
  */
-export const ACTION_ECONOMY = ['ACTION', 'BONUS_ACTION', 'REACTION', 'FREE', 'ATTACK'] as const;
+export const ACTION_ECONOMY = [
+  'ACTION',
+  'BONUS_ACTION',
+  'REACTION',
+  'FREE',
+  'ATTACK',
+  /** Легендарное действие монстра: цена — из пула, только во вставке. */
+  'LEGENDARY',
+] as const;
 export type ActionEconomy = (typeof ACTION_ECONOMY)[number];
 
 /** Почему действия сейчас нет — код из ERROR_CODES: переводы `errors.*` у фронта уже есть. */
@@ -391,7 +424,14 @@ const actionInputSchema = z.object({
   rangeFeet: z.number().int().min(0).nullable(),
   options: z.array(z.string().min(1).max(64)).max(40),
   amount: z.object({ min: z.number().int().min(0), max: z.number().int().min(0) }).nullable(),
-  area: z.object({ shape: spellAreaShapeSchema, sizeFeet: z.number().int().min(5) }).nullable(),
+  area: z
+    .object({
+      shape: spellAreaShapeSchema,
+      sizeFeet: z.number().int().min(5),
+      /** Линия шире клетки — дыхания пяти драконов. */
+      widthFeet: z.number().int().min(5).optional(),
+    })
+    .nullable(),
 });
 export type ActionInput = z.infer<typeof actionInputSchema>;
 
@@ -454,6 +494,30 @@ export const availableActionSchema = z.discriminatedUnion('kind', [
     exclusive: z.boolean(),
     available: z.boolean(),
     reason: z.enum(ACTION_UNAVAILABLE_REASONS).nullable(),
+  }),
+  /**
+   * Действие монстра (волна 7а): дыхание, «Frightful Presence», легендарные.
+   * Атаки монстра — путь `ATTACK`; здесь же легендарная ссылка на атаку
+   * (`attackCode` — бьют маршрутом атаки с `legendaryActionCode`) и шаг
+   * мультиатаки, который не атака (`multiattackStep`).
+   */
+  z.object({
+    kind: z.literal('MONSTER_ACTION'),
+    actionCode: z.string().min(1).max(120),
+    ...availability,
+    usage: z
+      .object({
+        kind: z.enum(['RECHARGE', 'PER_DAY', 'REST']),
+        left: z.number().int().min(0).optional(),
+        max: z.number().int().min(1).optional(),
+        min: z.number().int().min(2).max(6).optional(),
+        ready: z.boolean(),
+      })
+      .nullable(),
+    legendaryCost: z.number().int().min(1).max(3).nullable(),
+    multiattackStep: z.boolean(),
+    attackCode: z.string().min(1).max(120).nullable(),
+    input: actionInputSchema,
   }),
   /** Ответ в открытом окне реакции — есть, только пока окно открыто (план волны 4, №28). */
   z.object({
@@ -576,6 +640,8 @@ export const abilityInputSchema = z.object({
   option: z.string().trim().min(1).max(64).optional(),
   /** Наложение рук — сколько хитов из запаса. */
   amount: z.number().int().min(1).max(200).optional(),
+  /** `MONSTER_ACTION`: код действия монстра (`MonsterAction.code`). */
+  actionCode: z.string().trim().min(1).max(120).optional(),
   /** Сохранение жизни — кому сколько. */
   allocations: z
     .array(z.object({ participantId: z.uuid(), amount: z.number().int().min(1).max(200) }))
@@ -802,6 +868,20 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     openHand: z.boolean().optional(),
     /** Усиленное заклинание: сколько костей урона перебросить. */
     empoweredDice: z.number().int().min(1).max(10).optional(),
+    /**
+     * Источник урона для оговорок защиты (план волны 7, р. 13): оружие
+     * серебрёное, адамантиновое; магичность — `magicalWeapon` (волна 8а).
+     * Нет — обычная сталь.
+     */
+    silvered: z.literal(true).optional(),
+    adamantine: z.literal(true).optional(),
+    /** Действие монстра, которым ударили: его наездники бросает урон. */
+    monsterActionCode: z.string().min(1).max(120).optional(),
+    /** Легендарное действие, которым ударили, и его цена. */
+    legendaryActionCode: z.string().min(1).max(120).optional(),
+    legendaryCost: z.number().int().min(1).max(3).optional(),
+    /** «Parry» цели обратил попадание в промах: на сколько поднял КД. */
+    parried: z.number().int().min(1).max(10).optional(),
     /** Лишние кости оружия на крите — жестокий крит, свирепые атаки. */
     critExtraDice: z.number().int().min(1).max(10).optional(),
     /** Значения костей урона, которые перебрасываются (бой большим оружием). */
@@ -825,7 +905,11 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
       .optional(),
     /** Урон Силой вполовину («Луч слабости» на атакующем). */
     halvedByStrength: z.boolean().optional(),
-    /** Оружие магическое (Р9): под заклинанием, удар монаха с ци. */
+    /**
+     * Оружие магическое (Р9): предмет, клинок договора, под заклинанием,
+     * удар монаха с ци, черта монстра — один признак для оговорок защиты
+     * статблока и исчадной стойкости.
+     */
     magicalWeapon: z.boolean().optional(),
     /** Из чего сложен бонус к попаданию; сумма частей — модификатор броска. */
     attackParts: modifierPartsSchema,
@@ -1062,6 +1146,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
       rerolled: rerolledSchema,
       /** Броска не было: цель неуязвима ко всему, что даёт провал (план волны 4, №21). */
       immune: z.literal(true).optional(),
+      /** Провал обращён в успех «Legendary Resistance» (волна 7а, р. 11). */
+      legendaryResistance: z.literal(true).optional(),
     })
     .refine((v) => (v.spellCode === undefined) !== (v.featureCode === undefined), {
       path: ['spellCode'],
@@ -1175,6 +1261,15 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
      * у неё оставалось — по ним перемотка хода восстанавливает эффект.
      */
     roundsRemaining: z.number().int().min(0).nullable().optional(),
+    /** Действие монстра (`MONSTER_ACTION`, `RECHARGE`) — код статблока. */
+    actionCode: z.string().min(1).max(120).optional(),
+    /** Перезарядка: к6 и готово ли. */
+    roll: z.number().int().min(1).max(6).optional(),
+    ready: z.boolean().optional(),
+    /** Легендарное — сколько стоило из пула. */
+    legendaryCost: z.number().int().min(1).max(3).optional(),
+    /** Шаг мультиатаки — действие хода не тратил. */
+    multiattackStep: z.literal(true).optional(),
   }),
   z.object({ kind: z.literal('ROUND'), round: z.number().int().min(1) }),
   /**

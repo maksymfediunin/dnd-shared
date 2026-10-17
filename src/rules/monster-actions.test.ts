@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { MONSTER_ACTION_OVERRIDES } from './mechanics/monster-actions.data.js';
-import { monsterActionMechanicSchema, multiattackNext } from './monster-actions.js';
+import {
+  legendaryLeft,
+  monsterActionMechanicSchema,
+  multiattackDice,
+  multiattackNext,
+  rechargeReady,
+  rolledCountOf,
+  usageSpent,
+  usageState,
+} from './monster-actions.js';
 
 describe('multiattackNext', () => {
   const bear = [
@@ -111,6 +120,91 @@ describe('monsterActionMechanicSchema', () => {
   it('каждая поправка таблицы проходит схему', () => {
     for (const [code, mechanic] of Object.entries(MONSTER_ACTION_OVERRIDES)) {
       expect(monsterActionMechanicSchema.safeParse(mechanic).success, code).toBe(true);
+    }
+  });
+});
+
+describe('мультиатака с условием и счётчиками (волна 7а)', () => {
+  it('чуул: щупальца — только когда держит захват', () => {
+    const chuul = [
+      [{ action: 'pincer', count: 2 }],
+      [
+        { action: 'pincer', count: 2 },
+        { action: 'tentacles', count: 1, when: 'grappling' as const },
+      ],
+    ];
+    expect(multiattackNext(chuul, ['pincer', 'pincer'])).toEqual([]);
+    expect(multiattackNext(chuul, ['pincer', 'pincer'], { grappling: true })).toEqual([
+      'tentacles',
+    ]);
+  });
+
+  it('гидра с четырьмя головами — четыре укуса', () => {
+    const hydra = [[{ action: 'bite', count: { param: 'heads' as const } }]];
+    expect(multiattackNext(hydra, ['bite', 'bite', 'bite'], { heads: 4 })).toEqual(['bite']);
+    expect(multiattackNext(hydra, ['bite', 'bite', 'bite', 'bite'], { heads: 4 })).toEqual([]);
+  });
+
+  it('фиолетовый гриб: брошенное «1d4» лежит пометкой в сделанном', () => {
+    const fungus = [[{ action: 'touch', count: { dice: '1d4' } }]];
+    expect(multiattackDice(fungus)).toBe('1d4');
+    expect(multiattackNext(fungus, [])).toEqual(['touch']);
+    expect(multiattackNext(fungus, ['#2', 'touch'])).toEqual(['touch']);
+    expect(multiattackNext(fungus, ['#2', 'touch', 'touch'])).toEqual([]);
+    expect(rolledCountOf(['#2', 'touch'])).toBe(2);
+  });
+});
+
+describe('перезарядка, «в день», легендарные', () => {
+  it('перезарядка 5–6: к6 = 4 — нет, 5 — да', () => {
+    expect(rechargeReady(5, 4)).toBe(false);
+    expect(rechargeReady(5, 5)).toBe(true);
+  });
+
+  it('счётчики: нет ключа — полный; трата пишет ключ', () => {
+    const breath = { kind: 'RECHARGE' as const, min: 5 };
+    expect(usageState(breath, {}, 'acid').ready).toBe(true);
+    expect(usageSpent(breath, {}, 'acid')).toEqual({ 'recharge:acid': true });
+    expect(usageState(breath, { 'recharge:acid': true }, 'acid').ready).toBe(false);
+    const daily = { kind: 'PER_DAY' as const, times: 3 };
+    expect(usageState(daily, {}, 'x')).toMatchObject({ left: 3, max: 3, ready: true });
+    expect(usageSpent(daily, { 'day:x': 1 }, 'x')).toEqual({ 'day:x': 0 });
+    expect(usageState(daily, { 'day:x': 0 }, 'x').ready).toBe(false);
+    expect(legendaryLeft({})).toBe(3);
+    expect(legendaryLeft({ legendary: 1 })).toBe(1);
+  });
+});
+
+describe('схема механики волны 7а', () => {
+  it('дыхание, взмах крыльев, наездники, ссылки и «Parry»', () => {
+    const cases = [
+      {
+        kind: 'areaSave',
+        area: { shape: 'LINE', sizeFeet: 60, widthFeet: 5 },
+        save: { ability: 'dexterity', dc: 18, onSuccess: 'half' },
+        damage: [{ dice: '12d8', type: 'acid' }],
+      },
+      {
+        kind: 'attack',
+        attackType: 'MELEE_WEAPON',
+        bonus: 4,
+        reachFeet: 5,
+        damage: [{ dice: '2d4+2', type: 'piercing' }],
+        riders: [
+          {
+            kind: 'save',
+            save: { ability: 'strength', dc: 11, onSuccess: 'none' },
+            onFail: [{ kind: 'condition', condition: 'prone' }],
+          },
+        ],
+      },
+      { kind: 'ref', action: 'adult-black-dragon-tail-action' },
+      { kind: 'move', fraction: 0.5, noOpportunity: true },
+      { kind: 'check', skill: 'perception' },
+      { kind: 'parry', ac: 2 },
+    ];
+    for (const mechanic of cases) {
+      expect(monsterActionMechanicSchema.safeParse(mechanic).success, mechanic.kind).toBe(true);
     }
   });
 });

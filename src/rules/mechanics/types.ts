@@ -300,6 +300,8 @@ export type EffectCode =
   | 'ELEMENTAL_AFFINITY'
   | 'MULTIATTACK_DEFENSE'
   | 'COUNTERCHARM'
+  /** Иммунитет к ауре или действию носителя до конца сцены (`data.code`) — р. 21 разбора. */
+  | 'AURA_IMMUNE'
   | 'ONE_WITH_SHADOWS'
   | 'GAZE_OF_TWO_MINDS';
 
@@ -354,6 +356,8 @@ export interface RuleFacet extends Conditional {
     | 'evasion'
     /** Магия не усыпляет — наследие фей: «Сон» пропускает, не тратя запас. */
     | 'immuneMagicalSleep'
+    /** Атаки оружием носителя магические — «Magic Weapons» монстров (волна 7а). */
+    | 'magicWeapons'
     // Волна 5: движение и засада.
     /** Немагическая трудная местность бесплатна — поступь по земле. */
     | 'ignoreNonmagicalDifficultTerrain'
@@ -510,7 +514,13 @@ export type ReactionEffect =
   /** Урон падения меньше на число («Медленное падение» — 5 × уровень монаха). */
   | { reduceFallDamage: Amount }
   /** Переброс малых костей урона своего заклинания (усиленное). */
-  | { empower: true };
+  | { empower: true }
+  /** Проваленный спасбросок — успех («Legendary Resistance»). */
+  | { forceSuccess: true }
+  /** +N к КД против этой атаки — «Parry» монстра (N — из его действия). */
+  | { acBonus: 'parry' }
+  /** Легендарная вставка: монстр действует до начала следующего хода. */
+  | { legendaryTurn: true };
 
 /**
  * Аура (разбор П1.5, `zone anchor:'bearer'`): грани получают носитель и
@@ -629,6 +639,8 @@ export interface MechanicsHolder {
   features: ReadonlySet<string>;
   /** Коды черт источника; из предков — только выбранный. */
   traits: ReadonlySet<string>;
+  /** Коды черт монстра (`MonsterAction.traitCode`) — реестр `MONSTER_TRAIT_MECHANICS`. */
+  monsterTraits?: ReadonlySet<string>;
   /** Коды эффектов участника с записью в EFFECT_MECHANICS. */
   effects: readonly string[];
   proficiencyBonus: number;

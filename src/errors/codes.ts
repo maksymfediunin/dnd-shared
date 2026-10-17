@@ -186,6 +186,8 @@ export const ERROR_CODES = {
   CONDITION_IMMUNE: 'CONDITION_IMMUNE',
   /** Спасбросок от смерти — в начале своего хода на нуле хитов, а не в ход падения. */
   DEATH_SAVE_NOT_TURN_START: 'DEATH_SAVE_NOT_TURN_START',
+  /** Идёт легендарная вставка: ходит монстр вне очереди, перемотки и прочих действий нет. */
+  LEGENDARY_INTERLUDE: 'LEGENDARY_INTERLUDE',
   /** Заклинатель не видит цель или точку («существо, которое вы видите», волна 5). */
   TARGET_NOT_SEEN: 'TARGET_NOT_SEEN',
   /** У цели полное укрытие — к ней нет чистого пути. */

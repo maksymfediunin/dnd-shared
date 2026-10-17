@@ -23,6 +23,7 @@ import {
 } from '../progression.js';
 import { EFFECT_MECHANICS } from './effects.data.js';
 import { FEATURE_MECHANICS } from './features.data.js';
+import { MONSTER_TRAIT_MECHANICS } from './monster-traits.data.js';
 import { TRAIT_MECHANICS } from './traits.data.js';
 import type {
   AcFormulaFacet,
@@ -271,6 +272,9 @@ export function facetsOf(h: MechanicsHolder): { code: string; facet: Facet }[] {
   }
   for (const code of h.traits) {
     for (const facet of facetsOfRecord(TRAIT_MECHANICS[code])) out.push({ code, facet });
+  }
+  for (const code of h.monsterTraits ?? []) {
+    for (const facet of facetsOfRecord(MONSTER_TRAIT_MECHANICS[code])) out.push({ code, facet });
   }
   for (const code of h.effects) {
     for (const facet of EFFECT_MECHANICS[code as keyof typeof EFFECT_MECHANICS]?.facets ?? []) {
@@ -785,6 +789,8 @@ export function economyReason(
     BONUS_ACTION: input.economy.hasUsedBonusAction,
     REACTION: input.economy.hasUsedReaction,
     FREE: false,
+    // Пул легендарных — остаток решает вызывающий, как цену ресурса.
+    LEGENDARY: false,
   } satisfies Record<ActionEconomy, boolean>;
   if (!override && used[economy]) return ECONOMY_REASON[economy] ?? null;
   if (

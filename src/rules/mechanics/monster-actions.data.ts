@@ -58,4 +58,36 @@ export const MONSTER_ACTION_OVERRIDES: Readonly<Record<string, MonsterActionMech
       [{ action: 'vampire-vampire-unarmed-strike-action', count: 2 }],
     ],
   },
+  // Условие текста: «If the chuul is grappling a creature, the chuul can
+  // also use its tentacles once» (р. 6 плана волны 7 — `when` у шага).
+  'chuul-multiattack-action': {
+    kind: 'multiattack',
+    options: [
+      [
+        { action: 'chuul-pincer-action', count: 2 },
+        { action: 'chuul-tentacles-action', count: 1, when: 'grappling' },
+      ],
+    ],
+  },
+  // Счётчики строкой в источнике: «Number of Heads» и «1d4».
+  'hydra-multiattack-action': {
+    kind: 'multiattack',
+    options: [[{ action: 'hydra-bite-action', count: { param: 'heads' } }]],
+  },
+  'violet-fungus-multiattack-action': {
+    kind: 'multiattack',
+    options: [[{ action: 'violet-fungus-rotting-touch-action', count: { dice: '1d4' } }]],
+  },
 };
+
+/**
+ * Поле `dc.success_type` источника врёт, текст «half as much» прав (§1.2
+ * разбора, п. 1). Разбор берёт текст; запись здесь — признание расхождения,
+ * без неё импорт падает на сверке.
+ */
+export const MONSTER_ACTION_FIELD_ERRORS: readonly string[] = [
+  'adult-red-dragon-fire-breath-action',
+  'ancient-white-dragon-cold-breath-action',
+  'green-dragon-wyrmling-poison-breath-action',
+  'winter-wolf-cold-breath-action',
+];

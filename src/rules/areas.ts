@@ -32,6 +32,12 @@ export interface AreaInput {
   fromCreature?: boolean;
   /** Куда направлены конус, линия и куб «на себя». Прочим формам направление не нужно. */
   towards?: Cell | null;
+  /**
+   * Сторона фишки в клетках, от которой идут конус и линия (`origin` — её
+   * левый верхний угол). Огромный дракон дышит с края фишки со стороны
+   * цели, а не из угла (`edgeTowards`). Нет — одна клетка, как у средней.
+   */
+  span?: number;
   cellSizeFeet: number;
   grid: Grid;
   /**
@@ -41,7 +47,7 @@ export interface AreaInput {
    * волны 5 и в упрощённом бою).
    */
   blockers?: ReadonlySet<string>;
-  /** Ширина линии в футах; нет — одна клетка («Порыв ветра» — 10, ревью 5а). */
+  /** Ширина линии в футах; нет — одна клетка («Порыв ветра» и пять дыханий — 10). */
   widthFeet?: number;
 }
 
@@ -80,6 +86,32 @@ function inDirectionAxes(offset: Cell, direction: Cell): { forward: number; side
 }
 
 /**
+ * Откуда и куда идут конус и линия. У средней фишки — от её клетки. У
+ * крупной сторона берётся от фишки целиком: по оси, где цель в пределах
+ * фишки, хода нет, иначе — к цели; начало — клетка края со стороны цели,
+ * поперёк — та, что напротив цели (SRD: точка начала конуса — любая на
+ * краю существа). От геометрического центра у фишки 2×2 цель прямо под
+ * левым столбцом ушла бы в диагональ мимо себя.
+ */
+function edgeTowards(
+  corner: Cell,
+  span: number,
+  towards: Cell,
+): { origin: Cell; direction: Cell } | null {
+  const step = (axis: 'x' | 'y') =>
+    towards[axis] < corner[axis] ? -1 : towards[axis] > corner[axis] + span - 1 ? 1 : 0;
+  const direction = { x: step('x'), y: step('y') };
+  if (direction.x === 0 && direction.y === 0) return null;
+  const along = (axis: 'x' | 'y') =>
+    direction[axis] > 0
+      ? corner[axis] + span - 1
+      : direction[axis] < 0
+        ? corner[axis]
+        : towards[axis];
+  return { origin: { x: along('x'), y: along('y') }, direction };
+}
+
+/**
  * Клетки области. Пустое множество — законный ответ, а не сбой: так
  * выглядит конус без направления и область, целиком ушедшая за край
  * сетки.
@@ -96,9 +128,13 @@ export function cellsInArea(input: AreaInput): Set<string> {
   const fromPoint =
     !input.fromCreature &&
     (input.shape === 'SPHERE' || input.shape === 'CYLINDER' || input.shape === 'CUBE');
-  const origin = fromPoint
-    ? { x: input.origin.x, y: input.origin.y }
-    : { x: input.origin.x + 0.5, y: input.origin.y + 0.5 };
+  // Конус и линия крупной фишки идут с клетки её края — от неё и отрезок.
+  const edge =
+    (input.shape === 'CONE' || input.shape === 'LINE') && input.towards
+      ? edgeTowards(input.origin, input.span ?? 1, input.towards)?.origin
+      : undefined;
+  const start = edge ?? input.origin;
+  const origin = fromPoint ? { x: start.x, y: start.y } : { x: start.x + 0.5, y: start.y + 0.5 };
   for (const key of [...cells]) {
     const [x = 0, y = 0] = key.split(':').map(Number);
     if (blockers.has(key) || !segmentClear(origin, { x: x + 0.5, y: y + 0.5 }, blockers)) {
@@ -177,8 +213,9 @@ function shapeCells(input: AreaInput): Set<string> {
   // Дальше только конус и линия, и обоим нужно направление. Без него
   // области нет: выдумывать сторону за игрока значило бы накрыть не
   // тех, на кого он показывал.
-  const direction = input.towards ? directionTo(input.origin, input.towards) : null;
-  if (!direction) return cells;
+  const from = input.towards ? edgeTowards(input.origin, input.span ?? 1, input.towards) : null;
+  if (!from) return cells;
+  const { origin, direction } = from;
 
   if (input.shape === 'LINE') {
     // Клетка заклинателя в линию не входит: линия идёт от него, а не
@@ -191,8 +228,8 @@ function shapeCells(input: AreaInput): Set<string> {
     for (let step = 1; step <= size; step += 1) {
       for (let lane = 0; lane < width; lane += 1) {
         add({
-          x: input.origin.x + direction.x * step - direction.y * lane,
-          y: input.origin.y + direction.y * step + direction.x * lane,
+          x: origin.x + direction.x * step - direction.y * lane,
+          y: origin.y + direction.y * step + direction.x * lane,
         });
       }
     }
@@ -209,7 +246,7 @@ function shapeCells(input: AreaInput): Set<string> {
       const { forward, side } = inDirectionAxes({ x: dx, y: dy }, direction);
       if (forward < 1 || forward > size) continue;
       if (2 * Math.abs(side) > forward) continue;
-      add({ x: input.origin.x + dx, y: input.origin.y + dy });
+      add({ x: origin.x + dx, y: origin.y + dy });
     }
   }
 

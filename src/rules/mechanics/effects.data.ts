@@ -226,6 +226,12 @@ export const EFFECT_MECHANICS: Readonly<Record<EffectCode, EffectMechanic>> = {
     endsOnIncapacitated: true,
   },
   /**
+   * Иммунитет к действию или ауре одного носителя до конца сцены: успешный
+   * спасбросок против «Frightful Presence» (р. 21 разбора). Источник —
+   * носитель, код действия — `data.code`.
+   */
+  AURA_IMMUNE: { facets: [], expires: 'COMBAT_END' },
+  /**
    * Единство с тенями: невидим, пока не двинется, не совершит действие или
    * реакцию. Бонусное действие не снимает.
    */
