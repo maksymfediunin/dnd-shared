@@ -322,6 +322,11 @@ const MARTIAL_ARTS_DIE = [4, 4, 4, 4, 6, 6, 6, 6, 6, 6] as const;
 const SNEAK_ATTACK_DICE = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5] as const;
 const INVOCATIONS_KNOWN = [0, 2, 2, 2, 3, 3, 4, 4, 5, 5] as const;
 const UNARMORED_MOVEMENT = [0, 10, 10, 10, 10, 15, 15, 15, 15, 20] as const;
+// Таблицы ниже — до десятого уровня (MAX_LEVEL): жестокий крит с 9-го,
+// божественный удар с 8-го, песнь отдыха со 2-го; до умения — ноль.
+const SONG_OF_REST_DIE = [0, 6, 6, 6, 6, 6, 6, 6, 8, 8] as const;
+const BRUTAL_CRITICAL_DICE = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1] as const;
+const DIVINE_STRIKE_DICE = [0, 0, 0, 0, 0, 0, 0, 1, 1, 1] as const;
 
 /** Прибавка варвара к урону в ярости. */
 export function rageDamageBonus(level: number): number {
@@ -351,6 +356,21 @@ export function invocationsKnown(level: number): number {
 /** Прибавка к скорости монаха без доспеха и щита (столбец таблицы монаха). */
 export function unarmoredMovementBonus(level: number): number {
   return atLevel(UNARMORED_MOVEMENT, level);
+}
+
+/** Грань кости «Песни отдыха» барда. */
+export function songOfRestDie(level: number): number {
+  return atLevel(SONG_OF_REST_DIE, level);
+}
+
+/** Лишних костей оружия на крите у жестокого крита варвара. */
+export function brutalCriticalDice(level: number): number {
+  return atLevel(BRUTAL_CRITICAL_DICE, level);
+}
+
+/** Костей к8 божественного удара жреца. */
+export function divineStrikeDice(level: number): number {
+  return atLevel(DIVINE_STRIKE_DICE, level);
 }
 
 /**

@@ -51,6 +51,10 @@ export const TRAIT_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
       },
     ],
   },
+  // Удар без оружия кости оружия не имеет — не действует (разбор §14).
+  'savage-attacks': {
+    facets: [{ kind: 'crit', extraWeaponDice: 1, when: ['meleeWeaponAttack', 'weaponItem'] }],
+  },
   // Окно, а не само: у черты цена, её берегут (П4 #57).
   'relentless-endurance': {
     facets: [

@@ -77,7 +77,71 @@ export interface SpellModifiers {
   incomingNeedsSight?: true;
   /** Висит в воздухе: по горизонтали не ходит, вверх и вниз — до 20 футов за ход («Левитация»). */
   levitating?: true;
+  // Волна 8а (план w8, §3.1): проверки, иммунитеты, урон Силой, лечение.
+  /** Преимущество к проверкам этих характеристик носителя; `ALL` — всех («Предвидение»). */
+  checkAdvantage?: (AbilityCode | 'ALL')[];
+  /**
+   * Помеха к проверкам этих навыков, кроме как против наложившего
+   * («Порабощение»: Внимательность — ко всем, кроме заклинателя).
+   */
+  checkDisadvantage?: string[];
+  /** Прибавка к проверкам навыков («Бесследное передвижение» — Скрытность +10). */
+  checkBonus?: Record<string, number>;
+  /** Кость к одной проверке характеристики («Указание» 1к4); тратится на ней. */
+  checkDice?: string;
+  /** Состояния не ложатся от существ этих типов («Защита от добра и зла»). */
+  conditionImmunitiesFrom?: { conditions: ConditionCode[]; sourceTypes: string[] };
+  /** Иммунитет к видам урона («Пустой разум» — психический). */
+  damageImmunities?: string[];
+  /** Урон оружием, использующим Силу, — множитель («Луч слабости» — вполовину). */
+  weaponDamageMultiplier?: { ability: 'strength'; factor: number };
+  /** Встать с земли нельзя («Жуткий смех»). */
+  cannotStand?: true;
+  /** Не бывает застигнут врасплох («Предвидение»). */
+  cannotBeSurprised?: true;
+  /** Лечение костями — максимумом («Маяк надежды»). */
+  healMaximized?: true;
+  /** Спасброски от смерти — с преимуществом («Маяк надежды»). */
+  deathSaveAdvantage?: true;
 }
+
+/**
+ * Оружие, заряженное заклинанием («Дубинка», «Магическое оружие»):
+ * магическое (Р9), с прибавкой к атаке и урону или своей костью и
+ * заклинательной характеристикой.
+ */
+export interface WeaponEnchant {
+  /** Только эти коды оружия («Дубинка» — дубинка и посох); пусто — любое. */
+  weapons?: string[];
+  attack?: number;
+  damage?: number;
+  /** Прибавка по кругу ячейки: «Магическое оружие» +2 с 4-го, +3 с 6-го. */
+  bySlot?: Record<number, number>;
+  /** Характеристика атаки и урона — заклинательная, а не Сила. */
+  ability?: 'SPELLCASTING';
+  die?: 'd8';
+  magical: true;
+}
+
+/** Цели в пределах стольких футов друг от друга, от первой цели или от одной точки. */
+export interface TargetSpread {
+  withinFeet: number;
+  from: 'EACH_OTHER' | 'PRIMARY' | 'POINT';
+}
+
+/** Что цель обязана воспринимать: видеть заклинателя, слышать его. */
+export type Perceive = 'SEE_CASTER' | 'HEAR';
+
+/**
+ * Поводы снятия эффекта без урона (р. 7 плана w8): вред от стороны
+ * заклинателя, чужое заклинание по носителю, надетый доспех, недееспособный
+ * заклинатель.
+ */
+export type SpellEndsOn =
+  | 'HARMED_BY_CASTER_SIDE'
+  | 'TARGETED_BY_SPELL'
+  | 'ARMOR_DONNED'
+  | 'CASTER_INCAPACITATED';
 
 /**
  * Поправка машинных полей SRD там, где они расходятся с текстом
@@ -263,7 +327,48 @@ export interface SpellMechanic {
    * spell fails»). `excludeTypes` — целью быть может, но не действует
    * («Массовое исцеление»: «no effect on undead or constructs»).
    */
-  targetFilter?: { types?: string[]; maxInt?: number; excludeTypes?: string[] };
+  targetFilter?: {
+    types?: string[];
+    maxInt?: number;
+    /** Интеллект ниже — не действует («Жуткий смех»: 4 и ниже). */
+    minInt?: number;
+    excludeTypes?: string[];
+    /** Только на существо без доспеха («Доспехи мага») — 422 до ячейки. */
+    noArmor?: true;
+    /** Не действует на иммунного к очарованию («Порабощение»). */
+    canBeCharmed?: true;
+  };
+  /** Цели не дальше друг от друга, от первой или от точки (р. 5 плана w8). */
+  targetSpread?: TargetSpread;
+  /** Цель должна видеть или слышать заклинателя — иначе «не действует». */
+  perceives?: Perceive[];
+  /** Первый спасбросок — с преимуществом, если цель сражается со стороной заклинателя (Р1). */
+  saveAdvIfHostile?: true;
+  /** Чем ещё кончается, кроме урона (`endsOnDamage`). */
+  endsOn?: SpellEndsOn[];
+  /** Оружие носителя заряжено («Дубинка», «Магическое оружие»). */
+  weaponEnchant?: WeaponEnchant;
+  /** Атака заклинанием с преимуществом, если цель в металлическом доспехе («Шокирующая хватка»). */
+  advantageIf?: { targetArmor: 'METAL' };
+  /** По существам этих типов урон — максимум костей («Усыхание» по растениям). */
+  maxDamageVs?: string[];
+  /** Спасбросок с помехой у существ этих типов или из неорганики («Дребезги», Р8). */
+  saveByType?: { disadvantage: string[] | 'INORGANIC' };
+  /** Возвращает умершего не раньше стольких раундов назад, с хитами («Возрождение»). */
+  revive?: { withinRounds: number; hp: number };
+  /** Предметы заклинателю («Целебные ягоды» — десять ягод). */
+  items?: { code: string; count: number };
+  /**
+   * Второе следствие по существам этих типов — своим эффектом и сроком
+   * («Холодное прикосновение»: нежить атакует заклинателя с помехой до
+   * конца его следующего хода).
+   */
+  vsTypes?: { types: string[]; modifiers: SpellModifiers; until: SpellUntil };
+  /**
+   * Заклинание вне боя (§6 разбора, р. 4 плана w8): сотворить в бою можно,
+   * если время сотворения боевое, но следствий нет. Строка — причина.
+   */
+  outOfCombat?: string;
   /**
    * Действие, доступное, пока держится заклинание: «Огненный клинок»
    * сотворяется бонусом без атаки, а бьют им отдельным действием
@@ -346,10 +451,6 @@ export interface SpellMechanic {
   revealInvisible?: true;
   /** Цель не получает выгоды от укрытия («Священное пламя»). */
   ignoresCover?: true;
-  /** Отбор целей пропускает тех, кто не видит заклинателя («Цветные брызги»). */
-  perceives?: readonly 'SEE_CASTER'[];
-  /** Помеха на спасбросок существам этих типов («Солнечная вспышка»). */
-  saveByType?: { disadvantage: readonly string[] };
   /** Метки для предикатов спасброска: растения, мешающие движению (поступь по земле). */
   tags?: readonly 'impedingPlants'[];
   /** Чем кончается для носителя на высоте: падением («Полёт») или плавным спуском («Левитация»). */
@@ -436,6 +537,8 @@ export function spellVariantKey(code: string, variant?: string | null): string |
 export function hasSpellEffect(mechanic: SpellMechanic | null): boolean {
   return (
     mechanic !== null &&
+    // Внебоевое следа на фишке не оставляет (р. 4 плана w8).
+    mechanic.outOfCombat === undefined &&
     ((mechanic.conditions?.length ?? 0) > 0 ||
       (mechanic.modifiers !== undefined && Object.keys(mechanic.modifiers).length > 0) ||
       mechanic.repeatSave === true ||
@@ -450,7 +553,9 @@ export function hasSpellEffect(mechanic: SpellMechanic | null): boolean {
       // Свет на носителе и подсветка невидимого («Свет» на щите, «Огонь фей»).
       // Свет зоны («Пляшущие огоньки») живёт на клетках, а не на фишке.
       (mechanic.light !== undefined && mechanic.light.on !== 'ZONE') ||
-      mechanic.revealInvisible === true)
+      mechanic.revealInvisible === true ||
+      mechanic.weaponEnchant !== undefined ||
+      (mechanic.endsOn?.length ?? 0) > 0)
   );
 }
 
@@ -481,6 +586,13 @@ export interface SpellEffectRow {
 /** Код эффекта заклинания на цели — тот же, что `SPELL_EFFECT` сервера. */
 export const SPELL_EFFECT_CODE = 'SPELL';
 
+/**
+ * Второе следствие заклинания по типу цели (`vsTypes`) — своим кодом: у
+ * эффекта цели ключ «участник, код, источник, заклинание» один, а сроки у
+ * двух следствий разные («Холодное прикосновение» на нежити).
+ */
+export const SPELL_RIDER_CODE = 'SPELL_RIDER';
+
 interface ActiveModifiers {
   spellCode: string;
   modifiers: SpellModifiers;
@@ -509,7 +621,8 @@ function isDormant(mechanic: SpellMechanic, data: unknown): boolean {
  */
 export function activeSpellModifiers(effects: readonly SpellEffectRow[]): ActiveModifiers[] {
   return effects.flatMap((effect) => {
-    if (effect.code !== SPELL_EFFECT_CODE || !effect.spellCode) return [];
+    const rider = effect.code === SPELL_RIDER_CODE;
+    if ((effect.code !== SPELL_EFFECT_CODE && !rider) || !effect.spellCode) return [];
     const data = (effect.data ?? null) as {
       acMinimum?: unknown;
       weaponDice?: unknown;
@@ -517,7 +630,8 @@ export function activeSpellModifiers(effects: readonly SpellEffectRow[]): Active
     } | null;
     const variant = typeof data?.variant === 'string' ? data.variant : null;
     const mechanic = spellMechanicFor(effect.spellCode, variant);
-    const modifiers = mechanic?.modifiers;
+    // Второе следствие по типу цели — со своими поправками.
+    const modifiers = rider ? mechanic?.vsTypes?.modifiers : mechanic?.modifiers;
     if (!mechanic || !modifiers || isDormant(mechanic, effect.data)) return [];
     const computed: SpellModifiers = {};
     if (typeof data?.acMinimum === 'number') computed.acMinimum = data.acMinimum;
@@ -715,6 +829,21 @@ export function distributeHealPool(
   }
   return shares;
 }
+
+/**
+ * Заклинания воскрешения для «Божественного вмешательства» (р. 24): у
+ * «Оживления» и «Воскрешений» время сотворения — час, в бою их творит
+ * только божество, и запись у них — пометка вне боя. Здесь — что они
+ * делают с мёртвым на сцене: давность (`null` — любая) и хиты.
+ */
+export const REVIVAL_SPELLS: Readonly<
+  Record<string, { withinRounds: number | null; hp: 'ONE' | 'MAX' }>
+> = {
+  revivify: { withinRounds: 10, hp: 'ONE' },
+  'raise-dead': { withinRounds: null, hp: 'ONE' },
+  resurrection: { withinRounds: null, hp: 'MAX' },
+  'true-resurrection': { withinRounds: null, hp: 'MAX' },
+};
 
 /** Кость прибавки со знаком: «-1d4» вычитается («Порча»). */
 export interface SignedDice {
@@ -1016,4 +1145,90 @@ export function weaponDiceAtSlot(
   if (!match || !weaponDamage.perSlot || slotLevel === null) return weaponDamage.dice;
   const count = Number(match[1]) + weaponDamage.perSlot * Math.max(0, slotLevel - spellLevel);
   return `${count}d${match[2]}`;
+}
+
+/** Иммунитеты к урону от заклинаний на носителе («Пустой разум»). */
+export function damageImmunitiesFrom(effects: readonly SpellEffectRow[]): string[] {
+  return [
+    ...new Set(
+      activeSpellModifiers(effects).flatMap(({ modifiers }) => modifiers.damageImmunities ?? []),
+    ),
+  ];
+}
+
+/** Есть ли на носителе поправка-признак (`healMaximized`, `cannotStand`…). */
+export function spellFlagOn(
+  effects: readonly SpellEffectRow[],
+  flag: 'healMaximized' | 'deathSaveAdvantage' | 'cannotStand' | 'cannotBeSurprised',
+): boolean {
+  return activeSpellModifiers(effects).some(({ modifiers }) => modifiers[flag] === true);
+}
+
+/** Множитель урона оружием Силой («Луч слабости» — ½); 1 — поправки нет. */
+export function strengthDamageFactor(effects: readonly SpellEffectRow[]): number {
+  return activeSpellModifiers(effects).reduce(
+    (factor, { modifiers }) => factor * (modifiers.weaponDamageMultiplier?.factor ?? 1),
+    1,
+  );
+}
+
+/**
+ * Состояния, которые не ложатся на носителя от существа этого типа
+ * («Защита от добра и зла»: очарование и испуг от нежити и прочих).
+ * Тип источника неизвестен — защита не срабатывает.
+ */
+export function conditionImmunitiesFromSpells(
+  effects: readonly SpellEffectRow[],
+  sourceType: string | null | undefined,
+): ConditionCode[] {
+  if (!sourceType) return [];
+  const type = creatureTypeOf(sourceType);
+  return activeSpellModifiers(effects).flatMap(({ modifiers }) =>
+    modifiers.conditionImmunitiesFrom?.sourceTypes.includes(type)
+      ? modifiers.conditionImmunitiesFrom.conditions
+      : [],
+  );
+}
+
+/** Проверка навыка или характеристики носителя глазами заклинаний на нём. */
+export interface SpellCheckMods {
+  advantage: ('ADVANTAGE' | 'DISADVANTAGE')[];
+  /** Плоские прибавки — слагаемым на заклинание. */
+  bonus: { spellCode: string; value: number }[];
+  /** Кости к проверке («Указание»): тратят свой эффект. */
+  dice: { spellCode: string; dice: string; effectIndex: number }[];
+}
+
+/**
+ * Поправки проверки от заклинаний на носителе (§3.1 плана w8):
+ * преимущество по характеристике, помеха навыка «против всех, кроме
+ * наложившего» (`againstId` — на кого смотрят), прибавка навыка, кость.
+ */
+export function spellCheckMods(
+  effects: readonly SpellEffectRow[],
+  check: { ability: AbilityCode; skill?: string | null; againstId?: string | null },
+): SpellCheckMods {
+  const out: SpellCheckMods = { advantage: [], bonus: [], dice: [] };
+  effects.forEach((effect, effectIndex) => {
+    const [active] = activeSpellModifiers([effect]);
+    if (!active) return;
+    const m = active.modifiers;
+    if (m.checkAdvantage?.some((code) => code === 'ALL' || code === check.ability)) {
+      out.advantage.push('ADVANTAGE');
+    }
+    // «Порабощение»: помеха — к проверке против кого-то, кроме заклинателя;
+    // проверка без того, на кого смотрят, помехи не получает.
+    if (
+      check.skill &&
+      m.checkDisadvantage?.includes(check.skill) &&
+      check.againstId != null &&
+      check.againstId !== effect.sourceId
+    ) {
+      out.advantage.push('DISADVANTAGE');
+    }
+    const bonus = check.skill ? m.checkBonus?.[check.skill] : undefined;
+    if (bonus) out.bonus.push({ spellCode: active.spellCode, value: bonus });
+    if (m.checkDice) out.dice.push({ spellCode: active.spellCode, dice: m.checkDice, effectIndex });
+  });
+  return out;
 }

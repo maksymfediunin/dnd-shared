@@ -13,9 +13,12 @@ import {
 import { combineAdvantage } from '../conditions.js';
 import {
   bardicInspirationDie,
+  brutalCriticalDice,
+  divineStrikeDice,
   martialArtsDie,
   rageDamageBonus,
   sneakAttackDice,
+  songOfRestDie,
   unarmoredMovementBonus,
 } from '../progression.js';
 import { EFFECT_MECHANICS } from './effects.data.js';
@@ -36,8 +39,9 @@ import type {
   ModifierTarget,
   OnHitFacet,
   Predicate,
-  RerollFacet,
+  RestActionFacet,
   RuleFacet,
+  SpellGrantFacet,
   SpellModifierFacet,
 } from './types.js';
 
@@ -78,6 +82,10 @@ function testObject(
     );
   }
   if ('vsCondition' in p) return ctx.save?.conditions?.includes(p.vsCondition) === true;
+  if ('checkAbility' in p)
+    return ctx.check !== undefined && p.checkAbility.includes(ctx.check.ability);
+  if ('spellLevelAtLeast' in p) return (ctx.spell?.level ?? -1) >= p.spellLevelAtLeast;
+  if ('spellSchool' in p) return ctx.spell?.school?.toLowerCase() === p.spellSchool;
   const feet = ctx.distances?.[p.of];
   return feet !== undefined && feet <= p.withinFeet;
 }
@@ -172,6 +180,35 @@ function test(p: Predicate, ctx: MechanicsContext, owner?: FacetOwner): boolean 
       return ctx.bearer?.light === 'DIM' || ctx.bearer?.light === 'DARK';
     case 'vsImpedingPlants':
       return ctx.save?.spellTags?.includes('impedingPlants') === true;
+    case 'weaponItem':
+      return weapon !== undefined && weapon.itemId !== undefined && weapon.itemId !== 'unarmed';
+    case 'weaponAttack':
+      return ctx.attack?.weapon === true;
+    case 'meleeWeaponAttack':
+      // Брошенный кинжал — оружие ближнего боя, но атака дальнобойная.
+      return (
+        ctx.attack?.weapon === true && ctx.attack.range === 'MELEE' && weapon?.rangeType === 'MELEE'
+      );
+    case 'meleeAttack':
+      return ctx.attack?.range === 'MELEE';
+    case 'twoHandedGrip':
+      return weapon?.twoHanded === true;
+    case 'targetBelowMaxHp':
+      return ctx.target?.belowMaxHp === true;
+    case 'notProficientCheck':
+      return ctx.check?.proficient === false;
+    case 'spellRestoresHp':
+      return ctx.spell?.restoresHp === true;
+    case 'cantrip':
+      return ctx.spell?.level === 0;
+    case 'spellForcesSave':
+      return ctx.spell?.forcesSave === true;
+    case 'classSpell':
+      return ctx.spell?.classSpell === true;
+    case 'sorcererAncestryDamage': {
+      const type = owner?.h.sorcererAncestryDamageType;
+      return !!type && ctx.spell?.damageType?.toLowerCase() === type;
+    }
   }
 }
 
@@ -190,20 +227,31 @@ const TABLES: Record<AmountTable, (level: number) => number> = {
   sneakAttackDice,
   unarmoredMovement: unarmoredMovementBonus,
   bardicInspirationDie,
+  songOfRestDie,
+  brutalCriticalDice,
+  divineStrikeDice,
 };
 
-export function amountOf(amount: Amount, h: MechanicsHolder): number {
+/** Что числу нужно сверх носителя: круг ячейки сотворения (`spellLevel`). */
+export interface AmountContext {
+  spellLevel?: number;
+}
+
+export function amountOf(amount: Amount, h: MechanicsHolder, extra: AmountContext = {}): number {
   if (typeof amount === 'number') return amount;
   if (amount === 'halfProficiency') return Math.floor(h.proficiencyBonus / 2);
+  if (amount === 'halfProficiencyUp') return Math.ceil(h.proficiencyBonus / 2);
   if (amount === 'proficiency') return h.proficiencyBonus;
   if (amount === 'level') return h.level;
+  if (amount === 'spellLevel') return extra.spellLevel ?? 0;
   if ('table' in amount) return TABLES[amount.table](h.level);
   if ('ability' in amount) {
     const value = h.abilityModifiers?.[amount.ability] ?? 0;
     return amount.min !== undefined ? Math.max(amount.min, value) : value;
   }
-  if ('times' in amount) return amount.times * amountOf(amount.of, h);
-  const sum = amount.sum.reduce((total: number, part) => total + amountOf(part, h), 0);
+  if ('halfUp' in amount) return Math.ceil(amountOf(amount.halfUp, h, extra) / 2);
+  if ('times' in amount) return amount.times * amountOf(amount.of, h, extra);
+  const sum = amount.sum.reduce((total: number, part) => total + amountOf(part, h, extra), 0);
   return amount.min !== undefined ? Math.max(amount.min, sum) : sum;
 }
 
@@ -345,13 +393,24 @@ export function collectDefenses(
   const all = [...facetsOf(h).map((entry) => ({ ...entry, h })), ...extra];
   for (const { code, facet, h: owner } of all) {
     if (facet.kind !== 'defense' || !holds(facet.when, ctx, { code, h: owner })) continue;
+    // Исчадная стойкость не режет магическое и серебряное оружие (П1.4).
+    // Без контекста удара (лист, снимок участника) её нет вовсе: снимок
+    // резал бы и магический меч, а вид меняется на отдыхе посреди сцены.
+    if (
+      facet.except &&
+      (!ctx.attack || (ctx.attack.weapon === true && ctx.attack.magicalWeapon === true))
+    ) {
+      continue;
+    }
     for (const type of facet.resistance ?? []) {
       const resolved =
         type === 'ANCESTRY'
           ? h.ancestryDamageType
           : type === 'SORCERER_ANCESTRY'
             ? (h.sorcererAncestryDamageType ?? null)
-            : type;
+            : type === 'CHOSEN'
+              ? (h.fiendishResilienceType ?? null)
+              : type;
       if (resolved) resistances.add(resolved);
     }
     for (const type of facet.immunity ?? []) immunities.add(type);
@@ -435,19 +494,49 @@ export function auraGrants(
 }
 
 /** Какие выпавшие на к20 значения носитель перебрасывает сам («Везучий»: единица). */
-export function collectReroll(h: MechanicsHolder, roll: RerollFacet['rolls'][number]): number[] {
+export function collectReroll(h: MechanicsHolder, roll: 'attack' | 'check' | 'save'): number[] {
   return facetsOf(h).flatMap(({ facet }) =>
-    facet.kind === 'reroll' && facet.rolls.includes(roll) ? [...facet.on] : [],
+    facet.kind === 'reroll' && facet.die === 'd20' && facet.rolls.includes(roll)
+      ? [...facet.on]
+      : [],
   );
 }
 
-/** Порог крита — наименьший из граней, по умолчанию 20. */
-export function collectCrit(h: MechanicsHolder): { threshold: number } {
+/**
+ * Какие значения костей урона атаки носитель перебрасывает (бой большим
+ * оружием: 1 и 2): каждая кость один раз, новое значение берётся (П4 №23).
+ */
+export function collectDamageRerolls(h: MechanicsHolder, ctx: MechanicsContext): number[] {
+  return [
+    ...new Set(
+      facetsOf(h).flatMap(({ code, facet }) =>
+        facet.kind === 'reroll' && facet.die === 'damageDie' && holds(facet.when, ctx, { code, h })
+          ? [...facet.on]
+          : [],
+      ),
+    ),
+  ].sort((a, b) => a - b);
+}
+
+/**
+ * Крит: порог — наименьший из граней (по умолчанию 20); лишние кости
+ * оружия на крите — сумма граней, чьи условия держатся (жестокий крит и
+ * свирепые атаки складываются). Без контекста лишних костей нет.
+ */
+export function collectCrit(
+  h: MechanicsHolder,
+  ctx?: MechanicsContext,
+): { threshold: number; extraWeaponDice: number } {
   let threshold = 20;
-  for (const { facet } of facetsOf(h)) {
-    if (facet.kind === 'crit') threshold = Math.min(threshold, facet.threshold);
+  let extraWeaponDice = 0;
+  for (const { code, facet } of facetsOf(h)) {
+    if (facet.kind !== 'crit') continue;
+    if (facet.threshold !== undefined) threshold = Math.min(threshold, facet.threshold);
+    if (facet.extraWeaponDice !== undefined && ctx && holds(facet.when, ctx, { code, h })) {
+      extraWeaponDice += amountOf(facet.extraWeaponDice, h);
+    }
   }
-  return { threshold };
+  return { threshold, extraWeaponDice };
 }
 
 export function collectOnHit(
@@ -518,11 +607,76 @@ export function collectCastOptions(h: MechanicsHolder): { code: string; facet: C
   );
 }
 
+/**
+ * Поправки заклинания носителя, чьи условия держатся для этого сотворения
+ * (`ctx.spell`). Без контекста — все: лист показывает, что умение есть.
+ */
 export function collectSpellModifiers(
   h: MechanicsHolder,
+  ctx?: MechanicsContext,
 ): { code: string; facet: SpellModifierFacet }[] {
   return facetsOf(h).flatMap(({ code, facet }) =>
-    facet.kind === 'spellModifier' ? [{ code, facet }] : [],
+    facet.kind === 'spellModifier' &&
+    (!ctx ||
+      ((facet.spell === undefined || facet.spell === ctx.spell?.code) &&
+        holds(facet.when, ctx, { code, h })))
+      ? [{ code, facet }]
+      : [],
+  );
+}
+
+/**
+ * Дарованные заклинания носителя (П1.10) — с кодом умения или черты.
+ * Ступень с `fromLevel` выше уровня носителя ещё не открыта.
+ */
+export function grantedSpells(h: MechanicsHolder): { code: string; facet: SpellGrantFacet }[] {
+  return facetsOf(h).flatMap(({ code, facet }) =>
+    facet.kind === 'spellGrant' && (facet.fromLevel ?? 0) <= h.level ? [{ code, facet }] : [],
+  );
+}
+
+/** Действия короткого отдыха носителя (восстановление ячеек). */
+export function restActions(h: MechanicsHolder): { code: string; facet: RestActionFacet }[] {
+  return facetsOf(h).flatMap(({ code, facet }) =>
+    facet.kind === 'restAction' ? [{ code, facet }] : [],
+  );
+}
+
+/** Бюджет восстановления: сумма кругов ячеек, которые можно вернуть. */
+export function restBudget(facet: RestActionFacet, h: MechanicsHolder): number {
+  return amountOf(facet.budget, h);
+}
+
+/** Грань кости «Песни отдыха» носителя; 0 — песни нет. */
+export function songOfRestSides(h: MechanicsHolder): number {
+  return Math.max(
+    0,
+    ...facetsOf(h).flatMap(({ facet }) =>
+      facet.kind === 'trigger' && facet.on === 'shortRestHitDice'
+        ? [amountOf(facet.extraHeal.sides, h)]
+        : [],
+    ),
+  );
+}
+
+/**
+ * Сколько заклинатель лечит себе, вылечив заклинанием другого
+ * (благословенный целитель); 0 — грани нет или условия не держатся.
+ */
+export function healOtherSelfAmount(
+  h: MechanicsHolder,
+  ctx: MechanicsContext,
+  slotLevel: number,
+): number {
+  return Math.max(
+    0,
+    ...facetsOf(h).flatMap(({ code, facet }) =>
+      facet.kind === 'trigger' &&
+      facet.on === 'healOtherWithSpell' &&
+      holds(facet.when, ctx, { code, h })
+        ? [amountOf(facet.healSelf, h, { spellLevel: slotLevel })]
+        : [],
+    ),
   );
 }
 
@@ -540,8 +694,13 @@ export function onKillTempHp(h: MechanicsHolder): number {
 
 export interface AvailableActionsInput {
   holder: MechanicsHolder;
-  /** Максимум по классу и уровню и сколько потрачено. */
-  resources: readonly { code: CharacterResourceCode; max: number; used: number }[];
+  /** Максимум по классу и уровню и сколько потрачено; `lockedRests` — заперт на отдыхи. */
+  resources: readonly {
+    code: CharacterResourceCode;
+    max: number;
+    used: number;
+    lockedRests?: number;
+  }[];
   economy: { hasUsedAction: boolean; hasUsedBonusAction: boolean; hasUsedReaction: boolean };
   isTurn: boolean;
   /** На нуле хитов не действуют — причина раньше всех прочих. */
@@ -701,7 +860,12 @@ export function availableActions(input: AvailableActionsInput): AvailableAction[
           ...(facet.availableAfter === 'attackAction'
             ? { afterAttackAction: 'finished' as const }
             : {}),
-        }) ?? (left !== null && left < cost ? 'RESOURCE_EXHAUSTED' : null);
+        }) ??
+        ((resource?.lockedRests ?? 0) > 0
+          ? 'RESOURCE_LOCKED'
+          : left !== null && left < cost
+            ? 'RESOURCE_EXHAUSTED'
+            : null);
       // Бешенство — вариант входа в ярость, а не своя кнопка: решается в
       // момент входа (SRD «when you enter your rage»).
       const options = facet.ability === 'RAGE' && hasRule(h, 'frenzy') ? ['FRENZY'] : [];

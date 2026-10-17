@@ -90,6 +90,12 @@ export const ERROR_CODES = {
   NO_SPELL_SLOT: 'NO_SPELL_SLOT',
   /** Ресурса класса (ци, ярость, второе дыхание) не осталось. */
   RESOURCE_EXHAUSTED: 'RESOURCE_EXHAUSTED',
+  /** Встать с земли нельзя: «Жуткий смех» держит лежачим. */
+  CANNOT_STAND: 'CANNOT_STAND',
+  /** Ресурс заперт на несколько долгих отдыхов («Божественное вмешательство» — 7 дней). */
+  RESOURCE_LOCKED: 'RESOURCE_LOCKED',
+  /** Возвращаемые ячейки дороже бюджета восстановления или выше пятого круга. */
+  RECOVERY_BUDGET_EXCEEDED: 'RECOVERY_BUDGET_EXCEEDED',
   /** Бонусное действие в этом ходу уже потрачено. */
   BONUS_ACTION_ALREADY_USED: 'BONUS_ACTION_ALREADY_USED',
   /** Умения у персонажа нет или сейчас его не применить. */
@@ -117,6 +123,11 @@ export const ERROR_CODES = {
   SPELL_TOO_MANY_TARGETS: 'SPELL_TOO_MANY_TARGETS',
   /** Цель не та: «Щит» — только на себя, «Удержание» — не на себя. */
   SPELL_TARGET_NOT_ALLOWED: 'SPELL_TARGET_NOT_ALLOWED',
+  /**
+   * Цели дальше друг от друга, чем позволяет заклинание: «Брызги кислоты»
+   * — в 5 футах, «Удержание» — в 30, «Цепная молния» — в 30 от первой.
+   */
+  SPELL_TARGETS_TOO_FAR: 'SPELL_TARGETS_TOO_FAR',
   /** Клетка переноса («Туманный шаг») занята или дальше дистанции. */
   SPELL_DESTINATION_BLOCKED: 'SPELL_DESTINATION_BLOCKED',
   /**
