@@ -846,9 +846,9 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     empoweredDice: z.number().int().min(1).max(10).optional(),
     /**
      * Источник урона для оговорок защиты (план волны 7, р. 13): оружие
-     * магическое, серебрёное, адамантиновое. Нет — обычная сталь.
+     * серебрёное, адамантиновое; магичность — `magicalWeapon` (волна 8а).
+     * Нет — обычная сталь.
      */
-    magical: z.literal(true).optional(),
     silvered: z.literal(true).optional(),
     adamantine: z.literal(true).optional(),
     /** Действие монстра, которым ударили: его наездники бросает урон. */
@@ -881,7 +881,11 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
       .optional(),
     /** Урон Силой вполовину («Луч слабости» на атакующем). */
     halvedByStrength: z.boolean().optional(),
-    /** Оружие магическое (Р9): под заклинанием, удар монаха с ци. */
+    /**
+     * Оружие магическое (Р9): предмет, клинок договора, под заклинанием,
+     * удар монаха с ци, черта монстра — один признак для оговорок защиты
+     * статблока и исчадной стойкости.
+     */
     magicalWeapon: z.boolean().optional(),
     /** Из чего сложен бонус к попаданию; сумма частей — модификатор броска. */
     attackParts: modifierPartsSchema,
