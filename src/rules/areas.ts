@@ -1,5 +1,6 @@
 import type { SpellAreaShape } from '../enums/spells.js';
 import { type Cell, cellKey, fitsInGrid, type Grid } from './grid.js';
+import { segmentClear } from './vision.js';
 
 /**
  * Площади поражения на сетке. Живут в пакете по той же причине, что и
@@ -31,17 +32,23 @@ export interface AreaInput {
   fromCreature?: boolean;
   /** Куда направлены конус, линия и куб «на себя». Прочим формам направление не нужно. */
   towards?: Cell | null;
-  /** Ширина линии в футах — у пяти дыханий 10 фт; нет — одна клетка. */
-  widthFeet?: number;
   /**
    * Сторона фишки в клетках, от которой идут конус и линия (`origin` — её
-   * левый верхний угол). Огромный дракон дышит из-под центра, а не из
-   * угла: сторона берётся от центра фишки, начало — клетка её края со
-   * стороны цели. Нет — одна клетка, как у средней фишки.
+   * левый верхний угол). Огромный дракон дышит с края фишки со стороны
+   * цели, а не из угла (`edgeTowards`). Нет — одна клетка, как у средней.
    */
   span?: number;
   cellSizeFeet: number;
   grid: Grid;
+  /**
+   * Непрозрачное и сплошное (план волны 5, решение 12): клетка без чистого
+   * отрезка от точки исхода в область не входит — «Огненный шар» за угол
+   * стены не заворачивает. Нет — стены область не останавливают (как до
+   * волны 5 и в упрощённом бою).
+   */
+  blockers?: ReadonlySet<string>;
+  /** Ширина линии в футах; нет — одна клетка («Порыв ветра» и пять дыханий — 10). */
+  widthFeet?: number;
 }
 
 /**
@@ -109,10 +116,35 @@ function edgeTowards(
  * выглядит конус без направления и область, целиком ушедшая за край
  * сетки.
  *
- * Стены область не останавливают: укрытие и линия видимости — своя
- * работа, и делать её заодно волна не будет (§7 дизайна).
+ * Стены режет `blockers` (волна 5): клетка за стеной от точки исхода
+ * в область не входит.
  */
 export function cellsInArea(input: AreaInput): Set<string> {
+  const cells = shapeCells(input);
+  const blockers = input.blockers;
+  if (!blockers || blockers.size === 0) return cells;
+  // Точка исхода: у сферы и куба от точки — пересечение линий сетки, у
+  // прочего — центр клетки, откуда идёт область (заклинатель).
+  const fromPoint =
+    !input.fromCreature &&
+    (input.shape === 'SPHERE' || input.shape === 'CYLINDER' || input.shape === 'CUBE');
+  // Конус и линия крупной фишки идут с клетки её края — от неё и отрезок.
+  const edge =
+    (input.shape === 'CONE' || input.shape === 'LINE') && input.towards
+      ? edgeTowards(input.origin, input.span ?? 1, input.towards)?.origin
+      : undefined;
+  const start = edge ?? input.origin;
+  const origin = fromPoint ? { x: start.x, y: start.y } : { x: start.x + 0.5, y: start.y + 0.5 };
+  for (const key of [...cells]) {
+    const [x = 0, y = 0] = key.split(':').map(Number);
+    if (blockers.has(key) || !segmentClear(origin, { x: x + 0.5, y: y + 0.5 }, blockers)) {
+      cells.delete(key);
+    }
+  }
+  return cells;
+}
+
+function shapeCells(input: AreaInput): Set<string> {
   const size = sizeInCells(input.sizeFeet, input.cellSizeFeet);
   const cells = new Set<string>();
   const add = (cell: Cell): void => {
@@ -188,7 +220,7 @@ export function cellsInArea(input: AreaInput): Set<string> {
   if (input.shape === 'LINE') {
     // Клетка заклинателя в линию не входит: линия идёт от него, а не
     // из-под него.
-    // Шире клетки — полосы рядом, вбок по правую руку от направления.
+    // Ширина — клетками вбок от оси, по часовой: перпендикуляр (−dy, dx).
     const width = Math.max(
       1,
       sizeInCells(input.widthFeet ?? input.cellSizeFeet, input.cellSizeFeet),

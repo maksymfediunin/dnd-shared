@@ -246,6 +246,11 @@ export interface Placed {
   x: number;
   y: number;
   size: SizeCategory;
+  /**
+   * Высота над землёй в клетках (план волны 5, решение 17); нет — на
+   * земле. Фишка — куб со стороной своего отпечатка.
+   */
+  z?: number;
 }
 
 /** Зазор по одной оси между двумя отрезками клеток — 0, если они пересекаются. */
@@ -272,7 +277,13 @@ function edgeGap(aMin: number, aSpan: number, bMin: number, bSpan: number): numb
 export function reachDistance(a: Placed, b: Placed): number {
   const spanA = footprint(a.size);
   const spanB = footprint(b.size);
-  return Math.max(edgeGap(a.x, spanA, b.x, spanB), edgeGap(a.y, spanA, b.y, spanB));
+  // Правило 5-5-5 в трёх осях (решение 17): одна формула для досягаемости,
+  // дальности и области — летящий на десяти футах копьём в пять не достаётся.
+  return Math.max(
+    edgeGap(a.x, spanA, b.x, spanB),
+    edgeGap(a.y, spanA, b.y, spanB),
+    edgeGap(a.z ?? 0, spanA, b.z ?? 0, spanB),
+  );
 }
 
 /**

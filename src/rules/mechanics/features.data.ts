@@ -199,7 +199,7 @@ export const FEATURE_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
       },
     ],
   },
-  // Свет — волна 5, магичность оружия — волна 7 (`PARTIAL`).
+  // Свет — гранью эффекта (волна 5), магичность оружия — волна 7 (`PARTIAL`).
   'channel-divinity-sacred-weapon': {
     facets: [
       {
@@ -408,7 +408,7 @@ export const FEATURE_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
   'metamagic-quickened-spell': {
     facets: [{ kind: 'castOption', option: 'QUICKENED', cost: 2, exclusive: true }],
   },
-  // Тишина и контрзаклинание — волна 5 (`PARTIAL`); в волне 3 сотворение не выдаёт засаду.
+  // Снимает отказ «Тишины» (волна 5); контрзаклинание — волна 8 (`PARTIAL`).
   'metamagic-subtle-spell': {
     facets: [{ kind: 'castOption', option: 'SUBTLE', cost: 1, exclusive: true }],
   },
@@ -851,6 +851,38 @@ export const FEATURE_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
   'fast-movement': {
     facets: [{ kind: 'modifier', target: 'speed', amount: 10, when: ['notHeavyArmor'] }],
   },
+  // По жидкости в свой ход без доспеха и щита; остановиться на ней нельзя.
+  'unarmored-movement-2': {
+    facets: [{ kind: 'rule', rule: 'wallAndWaterWalk', when: ['noArmor', 'noShield', 'ownTurn'] }],
+  },
+  // Немагическая трудность бесплатна; против растений-помех — преимущество.
+  'druid-lands-stride': {
+    facets: [
+      { kind: 'rule', rule: 'ignoreNonmagicalDifficultTerrain' },
+      { kind: 'advantage', roll: 'save', mode: 'ADVANTAGE', when: ['vsImpedingPlants'] },
+    ],
+  },
+  'ranger-lands-stride': {
+    facets: [
+      { kind: 'rule', rule: 'ignoreNonmagicalDifficultTerrain' },
+      { kind: 'advantage', roll: 'save', mode: 'ADVANTAGE', when: ['vsImpedingPlants'] },
+    ],
+  },
+  'eldritch-invocation-devils-sight': {
+    facets: [{ kind: 'sense', sense: 'devilsSight', rangeFeet: 120 }],
+  },
+  // Бросать действие можно и на свету — служба ответит NOT_IN_DARKNESS.
+  'eldritch-invocation-one-with-shadows': {
+    facets: [
+      {
+        kind: 'action',
+        ability: 'ONE_WITH_SHADOWS',
+        economy: 'ACTION',
+        applies: 'ONE_WITH_SHADOWS',
+        input: { target: 'NONE' },
+      },
+    ],
+  },
   // Одно умение на все ступени: величина — столбец таблицы монаха.
   'unarmored-movement-1': {
     facets: [
@@ -1068,7 +1100,19 @@ export const FEATURE_MECHANICS: Readonly<Record<string, MechanicRecord>> = {
   'favored-enemy-1-type': { outOfCombat: 'выслеживание и знания' },
   'favored-enemy-2-types': { outOfCombat: 'выслеживание и знания' },
   'second-story-work': { outOfCombat: 'лазание и прыжки — падений и высоты на карте нет' },
-  'slow-fall': { outOfCombat: 'падений на карте нет; с толчком с обрыва — реакция волны 4' },
+  // Окно падения (волна 5): урон − 5 × уровень монаха; ноль — не лежит.
+  'slow-fall': {
+    facets: [
+      {
+        kind: 'reaction',
+        ability: 'SLOW_FALL',
+        event: ['falling'],
+        economy: 'REACTION',
+        who: 'self',
+        effect: { reduceFallDamage: { times: 5, of: 'level' } },
+      },
+    ],
+  },
   'hide-in-plain-sight': { outOfCombat: 'маскировка минутой подготовки' },
   'evocation-savant': { outOfCombat: 'цена переписи в книгу' },
   'eldritch-invocation-eyes-of-the-rune-keeper': { outOfCombat: 'чтение' },

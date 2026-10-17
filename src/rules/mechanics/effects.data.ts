@@ -169,6 +169,8 @@ export const EFFECT_MECHANICS: Readonly<Record<EffectCode, EffectMechanic>> = {
         source: 'sacredWeapon',
         when: ['effectItemIsWeapon'],
       },
+      // Оружие светит: 20 футов яркого и 20 тусклого (SRD «emits bright light»).
+      { kind: 'light', bright: 20, dim: 20 },
     ],
     expires: 'COMBAT_END',
     rounds: 10,
@@ -229,6 +231,18 @@ export const EFFECT_MECHANICS: Readonly<Record<EffectCode, EffectMechanic>> = {
    * носитель, код действия — `data.code`.
    */
   AURA_IMMUNE: { facets: [], expires: 'COMBAT_END' },
+  /**
+   * Единство с тенями: невидим, пока не двинется, не совершит действие или
+   * реакцию. Бонусное действие не снимает.
+   */
+  ONE_WITH_SHADOWS: {
+    facets: [],
+    expires: 'COMBAT_END',
+    condition: 'invisible',
+    endsOnMove: true,
+    endsOnAction: true,
+    endsOnReaction: true,
+  },
   /**
    * Взгляд двух разумов: до конца следующего хода колдуна он воспринимает
    * чувствами согласного гуманоида — и для своего окружения слеп и глух

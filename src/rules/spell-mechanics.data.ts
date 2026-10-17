@@ -20,6 +20,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Выбор формы: водная адаптация, смена внешности или природное оружие 1d6 (+1 к атаке и урону) — решает ведущий',
   },
   'animal-friendship': {
+    seen: 'TARGET',
     conditions: ['charmed'],
     targetFilter: { types: ['beast'], maxInt: 3 },
     perceives: ['SEE_CASTER', 'HEAR'],
@@ -27,9 +28,10 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     endsOn: ['HARMED_BY_CASTER_SIDE'],
   },
   'animal-messenger': {
+    seen: 'TARGET',
     outOfCombat: 'Доставка сообщения зверем за 24 часа — сюжетное, на поле боя следствий нет.',
   },
-  'animal-shapes': { gm: 'Превращает согласных существ в зверей CR ≤4 — ведущий' },
+  'animal-shapes': { seen: 'TARGET', gm: 'Превращает согласных существ в зверей CR ≤4 — ведущий' },
   'animate-dead': {
     point: true,
     gm: 'Поднимает скелета или зомби под контроль заклинателя — ведущий добавляет вручную',
@@ -52,6 +54,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
       'Невидимое око для разведки: перенос зрения, ни урона, ни состояний — разведка вне программы.',
   },
   'arcane-hand': {
+    seen: 'POINT',
     point: true,
     gm: 'Рука силы (КД 20, хиты = макс. хитам заклинателя): бонусным действием кулак (атака заклинанием, 4d8 силы), толчок, захват (удар 2d6+мод.) или заслон; ведущий управляет вручную',
   },
@@ -60,6 +63,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
       'Запирает дверь (СЛ взлома +10) — двери и замки на сцене не моделируются, разведка.',
   },
   'arcane-sword': {
+    seen: 'POINT',
     gm: 'Меч парит; бонусным действием каждый ход перемещать на 20 фт и повторять атаку заклинанием',
   },
   'arcanists-magic-aura': { outOfCombat: 'Обманывает предсказания и обнаружение — разведка.' },
@@ -71,8 +75,13 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     outOfCombat:
       'Сотворение 8 часов; разум зверю или растению — сюжетное (пробуждённый может потом участвовать в бою обычным статблоком `awakened-tree`/`awakened-shrub`).',
   },
-  bane: { targets: { base: 3, perSlot: 1 }, modifiers: { attackDice: '-1d4', saveDice: '-1d4' } },
+  bane: {
+    seen: 'TARGET',
+    targets: { base: 3, perSlot: 1 },
+    modifiers: { attackDice: '-1d4', saveDice: '-1d4' },
+  },
   banishment: {
+    seen: 'TARGET',
     targets: { base: 1, perSlot: 1 },
     conditions: ['incapacitated'],
     gm: 'Цель убирается с поля (демиплан); если родом из другого плана и концентрация держится минуту — не возвращается',
@@ -98,9 +107,15 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     ],
   },
   'black-tentacles': {
+    seen: 'POINT',
     conditions: ['restrained'],
-    gm: 'Вырваться — проверка Силы или Ловкости действием; клетки труднопроходимые',
-    zone: { on: ['ENTER', 'START'], conditions: ['restrained'], restrainedTakeDamage: true },
+    zone: {
+      on: ['ENTER', 'START'],
+      conditions: ['restrained'],
+      restrainedTakeDamage: true,
+      difficult: 2,
+      escape: { checks: ['strength', 'dexterity'], economy: 'ACTION' },
+    },
   },
   'blade-barrier': {
     gm: 'Стена клинков даёт укрытие три четверти и труднопроходима; 6d10 рубящего при первом входе за ход или в начале хода — ведущий',
@@ -108,11 +123,13 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   bless: { targets: { base: 3, perSlot: 1 }, modifiers: { attackDice: '1d4', saveDice: '1d4' } },
   blight: {
+    seen: 'TARGET',
     targetFilter: { excludeTypes: ['undead', 'construct'] },
     saveByType: { disadvantage: ['plant'] },
     maxDamageVs: ['plant'],
   },
   'blindness-deafness': {
+    seen: 'TARGET',
     targets: { base: 1, perSlot: 1 },
     conditions: ['blinded'],
     repeatSave: true,
@@ -124,18 +141,20 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   blink: { gm: 'Бросок d20 в конце хода: при 11+ уходит в Эфирный план до начала следующего хода' },
   blur: {
     selfOnly: true,
-    modifiers: { incoming: 'DISADVANTAGE' },
-    gm: 'Не действует на атакующих без зрения (слепое зрение, истинное зрение)',
+    modifiers: { incoming: 'DISADVANTAGE', sightOnlyIncoming: true },
   },
   'branding-smite': {
     selfOnly: true,
     modifiers: { weaponDamage: { dice: '2d6', type: 'radiant', perSlot: 1 } },
     consumedOnOwnAttack: true,
-    gm: 'Цель светится и не может стать невидимой',
+    // Поражённый светится и не может быть невидимым — эффект переходит на него.
+    revealInvisible: true,
+    light: { bright: 0, dim: 5, on: 'BEARER' },
     override: { damage: false },
   },
   'burning-hands': {},
   'call-lightning': {
+    seen: 'POINT',
     gm: 'Каждый ход действием повтор удара в ту же или другую точку; +1d10 урона в грозу',
     override: { saveAbility: 'dexterity', saveHalfOnSuccess: true },
   },
@@ -143,10 +162,12 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Подавляет очарование/испуг у гуманоидов либо делает безразличными к выбранным существам (спасбросок Харизмы, можно провалить намеренно)',
   },
   'chain-lightning': {
+    seen: 'TARGET',
     targets: { base: 4, perSlot: 1 },
     targetSpread: { withinFeet: 30, from: 'PRIMARY' },
   },
   'charm-person': {
+    seen: 'TARGET',
     targets: { base: 1, perSlot: 1 },
     conditions: ['charmed'],
     targetFilter: { types: ['humanoid'] },
@@ -168,16 +189,21 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   clairvoyance: { outOfCombat: 'Сотворение 10 минут; невидимый сенсор — разведка.', point: true },
   clone: { outOfCombat: 'Сотворение 1 час, клон на случай смерти — вне боя.' },
   cloudkill: {
-    gm: 'Облако смещается на 10 футов от заклинателя в начале каждого его хода — ведущий',
-    zone: { on: ['ENTER', 'START'] },
+    zone: {
+      on: ['ENTER', 'START'],
+      obscure: 'HEAVY',
+      move: { economy: 'CASTER_TURN_START', feet: 10, direction: 'AWAY_FROM_CASTER' },
+      dispersedBy: 'WIND',
+    },
   },
   'color-spray': {
     conditions: ['blinded'],
-    gm: 'Не действует на тех, кто не видит заклинателя',
+    perceives: ['SEE_CASTER'],
     scripted: true,
     until: { who: 'CASTER', at: 'END' },
   },
   command: {
+    seen: 'TARGET',
     targets: { base: 1, perSlot: 1 },
     gm: 'Односложная команда (подойти, бросить, бежать, ничком, стоять); поведение цели решает ведущий; не действует на нежить и не понимающих язык',
   },
@@ -185,6 +211,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'commune-with-nature': { outOfCombat: 'Сотворение 1 минута, сведения о местности — разведка.' },
   'comprehend-languages': { outOfCombat: 'Понимание языков — общение.' },
   compulsion: {
+    seen: 'TARGET',
     gm: 'Любое число целей слышащих заклинателя; бонусным действием задаёт направление, цели обязаны идти туда; повторный спасбросок после движения',
   },
   'cone-of-cold': {},
@@ -193,8 +220,13 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     repeatSave: true,
     gm: 'В начале хода цель бросает d10: случайное движение, бездействие, атака ближнего боя по случайной цели или обычные действия',
   },
-  'conjure-animals': { point: true, gm: 'Призывает зверей (феи) — ведущий добавляет их вручную' },
+  'conjure-animals': {
+    seen: 'POINT',
+    point: true,
+    gm: 'Призывает зверей (феи) — ведущий добавляет их вручную',
+  },
   'conjure-celestial': {
+    seen: 'POINT',
     point: true,
     gm: 'Призывает небожителя CR 4 (CR 5 на 9-м круге) — ведущий добавляет вручную',
   },
@@ -202,14 +234,20 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Призывает элементаля CR 5 — ведущий добавляет его; при потере концентрации тот становится враждебным',
   },
   'conjure-fey': {
+    seen: 'POINT',
     point: true,
     gm: 'Призывает фею CR 6 — ведущий добавляет её; при потере концентрации становится враждебной',
   },
   'conjure-minor-elementals': {
+    seen: 'POINT',
     point: true,
     gm: 'Призывает элементалей — ведущий добавляет их вручную',
   },
-  'conjure-woodland-beings': { point: true, gm: 'Призывает фей — ведущий добавляет их вручную' },
+  'conjure-woodland-beings': {
+    seen: 'POINT',
+    point: true,
+    gm: 'Призывает фей — ведущий добавляет их вручную',
+  },
   'contact-other-plane': {
     outOfCombat:
       'Сотворение 1 минута, пять вопросов сущности; самоспасбросок и безумие до долгого отдыха — вне сцены.',
@@ -219,7 +257,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Болезнь на выбор (слепота, лихорадка, гниль, огонь разума, припадок, слизистая гибель); в конце каждого хода цели спасбросок Телосложения, три провала — болезнь на срок, три успеха — исцеление',
   },
   contingency: { gm: 'Отложенное заклинание до 5-го круга срабатывает по условию; решает ведущий' },
-  'continual-flame': { gm: 'Негаснущее пламя на предмете — сюжетное' },
+  'continual-flame': { light: { bright: 20, dim: 20, on: 'OBJECT' } },
   'control-water': { gm: 'Управление водой: наводнение, расступание, перенаправление, водоворот' },
   'control-weather': {
     outOfCombat: 'Сотворение 10 минут, перемена погоды за 1d4×10 минут — вне сцены.',
@@ -239,10 +277,15 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     point: true,
     override: { area: null },
   },
-  'dancing-lights': { point: true, gm: 'Световые огни, перемещаются бонусным действием' },
-  darkvision: { gm: 'Тёмное зрение 60 фт на 8 часов — решает ведущий' },
+  'dancing-lights': {
+    point: true,
+    zone: { move: { economy: 'BONUS_ACTION', feet: 60, points: 4 } },
+    light: { bright: 0, dim: 10, on: 'ZONE' },
+  },
+  darkvision: { modifiers: { senses: { darkvision: 60 } } },
   daylight: {
-    gm: 'Свет: яркий в 60 фт и тусклый ещё 60; рассеивает тьму заклинаний 3-го круга и ниже',
+    light: { bright: 60, dim: 60, on: 'OBJECT' },
+    zone: { dispelDarkness: { upToLevel: 3 } },
   },
   'death-ward': {
     gm: 'Первое падение до 0 хитов вместо этого оставляет 1 хит, и заклинание кончается',
@@ -250,11 +293,14 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'delayed-blast-fireball': {
     gm: 'Урон при окончании заклинания, а не при сотворении: база 12d6 (+1d6 за каждый конец хода заклинателя без взрыва); бусину можно коснуться/бросить на 40 фт',
   },
-  demiplane: { point: true, gm: 'Дверь в карманное измерение — ведущий' },
+  demiplane: { seen: 'POINT', point: true, gm: 'Дверь в карманное измерение — ведущий' },
   'detect-evil-and-good': { outOfCombat: 'Обнаружение — разведка.' },
   'detect-magic': { outOfCombat: 'Обнаружение — разведка.' },
   'detect-poison-and-disease': { outOfCombat: 'Обнаружение — разведка.' },
-  'detect-thoughts': { gm: 'Чтение мыслей, зондирование (спасбросок Мудрости) — решает ведущий' },
+  'detect-thoughts': {
+    seen: 'TARGET',
+    gm: 'Чтение мыслей, зондирование (спасбросок Мудрости) — решает ведущий',
+  },
   'dimension-door': {
     teleportFeet: 500,
     gm: 'Можно взять одного согласного союзного существа в пределах 5 фт',
@@ -262,6 +308,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   'disguise-self': { outOfCombat: 'Иллюзия внешности — общение и проникновение.' },
   disintegrate: {
+    seen: 'TARGET',
     gm: 'При доведении до 0 хитов цель обращается в прах; предметы и творения силы уничтожаются автоматически',
     override: { area: null },
   },
@@ -282,19 +329,23 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     override: { damage: false },
   },
   'divine-word': {
+    seen: 'TARGET',
     gm: 'Эффект по текущим хитам цели на провале Хар (одна ступень — по текущим хитам): ≤50 хп оглохла 1 мин; ≤40 оглохла и ослепла 10 мин; ≤30 ослепла, оглохла и ошеломлена 1 час; ≤20 мгновенная смерть; небожителей, элементалей, фей и исчадий изгоняет в родной план',
   },
   'dominate-beast': {
+    seen: 'TARGET',
     conditions: ['charmed'],
     gm: 'Зверь повинуется заклинателю; преимущество на спасбросок при драке с заклинателем; новый спасбросок при каждом уроне; полный контроль действием',
     saveOnDamage: true,
   },
   'dominate-monster': {
+    seen: 'TARGET',
     conditions: ['charmed'],
     gm: 'Телепатическое управление очарованным; повторный Мдр-спасбросок при каждом полученном уроне; при спасброске с преимуществом, если заклинатель или союзники сражаются с целью; полный контроль действием до конца следующего хода',
     saveOnDamage: true,
   },
   'dominate-person': {
+    seen: 'TARGET',
     conditions: ['charmed'],
     gm: 'Гуманоид очарован; после каждого получения урона новый спасбросок Мудрости, успех снимает; действием полный контроль до конца следующего хода; преимущество на спасбросок, если с ним сражаются',
     saveOnDamage: true,
@@ -305,6 +356,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   druidcraft: { outOfCombat: 'Мелкие природные эффекты — без следствий.', point: true },
   earthquake: {
+    seen: 'POINT',
     gm: 'Зона 100 фт — труднопроходимая; на земле существа: Тел-спасбросок на сброс концентрации, Лов-спасбросок на сбивание с ног (при сотворении и в конце хода заклинателя); трещины, обрушение построек (50 дробящего) — ведущий',
   },
   'eldritch-blast': { rays: { byCasterLevel: { '1': 1, '5': 2, '11': 3, '17': 4 }, dice: '1d10' } },
@@ -324,6 +376,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     ],
   },
   'enlarge-reduce': {
+    seen: 'TARGET',
     modifiers: { saveAdvantage: ['strength'] },
     gm: 'Размер фишки на карте ведущий меняет руками',
     willingAllies: true,
@@ -343,9 +396,11 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   entangle: {
     conditions: ['restrained'],
-    gm: 'Область — труднопроходимая местность; скованный может действием сделать проверку Силы против СЛ заклинателя, чтобы освободиться',
+    zone: { difficult: 2, ground: true, escape: { checks: ['strength'], economy: 'ACTION' } },
+    tags: ['impedingPlants'],
   },
   enthrall: {
+    seen: 'TARGET',
     // Помеха Внимательности — ко всем, кроме заклинателя (`vsSourceOnly` здесь не нужен:
     // помеху навыка снимает «против наложившего» само чтение).
     modifiers: { checkDisadvantage: ['perception'] },
@@ -357,6 +412,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   etherealness: { gm: 'Переход в Эфирную границу; не взаимодействует с обычным планом' },
   'expeditious-retreat': { gm: 'Рывок бонусным действием каждый ход, пока длится заклинание' },
   eyebite: {
+    seen: 'TARGET',
     conditions: ['frightened'],
     gm: 'Каждый ход действием — новая цель в 60 футах; паника — бегство от заклинателя',
     override: { range: '60 feet' },
@@ -368,10 +424,12 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   fabricate: { outOfCombat: 'Сотворение 10 минут, ремесло — быт.', point: true },
   'faerie-fire': {
-    modifiers: { incoming: 'ADVANTAGE' },
-    gm: 'Объекты тоже подсвечиваются; подсвеченные не получают выгоды от невидимости и светят тусклым светом',
+    modifiers: { incoming: 'ADVANTAGE', incomingNeedsSight: true },
+    revealInvisible: true,
+    light: { bright: 0, dim: 10, on: 'BEARER' },
   },
   'faithful-hound': {
+    seen: 'POINT',
     point: true,
     gm: 'Пёс невидим и неуязвим, лает на приближение, в начале хода заклинателя кусает врага рядом: 4d8 колющего',
     override: { attackType: null, damage: false },
@@ -387,18 +445,22 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Цель роняет удерживаемое и каждый ход бежит от заклинателя (Dash)',
   },
   'feather-fall': {
+    // Встроенный ответ окна падения (`FEATHER_FALL`), как «Щит».
     targets: { base: 5 },
-    gm: 'Падающие существа замедляются, падение без урона',
     reaction: true,
   },
   feeblemind: {
+    seen: 'TARGET',
     gm: 'Провал Инт-спасброска: Инт и Хар становятся 1, не может колдовать и говорить; повтор спасброска раз в 30 дней',
   },
   'find-familiar': { point: true, gm: 'Призывает фамильяра — ведущий добавляет его вручную' },
   'find-steed': { point: true, gm: 'Призывает скакуна — ведущий добавляет его вручную' },
   'find-the-path': { outOfCombat: 'Путь к месту — разведка.' },
   'find-traps': { outOfCombat: 'Обнаружение ловушек — разведка.', selfOnly: true },
-  'finger-of-death': { gm: 'Гуманоид, убитый заклинанием, встаёт зомби под контролем заклинателя' },
+  'finger-of-death': {
+    seen: 'TARGET',
+    gm: 'Гуманоид, убитый заклинанием, встаёт зомби под контролем заклинателя',
+  },
   'fire-bolt': {},
   'fire-shield': {
     modifiers: { resistances: ['cold'] },
@@ -423,22 +485,24 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   'flame-strike': { override: { damageTypes: ['fire', 'radiant'] } },
   'flaming-sphere': {
-    gm: 'Сферу двигают бонусным действием на 30 футов, таран — 2к6 сразу — ведущий',
     override: {
       saveAbility: 'dexterity',
       saveHalfOnSuccess: true,
       area: { shape: 'SPHERE', size: 5 },
     },
-    zone: { on: ['END'] },
+    zone: { on: ['END'], move: { economy: 'BONUS_ACTION', feet: 30, ram: true } },
+    light: { bright: 20, dim: 20, on: 'ZONE' },
   },
   'flesh-to-stone': {
+    seen: 'TARGET',
     conditions: ['restrained'],
     gm: 'В конце каждого хода цели спасбросок Телосложения: три успеха снимают, три провала — окаменение (petrified) на срок; счёт ведёт ведущий',
   },
-  'floating-disk': { outOfCombat: 'Диск для груза — быт.', point: true },
+  'floating-disk': { seen: 'POINT', outOfCombat: 'Диск для груза — быт.', point: true },
   fly: {
     targets: { base: 1, perSlot: 1 },
-    gm: 'Цель получает скорость полёта 60 фт; по окончании падает',
+    modifiers: { speeds: { fly: 60 } },
+    falls: 'FLY',
   },
   forbiddance: {
     gm: 'Защита от телепорта и пространственных перемещений; выбранные типы существ получают 5d10 излучения или некротики при входе или начале хода',
@@ -473,8 +537,13 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     modifiers: { saveAdvantage: ['strength', 'dexterity', 'constitution'] },
     gm: 'Туманное облако: полёт 10 фт, сопротивление немагическому урону, не может атаковать и колдовать',
   },
-  gate: { point: true, gm: 'Портал на другой план, может притянуть названное существо — ведущий' },
+  gate: {
+    seen: 'POINT',
+    point: true,
+    gm: 'Портал на другой план, может притянуть названное существо — ведущий',
+  },
   geas: {
+    seen: 'TARGET',
     outOfCombat:
       'Срок 30 дней, служба или запрет; урон за неповиновение раз в день — сюжет. Очарование, если оно важно в бою, переносится как эффект персонажа (`characterEffect`).',
   },
@@ -494,20 +563,22 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   goodberry: { selfOnly: true, items: { code: 'goodberry', count: 10 } },
   grease: {
     conditions: ['prone'],
-    gm: 'Клетки — труднопроходимые',
-    zone: { on: ['ENTER', 'END'], onCast: true, conditions: ['prone'] },
+    zone: {
+      on: ['ENTER', 'END'],
+      onCast: true,
+      conditions: ['prone'],
+      difficult: 2,
+      ground: true,
+    },
   },
-  'greater-invisibility': {
-    conditions: ['invisible'],
-    gm: 'Остаётся невидимым даже после атаки и заклинаний',
-  },
+  'greater-invisibility': { conditions: ['invisible'] },
   'greater-restoration': {
     removes: { choose: 1, conditions: ['charmed', 'petrified', 'exhaustion'] },
     gm: 'Вместо состояния может снять проклятие, снижение характеристики или максимума хитов — ведущий',
   },
   'guardian-of-faith': {
-    gm: 'Страж исчезает, нанеся 60 урона суммарно',
-    zone: { on: ['ENTER'], hostileOnly: true },
+    seen: 'POINT',
+    zone: { on: ['ENTER'], hostileOnly: true, damageCap: 60 },
   },
   'guards-and-wards': {
     outOfCombat:
@@ -521,8 +592,14 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     until: { who: 'CASTER', at: 'END' },
   },
   'gust-of-wind': {
-    gm: 'Приближаться к заклинателю вдвое дороже; направление меняется бонусным действием; рассеивает газ и туман',
-    zone: { on: ['START'], push: { feet: 15 } },
+    lineWidthFeet: 10,
+    zone: {
+      on: ['START'],
+      push: { feet: 15, on: ['START'], save: 'strength', direction: 'ALONG_LINE' },
+      approachCost: 2,
+      disperses: true,
+      move: { economy: 'BONUS_ACTION', rotate: true },
+    },
   },
   hallow: {
     gm: 'Освящённая зона 60 фт: небожители, элементали, феи, исчадия и нежить не входят, снимает очарование/испуг/одержимость; плюс дополнительный эффект на выбор (мужество, страх, тьма, свет и др.) со спасброском Харизмы при входе',
@@ -533,17 +610,21 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
       'Сотворение 10 минут, иллюзия местности на сутки — обман путников; физически не меняет проходимость.',
   },
   harm: {
+    seen: 'TARGET',
     gm: 'Урон не опускает хиты цели ниже 1; при провале максимум хитов снижается на 1 час на величину урона',
   },
   haste: {
+    seen: 'TARGET',
     modifiers: { acBonus: 2, speedMultiplier: 2, saveAdvantage: ['dexterity'] },
     gm: 'Дополнительное действие (атака одним оружием, Dash, Disengage, Hide, Use an Object); по окончании цель теряет ход',
   },
   heal: {
+    seen: 'TARGET',
     removesConditions: ['blinded', 'deafened'],
     gm: 'Лечит 70 хитов (+10 за круг выше 6-го); также снимает болезни; не действует на конструктов и нежить',
   },
   'heat-metal': {
+    seen: 'TARGET',
     gm: '2d8 огнём существу в контакте с предметом при сотворении и затем бонусным действием каждый ход; держащий/носящий делает спасбросок Телосложения, иначе бросает предмет, а если не бросил — помеха на атаки и проверки',
     override: { saveAbility: null },
   },
@@ -562,6 +643,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     conditionImmunities: ['frightened'],
   },
   'hideous-laughter': {
+    seen: 'TARGET',
     conditions: ['prone', 'incapacitated'],
     repeatSave: true,
     saveOnDamage: 'ADVANTAGE',
@@ -569,6 +651,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     targetFilter: { minInt: 5 },
   },
   'hold-monster': {
+    seen: 'TARGET',
     targets: { base: 1, perSlot: 1 },
     conditions: ['paralyzed'],
     repeatSave: true,
@@ -576,6 +659,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     targetSpread: { withinFeet: 30, from: 'EACH_OTHER' },
   },
   'hold-person': {
+    seen: 'TARGET',
     targets: { base: 1, perSlot: 1 },
     conditions: ['paralyzed'],
     repeatSave: true,
@@ -606,22 +690,27 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     endsOnDamage: true,
   },
   'ice-storm': {
-    gm: 'Два вида урона (дробящий 2d8 и холод 4d6); область — сложная местность до конца следующего хода',
     override: { damageTypes: ['bludgeoning', 'cold'] },
+    zone: { difficult: 2, ground: true, lasts: 'CASTER_NEXT_TURN_END' },
   },
   identify: { outOfCombat: 'Свойства предмета — вне боя.' },
   'illusory-script': { outOfCombat: 'Тайнопись — вне боя.' },
   imprisonment: {
+    seen: 'TARGET',
     conditions: ['restrained'],
     gm: 'Форма заточения на выбор: Цепи (опутана, самый боевой вариант), Погребение, Скрытая тюрьма, Миниатюрное заточение, Сон; условие освобождения задаёт заклинатель',
   },
   'incendiary-cloud': {
-    gm: 'Облако сильно заслоняет обзор; повторный Лов-спасбросок и урон при входе/конце хода в зоне; облако сдвигается на 10 фт в начале хода заклинателя; рассеивается ветром',
-    zone: { on: ['ENTER', 'END'], onCast: true },
+    zone: {
+      on: ['ENTER', 'END'],
+      onCast: true,
+      obscure: 'HEAVY',
+      move: { economy: 'CASTER_TURN_START', feet: 10, direction: 'AWAY_FROM_CASTER' },
+      dispersedBy: 'WIND',
+    },
   },
   'insect-plague': {
-    gm: 'Сфера лёгкого заслонения обзора и труднопроходимая местность; повторный спасбросок и урон при входе за ход или конце хода в области — ведущий',
-    zone: { on: ['ENTER', 'END'], onCast: true },
+    zone: { on: ['ENTER', 'END'], onCast: true, obscure: 'LIGHT', difficult: 2 },
   },
   'instant-summons': { outOfCombat: 'Вызов предмета в руку — предметы вне механики.' },
   invisibility: {
@@ -630,6 +719,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     endsWhenBearerAttacks: true,
   },
   'irresistible-dance': {
+    seen: 'TARGET',
     modifiers: {
       saveDisadvantage: ['dexterity'],
       ownAttacks: 'DISADVANTAGE',
@@ -645,11 +735,17 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Вместо состояния может снять болезнь — ведущий',
   },
   levitate: {
-    gm: 'Цель (до 500 фунтов) поднимается на 20 фт и висит; двигаться может только отталкиваясь от опоры; непокорный проходит спасбросок Телосложения',
+    seen: 'TARGET',
+    // Спасбросок Телосложения — только у несогласного.
+    override: { saveAbility: 'constitution' },
+    willingAllies: true,
+    modifiers: { levitating: true },
+    falls: 'LEVITATE',
   },
   light: {
-    gm: 'Предмет излучает свет; спасбросок Ловкости только против враждебного носителя предмета',
-    override: { saveAbility: null },
+    // Спасбросок Ловкости — только у враждебного носителя предмета.
+    willingAllies: true,
+    light: { bright: 20, dim: 20, on: 'OBJECT' },
   },
   'locate-animals-or-plants': { outOfCombat: 'Поиск — разведка.' },
   'locate-creature': { outOfCombat: 'Поиск — разведка.' },
@@ -662,6 +758,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   'mage-hand': { outOfCombat: 'Атаковать не может, предметы сцены не моделируются.', point: true },
   'magic-circle': {
+    seen: 'POINT',
     gm: 'Круг против выбранного типа существ: не входят, помеха атакам по целям внутри, нельзя очаровать/испугать',
     override: { saveAbility: null },
   },
@@ -669,6 +766,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Вселение души в контейнер и захват тела гуманоида (спасбросок Хар) — ведущий ведёт вручную',
   },
   'magic-missile': {
+    seen: 'TARGET',
     targets: { base: 3, perSlot: 1 },
     rays: { base: 3, perSlot: 1, dice: '1d4 + 1' },
   },
@@ -678,6 +776,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   'magnificent-mansion': { outOfCombat: 'Убежище — вне сцены.' },
   'major-image': {
+    seen: 'POINT',
     point: true,
     gm: 'Иллюзия размером до куба 20 фт — ведущий решает, кто её распознал',
   },
@@ -688,6 +787,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     targetSpread: { withinFeet: 30, from: 'POINT' },
   },
   'mass-heal': {
+    seen: 'TARGET',
     removesConditions: ['blinded', 'deafened'],
     healPool: { total: 700, distribute: 'CASTER' },
     targetFilter: { excludeTypes: ['undead', 'construct'] },
@@ -695,15 +795,18 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     targets: { base: 12 },
   },
   'mass-healing-word': {
+    seen: 'TARGET',
     targets: { base: 6 },
     targetFilter: { excludeTypes: ['undead', 'construct'] },
   },
   'mass-suggestion': {
+    seen: 'TARGET',
     targets: { base: 12 },
     gm: 'Внушение на 1–2 фразы; отыгрывает ведущий',
     endsOnDamage: 'casterSide',
   },
   maze: {
+    seen: 'TARGET',
     gm: 'Изгнание в лабиринт, цель действием пытается сбежать: проверка Инт СЛ 20 — ведущий',
   },
   'meld-into-stone': {
@@ -712,6 +815,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   mending: { outOfCombat: 'Починка — вне боя.' },
   message: { outOfCombat: 'Шёпот — общение.' },
   'meteor-swarm': {
+    seen: 'POINT',
     gm: 'Четыре точки взрыва, области могут пересекаться — существо получает урон один раз; урон двух типов: 20d6 огня и 20d6 дробящего; сфера обходит углы; поджигает предметы',
     override: { damageTypes: ['fire', 'bludgeoning'] },
   },
@@ -733,16 +837,18 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     selfOnly: true,
     gm: 'Иллюзорный двойник заклинателя; ведущий двигает его вручную',
   },
-  'misty-step': { teleportFeet: 30 },
+  'misty-step': { seen: 'POINT', teleportFeet: 30 },
   'modify-memory': {
+    seen: 'TARGET',
     conditions: ['charmed', 'incapacitated'],
     saveAdvIfHostile: true,
     endsOnDamage: true,
     endsOn: ['TARGETED_BY_SPELL'],
   },
   moonbeam: {
-    gm: 'Луч можно двигать действием на 60 футов — ведущий',
-    zone: { on: ['ENTER', 'START'] },
+    // Тусклый свет на клетках луча; сдвиг действием на 60 фт — не «вход» (Р14).
+    zone: { on: ['ENTER', 'START'], move: { economy: 'ACTION', feet: 60 }, heightFeet: 40 },
+    light: { bright: 0, dim: 0, on: 'ZONE' },
   },
   'move-earth': {
     outOfCombat: 'Перекройка земли раз в 10 минут — вне боя.',
@@ -755,8 +861,9 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     // Аура 30 футов: союзники в ней получают +10 к Скрытности (читает проверка).
     modifiers: { checkBonus: { stealth: 10 } },
   },
-  passwall: { point: true, gm: 'Проход в стене 5×8×20 фт; сюжетное' },
+  passwall: { seen: 'POINT', point: true, gm: 'Проход в стене 5×8×20 фт; сюжетное' },
   'phantasmal-killer': {
+    seen: 'TARGET',
     conditions: ['frightened'],
     repeatSave: {
       at: 'START',
@@ -780,14 +887,25 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   'plant-growth': {
     point: true,
-    gm: 'Заросли: движение через область стоит вдвое дороже — ведущий',
+    // Вариант «за действие»: заросли сферой 100 фт, шаг вчетверо; восьмичасовой
+    // вариант — вне боя. Стены, пропасти, лава и глубокая вода не зарастают.
+    override: { area: { shape: 'SPHERE', size: 100 } },
+    zone: { difficult: 4, ground: true },
+    tags: ['impedingPlants'],
   },
   polymorph: {
+    seen: 'TARGET',
     gm: 'Превращение в зверя: ведущий подменяет статы и хиты цели вручную; при 0 хитов форма спадает',
   },
-  'power-word-kill': { killThreshold: 100 },
-  'power-word-stun': { conditions: ['stunned'], repeatSave: 'constitution', hpThreshold: 150 },
+  'power-word-kill': { seen: 'TARGET', killThreshold: 100 },
+  'power-word-stun': {
+    seen: 'TARGET',
+    conditions: ['stunned'],
+    repeatSave: 'constitution',
+    hpThreshold: 150,
+  },
   'prayer-of-healing': {
+    seen: 'TARGET',
     outOfCombat:
       'Сотворение 10 минут — в бою не сотворяется (`combatCastingTime` = null); вне сцены лечение уже считается.',
     targets: { base: 6 },
@@ -797,6 +915,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Для каждой цели d8 определяет луч: 1 огонь, 2 кислота, 3 электричество, 4 яд, 5 холод — по 10d6 (Лов, половина); 6 Индиго — опутана, 3 Тел-спасброска до окаменения/снятия; 7 Фиолетовый — ослеплена, Мдр-спасбросок, перенос на другой план; 8 — два луча',
   },
   'prismatic-wall': {
+    seen: 'POINT',
     gm: 'Стена из семи слоёв: ослепление Тел-спасброском при приближении, каждый слой при прохождении — Лов-спасбросок (огонь/кислота/электричество/яд/холод 10d6, опутывание, ослепление и перенос) — ведущий',
   },
   'private-sanctum': { outOfCombat: 'Охрана помещения на сутки — разведка и защита.' },
@@ -856,7 +975,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   revivify: { revive: { withinRounds: 10, hp: 1 } },
   'rope-trick': { gm: 'Внепространственное убежище по верёвке — сюжетное' },
-  'sacred-flame': { gm: 'Цель не получает выгоды от укрытия при этом спасброске' },
+  'sacred-flame': { seen: 'TARGET', ignoresCover: true },
   sanctuary: { endsWhenBearerAttacks: true, sanctuary: true },
   'scorching-ray': {
     targets: { base: 3, perSlot: 1 },
@@ -865,8 +984,8 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   scrying: { outOfCombat: 'Сотворение 10 минут — разведка.' },
   'secret-chest': { outOfCombat: 'Сундук в Эфире — быт.' },
-  'see-invisibility': { gm: 'Видит невидимое и Эфирный план — решает ведущий' },
-  seeming: { outOfCombat: 'Иллюзорная внешность — проникновение.' },
+  'see-invisibility': { modifiers: { senses: { seeInvisible: true } } },
+  seeming: { seen: 'TARGET', outOfCombat: 'Иллюзорная внешность — проникновение.' },
   sending: { outOfCombat: 'Послание вдаль — общение.' },
   sequester: { outOfCombat: 'Сокрытие в подвешенной анимации — вне сцены.' },
   shapechange: { gm: 'Превращение заклинателя в существо CR ≤ уровня — ведущий' },
@@ -893,17 +1012,21 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     advantageIf: { targetArmor: 'METAL' },
     until: { who: 'TARGET', at: 'START' },
   },
-  silence: {
-    gm: 'Сфера 20 фт: нет звука, иммунитет к урону громом, существа внутри оглушены, словесные заклинания невозможны',
-  },
+  silence: { zone: { silence: true } },
   'silent-image': {
     gm: 'Зрительная иллюзия до куба 15 фт, двигается действием; распознаётся проверкой Анализа против СЛ',
   },
   simulacrum: { gm: 'Создаёт копию существа с половиной хитов — ведущий' },
   'sleet-storm': {
-    gm: 'Концентрация внутри — спасбросок Телосложения; клетки труднопроходимые',
     override: { saveAbility: 'dexterity' },
-    zone: { on: ['ENTER', 'START'], conditions: ['prone'] },
+    zone: {
+      on: ['ENTER', 'START'],
+      conditions: ['prone'],
+      obscure: 'HEAVY',
+      difficult: 2,
+      ground: true,
+      concentrationSave: { ability: 'constitution', on: ['ENTER', 'START'] },
+    },
   },
   slow: {
     targets: { base: 6 },
@@ -917,10 +1040,15 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   'speak-with-plants': { gm: 'Растения общаются; меняют проходимость местности — ведущий' },
   'spider-climb': { gm: 'Лазание по стенам и потолку — решает ведущий' },
   'spike-growth': {
-    gm: 'Область 20 фт — труднопроходимая местность; 2d4 колющего за каждые 5 фт перемещения внутри',
+    zone: {
+      difficult: 2,
+      ground: true,
+      perMove: { dice: '2d4', perFeet: 5, type: 'piercing' },
+      hidden: { check: 'perception' },
+    },
+    tags: ['impedingPlants'],
   },
   'spirit-guardians': {
-    gm: 'Скорость врагов в зоне вдвое меньше — ведущий',
     override: {
       saveAbility: 'wisdom',
       saveHalfOnSuccess: true,
@@ -935,7 +1063,13 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
         '9': '9d8',
       },
     },
-    zone: { on: ['ENTER', 'START'], aura: 15, hostileOnly: true },
+    zone: {
+      on: ['ENTER', 'START'],
+      aura: 15,
+      hostileOnly: true,
+      // «Speed is halved» — смена скорости, а не трудность (пройденное вычитается).
+      inside: { speedMultiplier: 0.5, hostileOnly: true },
+    },
   },
   'spiritual-weapon': {
     gm: 'Оружие держится 1 минуту; бонусным действием двигается на 20 фт и повторяет атаку заклинанием 1d8 + мод. силой',
@@ -948,10 +1082,12 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     modifiers: { resistNonmagical: ['bludgeoning', 'piercing', 'slashing'] },
   },
   'storm-of-vengeance': {
+    seen: 'POINT',
     conditions: ['deafened'],
     gm: 'При сотворении Тел-спасбросок: 2d6 звука; далее по раундам — кислотный дождь, 6 молний (10d6, Лов), град 2d6, ветер и холодный дождь; труднопроходимая местность и сильное заслонение обзора',
   },
   suggestion: {
+    seen: 'TARGET',
     gm: 'Внушение действия на длительность; ведущий следит за выполнением',
     endsOnDamage: 'casterSide',
   },
@@ -963,12 +1099,15 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   sunburst: {
     conditions: ['blinded'],
     repeatSave: true,
-    gm: 'Нежить и слизи — помеха на спасбросок; рассеивает тьму, созданную заклинанием',
+    saveByType: { disadvantage: ['undead', 'ooze'] },
+    // Мгновенно и без следа: снимает магическую тьму в области.
+    zone: { dispelDarkness: 'ALL' },
   },
   symbol: {
     gm: 'Символ-ловушка по условию; эффект на выбор: смерть (Тел, 10d10 некротика), раздор, страх, безнадёжность, безумие, боль, сон, оглушение — ведущий',
   },
   telekinesis: {
+    seen: 'TARGET',
     gm: 'Действием перемещает существо (противопоставленная проверка) или предмет; существо удерживается в захвате (restrained) до конца следующего хода заклинателя',
   },
   'telepathic-bond': {
@@ -993,10 +1132,11 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: 'Перемещение через деревья одного вида в пределах 500 фт; ведущий разруливает',
   },
   'true-polymorph': {
+    seen: 'TARGET',
     gm: 'Превращение существа/предмета; Мдр-спасбросок у недобровольных — ведущий',
   },
   'true-resurrection': { outOfCombat: 'Сотворение 1 час — вне боя.' },
-  'true-seeing': { gm: 'Истинное зрение на 120 фт, видит скрытые двери и Эфирный план' },
+  'true-seeing': { modifiers: { senses: { truesight: 120 } } },
   'true-strike': {
     modifiers: { ownAttacks: 'ADVANTAGE', vsSourceOnly: 'TARGET' },
     consumedOnOwnAttack: true,
@@ -1014,6 +1154,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     lifesteal: 0.5,
   },
   'vicious-mockery': {
+    seen: 'TARGET',
     modifiers: { ownAttacks: 'DISADVANTAGE' },
     consumedOnOwnAttack: true,
     // «Need not understand» — язык не проверяется, только слух.
@@ -1062,15 +1203,22 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     gm: '+1 к спасброскам; пока цель в 60 фт, заклинатель получает столько же урона, сколько получила цель; рвётся при 0 хитов заклинателя или разрыве дистанции',
   },
   'water-breathing': {
+    seen: 'TARGET',
     outOfCombat: 'Дыхание под водой — подводной среды на сцене нет (глубокая вода непроходима).',
     targets: { base: 10 },
   },
-  'water-walk': { targets: { base: 10 }, gm: 'Хождение по жидкости, сюжетное' },
+  'water-walk': { seen: 'TARGET', targets: { base: 10 }, gm: 'Хождение по жидкости, сюжетное' },
   web: {
-    gm: 'Опутанный вырывается проверкой Силы действием; клетки — труднопроходимые',
     override: { saveAbility: 'dexterity' },
     conditions: ['restrained'],
-    zone: { on: ['ENTER', 'START'], conditions: ['restrained'] },
+    // Без onCast (разбор §3): при сотворении спасброска нет, только вход и начало хода.
+    zone: {
+      on: ['ENTER', 'START'],
+      conditions: ['restrained'],
+      difficult: 2,
+      obscure: 'LIGHT',
+      escape: { checks: ['strength'], economy: 'ACTION' },
+    },
   },
   weird: {
     conditions: ['frightened'],
@@ -1081,6 +1229,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
     },
   },
   'wind-walk': {
+    seen: 'TARGET',
     gm: 'Газообразная форма, полёт 300 фт и сопротивление немагическому оружию до 10 согласных существ; возврат 1 минута',
   },
   'wind-wall': {
@@ -1096,16 +1245,25 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
    */
   'circle-of-death': {},
   'cure-wounds': {},
-  darkness: {},
+  darkness: {
+    // Тьма — свой слой обзора: дьявольское и истинное зрение её пробивают,
+    // а сотворение снимает свет заклинаний до 2-го круга в пересечении.
+    zone: { obscure: 'HEAVY', magicalDarkness: true },
+  },
   fireball: {},
-  'fog-cloud': {},
-  'healing-word': {},
-  'hunters-mark': {},
+  'fog-cloud': {
+    // Рассеивает ветер («Порыв ветра»); заменяет прежний список OBSCURING_SPELL_CODES.
+    zone: { obscure: 'HEAVY', dispersedBy: 'WIND' },
+  },
+  'healing-word': { seen: 'TARGET' },
+  'hunters-mark': { seen: 'TARGET' },
   'inflict-wounds': {},
   'lightning-bolt': {},
-  'poison-spray': {},
+  'poison-spray': { seen: 'TARGET' },
   sleep: {},
   'spare-the-dying': {},
-  'stinking-cloud': {},
+  'stinking-cloud': {
+    zone: { obscure: 'HEAVY', dispersedBy: 'WIND' },
+  },
   thunderwave: {},
 };

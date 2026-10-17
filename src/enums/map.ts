@@ -148,6 +148,14 @@ export const MAP_MAX_STROKE_WIDTH = 1;
  * Чьи хиты и КД видит игрок (дизайн 9 октября): только своей фишки,
  * героев или всех, включая монстров. Задаёт ведущий на всю сцену.
  */
+/**
+ * Освещённость сцены без источников (план волны 5, решение 5). Яркий —
+ * по умолчанию: каждая сцена до волны 5 и каждый тест играют на свету.
+ */
+export const SCENE_LIGHTINGS = ['BRIGHT', 'DIM', 'DARK'] as const;
+export const sceneLightingSchema = z.enum(SCENE_LIGHTINGS);
+export type SceneLighting = (typeof SCENE_LIGHTINGS)[number];
+
 export const STATS_VISIBILITIES = ['OWN', 'PARTY', 'ALL'] as const;
 export type StatsVisibility = (typeof STATS_VISIBILITIES)[number];
 /**

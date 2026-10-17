@@ -11,6 +11,7 @@ import {
   isFree,
   reachableCells,
 } from './grid.js';
+import { NO_SENSES, sceneVision, sightOf } from './vision.js';
 
 /**
  * Правила состояний: чистая арифметика без базы и без React. Состояние
@@ -167,8 +168,27 @@ function mergeAdvantage(values: AdvantageEffect[]): AdvantageEffect {
 export function combineConditions(
   entries: ConditionEntry[],
   extra: readonly ConditionEffects[] = [],
+  /**
+   * Слепота и невидимость в атаке — только через обзор (план волны 5,
+   * решение 15): их атакующие следствия отбрасываются, а бросок получает
+   * их из `attackAdvantage.sight`. Иначе таблица давала бы помеху слепому
+   * со слепым зрением и атакующему с «Видением невидимого».
+   */
+  opts: { sightAware?: boolean } = {},
 ): ConditionEffects {
-  const all = [...entries.map(effectsOf), ...extra];
+  const all = [
+    ...entries.map((entry) =>
+      opts.sightAware && (entry.code === 'blinded' || entry.code === 'invisible')
+        ? {
+            ...effectsOf(entry),
+            ownAttacks: 'NORMAL' as const,
+            incomingNear: 'NORMAL' as const,
+            incomingFar: 'NORMAL' as const,
+          }
+        : effectsOf(entry),
+    ),
+    ...extra,
+  ];
 
   return {
     cannotAct: all.some((e) => e.cannotAct),
@@ -228,6 +248,8 @@ export interface ReachableCellsInput {
   walls: Set<string>;
   /** Трудная местность — шаг в неё стоит две клетки (см. `reachableCells`). */
   difficult?: Set<string>;
+  /** Цена клеток зон («Рост растений» — 4), из `movementGrid` (волна 5). */
+  multipliers?: ReadonlyMap<string, number>;
   /** Проходимое, но не для остановки: чужие живые фишки. */
   tokens: Set<string>;
   /** Источники испуга, ещё стоящие на сцене — фишку-источник могли снять со стола, и тогда бояться уже некого. */
@@ -278,6 +300,7 @@ export function reachableCellsFor(input: ReachableCellsInput): Set<string> {
         grid: input.grid,
         walls: input.walls,
         difficult: input.difficult,
+        ...(input.multipliers ? { multipliers: input.multipliers } : {}),
         tokens: input.tokens,
         maxSteps: Math.floor(budgetFeet / input.cellSizeFeet),
       });
@@ -326,8 +349,13 @@ export function attackAdvantage(input: {
   attacker: ConditionEffects;
   target: ConditionEffects;
   isNear: boolean;
-  /** Кто кого видит сквозь туман и тьму (`seesTarget`); нет — видят оба. */
-  sight?: { attackerSeesTarget: boolean; targetSeesAttacker: boolean };
+  /**
+   * Кто кого видит (`sightOf` волны 5). Обязательное поле: слепота и
+   * невидимость считаются только через него (решение 15), и вызывающий,
+   * забывший обзор, молча потерял бы их. `null` — обзор не считается
+   * (упрощённый бой): оба видят.
+   */
+  sight: { attackerSeesTarget: boolean; targetSeesAttacker: boolean } | null;
   /**
    * Источники из реестра механик — безрассудство, уклонение, помощь:
    * сводятся тем же правилом в одном списке со всеми прочими, а не
@@ -351,22 +379,9 @@ export function attackAdvantage(input: {
 }
 
 /**
- * Заклинания, чья область сильно заслоняет обзор: внутри не видно ни
- * наружу, ни внутрь (PHB, «Видимость»). Тьма — магическая, тёмное
- * зрение её не пробивает.
- */
-export const OBSCURING_SPELL_CODES: readonly string[] = [
-  'fog-cloud',
-  'darkness',
-  'stinking-cloud',
-  'sleet-storm',
-];
-
-/**
- * Видит ли `viewer` цель: если хоть один из двоих стоит в заслонённой
- * клетке — нет, разве что слепое зрение достаёт до цели (оно не
- * опирается на глаза). Нужна атаке (`attackAdvantage.sight`) — и на
- * сервере, и в подписи панели до броска.
+ * Видит ли `viewer` цель — прежняя подпись над правилом обзора волны 5
+ * (`sightOf`): клетки тумана — сильное заслонение, слепое зрение — чувство.
+ * Живёт ради вызывающих, которым сцена целиком не нужна.
  */
 export function seesTarget(input: {
   viewer: Placed;
@@ -374,21 +389,28 @@ export function seesTarget(input: {
   obscuredCells: ReadonlySet<string>;
   viewerBlindsightFeet?: number;
   cellSizeFeet: number;
-  /**
-   * Цель спряталась от смотрящего (засада: `HIDDEN.hiddenFrom` цели
-   * содержит смотрящего) — не видит, что бы ни было с туманом.
-   */
+  /** Цель спряталась от смотрящего (`HIDDEN.hiddenFrom`). */
   hiddenFromViewer?: boolean;
 }): boolean {
-  if (input.hiddenFromViewer) return false;
-  const inside = (placed: Placed): boolean =>
-    cellsOf(placed, footprint(placed.size)).some((cell) => input.obscuredCells.has(cellKey(cell)));
-  if (!inside(input.viewer) && !inside(input.target)) return true;
-  const blindsight = input.viewerBlindsightFeet ?? 0;
+  const vision = sceneVision({
+    grid: { width: 0, height: 0 },
+    cellSizeFeet: input.cellSizeFeet,
+    lighting: 'BRIGHT',
+    obstacles: [],
+    zones: [{ cells: [...input.obscuredCells], props: { obscure: 'HEAVY' } }],
+    lights: [],
+  });
   return (
-    blindsight > 0 &&
-    reachDistance(input.viewer, input.target) <=
-      reachInCells({ reachFeet: blindsight, cellSizeFeet: input.cellSizeFeet })
+    sightOf(
+      {
+        ...input.viewer,
+        senses: { ...NO_SENSES, blindsight: input.viewerBlindsightFeet ?? 0 },
+        blinded: false,
+      },
+      { ...input.target, invisible: false, revealed: false },
+      vision,
+      { hiddenFromViewer: input.hiddenFromViewer === true },
+    ) !== 'NONE'
   );
 }
 

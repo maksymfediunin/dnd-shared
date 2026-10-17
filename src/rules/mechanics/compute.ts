@@ -33,6 +33,7 @@ import type {
   AmountTable,
   CastOptionFacet,
   Facet,
+  LightFacet,
   MechanicRecord,
   MechanicsContext,
   MechanicsHolder,
@@ -176,6 +177,10 @@ function test(p: Predicate, ctx: MechanicsContext, owner?: FacetOwner): boolean 
       );
     case 'killedOutright':
       return ctx.damage?.killedOutright === true;
+    case 'bearerInDimOrDark':
+      return ctx.bearer?.light === 'DIM' || ctx.bearer?.light === 'DARK';
+    case 'vsImpedingPlants':
+      return ctx.save?.spellTags?.includes('impedingPlants') === true;
     case 'weaponItem':
       return weapon !== undefined && weapon.itemId !== undefined && weapon.itemId !== 'unarmed';
     case 'weaponAttack':
@@ -573,6 +578,32 @@ export function hasRule(h: MechanicsHolder, rule: RuleFacet['rule']): boolean {
   return facetsOf(h).some(({ facet }) => facet.kind === 'rule' && facet.rule === rule);
 }
 
+/** То же с условиями грани: движение без доспехов — без доспеха и щита, в свой ход. */
+export function ruleHolds(
+  h: MechanicsHolder,
+  rule: RuleFacet['rule'],
+  ctx: MechanicsContext,
+): boolean {
+  return facetsOf(h).some(
+    ({ code, facet }) =>
+      facet.kind === 'rule' && facet.rule === rule && holds(facet.when, ctx, { code, h }),
+  );
+}
+
+/** Чувства носителя из реестра (черты, воззвания): большее из радиусов по виду. */
+export function collectSenses(h: MechanicsHolder): { darkvision: number; devilsSight: number } {
+  const out = { darkvision: 0, devilsSight: 0 };
+  for (const { facet } of facetsOf(h)) {
+    if (facet.kind === 'sense') out[facet.sense] = Math.max(out[facet.sense], facet.rangeFeet);
+  }
+  return out;
+}
+
+/** Свет от носителя («Священное оружие»). */
+export function collectLights(h: MechanicsHolder): LightFacet[] {
+  return facetsOf(h).flatMap(({ facet }) => (facet.kind === 'light' ? [facet] : []));
+}
+
 /** Что носитель может доплатить к сотворению — по грани на вариант, с кодом умения. */
 export function collectCastOptions(h: MechanicsHolder): { code: string; facet: CastOptionFacet }[] {
   return facetsOf(h).flatMap(({ code, facet }) =>
@@ -694,6 +725,8 @@ export interface TurnState {
   /** Застигнут врасплох — первый ход боя. */
   surprised: boolean;
   grappled: boolean;
+  /** Опутан зоной, из которой вырываются проверкой («Паутина», волна 5). */
+  restrainedByZone?: boolean;
   /** Действие «Атака» в этом ходу совершено (всплеск его не сбрасывает). */
   attackActionTaken: boolean;
   /**

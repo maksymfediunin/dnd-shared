@@ -188,6 +188,20 @@ export const ERROR_CODES = {
   DEATH_SAVE_NOT_TURN_START: 'DEATH_SAVE_NOT_TURN_START',
   /** Идёт легендарная вставка: ходит монстр вне очереди, перемотки и прочих действий нет. */
   LEGENDARY_INTERLUDE: 'LEGENDARY_INTERLUDE',
+  /** Заклинатель не видит цель или точку («существо, которое вы видите», волна 5). */
+  TARGET_NOT_SEEN: 'TARGET_NOT_SEEN',
+  /** У цели полное укрытие — к ней нет чистого пути. */
+  TARGET_TOTAL_COVER: 'TARGET_TOTAL_COVER',
+  /** Спрятаться не от кого: каждый враг видит ясно и укрытия от него нет. */
+  CANNOT_HIDE_HERE: 'CANNOT_HIDE_HERE',
+  /** «Единство с тенями» — только в тусклом свете или темноте. */
+  NOT_IN_DARKNESS: 'NOT_IN_DARKNESS',
+  /** Закончить перемещение на жидкости нельзя (движение без доспехов). */
+  CANNOT_END_ON_LIQUID: 'CANNOT_END_ON_LIQUID',
+  /** Внутри «Тишины» заклинание со словесным компонентом не сотворить. */
+  SPELL_SILENCED: 'SPELL_SILENCED',
+  /** Подняться в воздух нечем: нет скорости полёта и левитации. */
+  CANNOT_FLY: 'CANNOT_FLY',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

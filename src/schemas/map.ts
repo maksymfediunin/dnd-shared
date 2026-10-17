@@ -23,6 +23,7 @@ import {
   mapObstacleKindSchema,
   mapTerrainKindSchema,
   STATS_VISIBILITIES,
+  sceneLightingSchema,
 } from '../enums/map.js';
 import { firstObstacleOverlap, obstacleFitsInGrid } from '../rules/obstacles.js';
 import { type MapTerrain, terrainOutsideGrid } from '../rules/terrain.js';
@@ -125,10 +126,13 @@ export const encounterSettingsSchema = z
   .object({
     hpVisibility: z.enum(STATS_VISIBILITIES).optional(),
     acVisibility: z.enum(STATS_VISIBILITIES).optional(),
+    /** Освещённость сцены (волна 5): ночь, погашенный свет. */
+    lighting: sceneLightingSchema.optional(),
   })
-  .refine((v) => v.hpVisibility !== undefined || v.acVisibility !== undefined, {
-    message: 'Нечего менять',
-  });
+  .refine(
+    (v) => v.hpVisibility !== undefined || v.acVisibility !== undefined || v.lighting !== undefined,
+    { message: 'Нечего менять' },
+  );
 export type EncounterSettingsInput = z.infer<typeof encounterSettingsSchema>;
 
 /** Ряд клеток живой сцены — пристроить или снять, с одного края за раз. */
@@ -171,6 +175,12 @@ export const battleMapSaveSchema = z
     monsters: z.array(mapMonsterPresetInputSchema).max(MAP_MAX_MONSTER_PRESETS).default([]),
     terrain: mapTerrainSchema.default({}),
     drawings: mapDrawingsSchema.default([]),
+    /**
+     * Освещённость при подготовке. Необязательна: редактор до волны 5 её не
+     * шлёт, и сохранение не должно гасить уже выбранный свет; новой
+     * заготовке база ставит яркий.
+     */
+    lighting: sceneLightingSchema.optional(),
   })
   .superRefine((value, ctx) => {
     const grid = { width: value.gridWidth, height: value.gridHeight };
@@ -233,6 +243,13 @@ export const participantUpdateSchema = z
     side: participantSideSchema.optional(),
     /** Застигнут врасплох (§П3.15) — отмечает только ведущий; снимает конец его хода. */
     surprised: z.boolean().optional(),
+    /**
+     * Высота над землёй в футах (волна 5). Кратность клетке проверяет
+     * служба — размер клетки знает сцена, а не схема.
+     */
+    elevationFeet: z.number().int().min(0).max(1000).optional(),
+    /** Несёт зажжённый факел: 20 футов яркого и 20 тусклого. */
+    carriesTorch: z.boolean().optional(),
     /**
      * Ход властью ведущего, вне правил очереди и бюджета футов. Раньше
      * ведущий был вне правил всегда — и за столом это выходило боком:

@@ -179,6 +179,8 @@ export const castInputSchema = z
      */
     targetIds: z.array(z.uuid()).min(1).max(20).optional(),
     cell: targetCellSchema.optional(),
+    /** Несколько точек одного сотворения — «Пляшущие огоньки» (до четырёх, волна 5). */
+    cells: z.array(targetCellSchema).min(1).max(4).optional(),
     /**
      * Клетка переноса — «Туманный шаг», «Переносящая дверь»: цель —
      * сам заклинатель, а куда он встанет, задаёт эта клетка.
@@ -230,8 +232,8 @@ export const castInputSchema = z
   })
   .refine(
     (v) =>
-      [v.targetId, v.cell, v.targetIds, v.destination].filter((aim) => aim !== undefined).length ===
-      1,
+      [v.targetId, v.cell, v.targetIds, v.destination, v.cells].filter((aim) => aim !== undefined)
+        .length === 1,
     {
       path: ['targetId'],
       message: 'Заклинание бьёт либо по фишке, либо по фишкам, либо по клетке',
@@ -299,6 +301,9 @@ export const COMBAT_ABILITIES = [
   'MONSTER_ACTION',
   /** Бросок перезарядки в начале хода монстра — только строка журнала. */
   'RECHARGE',
+  // Волна 5: невидимость в тени и сдвиг зоны заклинания (лунный луч, сфера, огоньки).
+  'ONE_WITH_SHADOWS',
+  'MOVE_ZONE',
   'DIVINE_INTERVENTION',
   'GAZE_OF_TWO_MINDS',
   'GAZE_EXTEND',
@@ -324,6 +329,8 @@ export const WINDOW_EVENTS = [
   'leavesReach',
   /** Конец чужого хода — легендарная вставка ведущему (волна 7а, р. 8). */
   'turnEnded',
+  /** Участник падает с высоты (волна 5): «Пёрышко», «Медленное падение». */
+  'falling',
   /** Божественное вмешательство удалось — ведущий выбирает заклинание (план волны 8, р. 24). */
   'divineIntervention',
 ] as const;
@@ -349,6 +356,8 @@ export const REACTION_ABILITIES = [
   'LEGENDARY_RESISTANCE',
   /** «Parry»: +N к КД против попавшей рукопашной атаки. */
   'PARRY',
+  'FEATHER_FALL',
+  'SLOW_FALL',
   /** Выбор ведущего во вмешательстве: заклинание жреца или домена. */
   'DIVINE_CHOICE',
 ] as const;
@@ -399,6 +408,9 @@ export const ACTION_UNAVAILABLE_REASONS = [
   'ATTACK_ACTION_REQUIRED',
   'PARTICIPANT_CANNOT_ACT',
   'SURPRISED',
+  // Волна 5: свет и обзор решают, есть ли кнопка «в тени» и «спрятаться».
+  'NOT_IN_DARKNESS',
+  'CANNOT_HIDE_HERE',
 ] as const;
 export type ActionUnavailableReason = (typeof ACTION_UNAVAILABLE_REASONS)[number];
 
@@ -589,6 +601,12 @@ export const reactionAnswerSchema = z.object({
   ability: z.enum(REACTION_ABILITIES).nullable(),
   /** Отражение снарядов: метнуть пойманный снаряд за очко ци. */
   throwBack: z.boolean().optional(),
+  /**
+   * Кого берёт ответ, если выбор за отвечающим: «Пёрышко» (ревью 5а) — до
+   * пяти падающих по выбору заклинателя (служба берёт первые пять); выбор
+   * вмешательства (волна 8а) — цели выбранного заклинания. Нет — все, до
+   * кого достаёт.
+   */
   /** Выбор вмешательства — заклинание из `spells` варианта и его цели. */
   spellCode: z.string().trim().min(1).max(64).optional(),
   targetIds: z.array(z.uuid()).min(1).max(20).optional(),
@@ -612,8 +630,12 @@ export const abilityInputSchema = z.object({
   targetId: z.uuid().optional(),
   /** «Помощь» в атаке — [союзник, враг]; в проверке — [союзник]. */
   targetIds: z.array(z.uuid()).min(1).max(20).optional(),
-  /** Клетка прицела оружия дыхания. */
+  /** Клетка прицела оружия дыхания; куда сдвинуть зону (`MOVE_ZONE`). */
   cell: targetCellSchema.optional(),
+  /** Какую зону сдвинуть (`MOVE_ZONE`) — id эффекта `SPELL_AREA`. */
+  zoneId: z.uuid().optional(),
+  /** Точки зоны по одной («Пляшущие огоньки» — до четырёх). */
+  cells: z.array(targetCellSchema).min(1).max(4).optional(),
   /** Вариант: круг ячейки, предмет, навык, состояние, способ толчка. */
   option: z.string().trim().min(1).max(64).optional(),
   /** Наложение рук — сколько хитов из запаса. */
@@ -735,6 +757,8 @@ export const MODIFIER_SOURCES = [
   'aura',
   /** Стихийное сродство чародея — Харизма к одному броску урона. */
   'elementalAffinity',
+  /** Укрытие цели — к спасброску Ловкости (+2 или +5, волна 5). */
+  'cover',
   /** Усиленное воплощение волшебника — Интеллект к одному броску урона. */
   'empoweredEvocation',
   /** Мучительный взрыв колдуна — Харизма к урону каждого луча. */
@@ -904,6 +928,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     adjustments: adjustmentsSchema,
     /** «Везучий»: единица, переброшенная до окна. */
     rerolled: rerolledSchema,
+    /** Укрытие цели — уже внутри `targetArmorClass` (+2 или +5, волна 5). */
+    cover: z.enum(['HALF', 'THREE_QUARTERS']).optional(),
   }),
   z.object({
     kind: z.literal('DAMAGE'),
@@ -926,6 +952,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     results: z.array(z.number().int().min(1).max(100)).max(20),
     amount: z.number().int().min(0),
     damageType: z.string().min(1).max(40),
+    /** Чем нанесён урон, если не атакой и не заклинанием: падением (волна 5). */
+    cause: z.enum(['FALL']).optional(),
     /** Кости сверху от умений — подписать строку журнала. */
     sneakAttackDice: z.number().int().min(1).max(20).optional(),
     smiteDice: z.number().int().min(1).max(20).optional(),
@@ -1108,8 +1136,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
       repeat: z.boolean().optional(),
       /** Спасбросок от урона по носителю («Подчинение личности»). */
       onDamage: z.boolean().optional(),
-      /** Сработала зона заклинания: вошёл, начал или кончил в ней ход. */
-      trigger: z.enum(['ENTER', 'START', 'END']).optional(),
+      /** Сработала зона заклинания: вошёл, начал или кончил в ней ход; таран сдвинутой зоны. */
+      trigger: z.enum(['ENTER', 'START', 'END', 'MOVE']).optional(),
       /** Заклинатель, чья это сложность, — если не он сейчас ходит («Святилище»). */
       casterParticipantId: z.uuid().optional(),
       /** Ответы в окне (вдохновение, удача Тёмного) — уже внутри `total`. */
