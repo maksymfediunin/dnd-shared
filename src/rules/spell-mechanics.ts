@@ -149,6 +149,11 @@ export interface ZoneProps {
   conditions?: ConditionCode[];
   /** Только стоящих на земле (высота 0): «Шипы», «Жир», «Опутывание». */
   ground?: true;
+  /**
+   * Высота зоны в футах, если её не дают форма и размер области:
+   * цилиндр «Лунного луча» — 40 футов при радиусе 5 (ревью 5а, В7).
+   */
+  heightFeet?: number;
   obscure?: 'LIGHT' | 'HEAVY';
   magicalDarkness?: true;
   silence?: true;

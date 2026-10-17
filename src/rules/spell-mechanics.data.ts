@@ -800,7 +800,7 @@ export const SPELL_MECHANICS: Readonly<Record<string, SpellMechanic>> = {
   },
   moonbeam: {
     // Тусклый свет на клетках луча; сдвиг действием на 60 фт — не «вход» (Р14).
-    zone: { on: ['ENTER', 'START'], move: { economy: 'ACTION', feet: 60 } },
+    zone: { on: ['ENTER', 'START'], move: { economy: 'ACTION', feet: 60 }, heightFeet: 40 },
     light: { bright: 0, dim: 0, on: 'ZONE' },
   },
   'move-earth': {
