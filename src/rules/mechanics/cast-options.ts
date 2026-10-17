@@ -13,6 +13,8 @@ export interface CastOptionSpell {
   areaShape: string | null;
   /** Вид урона; нет — заклинание не ранит. */
   damageType: string | null;
+  /** Школа (код справочника); нет — ваяние не годится. */
+  school?: string | null;
 }
 
 /** Минута — десять раундов: продлённое заклинание — от минуты (SRD). */
@@ -55,6 +57,9 @@ export function castOptionEligible(
         spellRayCount(spell.code, spell.level, slotLevel, 1) === null &&
         spellTargetLimit(spell.code, spell.level, slotLevel) === 1
       );
+    case 'SCULPT':
+      // Ваяние бережёт от спасброска воплощения — без спасброска беречь не от чего.
+      return spell.school?.toLowerCase() === 'evocation' && spell.saveAbility !== null;
     case 'ELEMENTAL_RESISTANCE':
       return (
         spell.damageType !== null &&
@@ -73,6 +78,7 @@ const FLAT_COST: Record<Exclude<CastOption, 'TWINNED'>, number> = {
   QUICKENED: 2,
   SUBTLE: 1,
   ELEMENTAL_RESISTANCE: 1,
+  SCULPT: 0,
 };
 
 /** Цена в очках чародейства; удвоенное — круг ячейки, у заговора 1. */

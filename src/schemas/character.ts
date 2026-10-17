@@ -188,7 +188,42 @@ export const characterUpdateSchema = z
  * дыхание, всплеск действий…) и ячейки договора колдуна; долгий — всё:
  * ресурсы, ячейки, хиты и половину костей хитов.
  */
-export const restSchema = z.object({ kind: z.enum(['SHORT', 'LONG']) }).strict();
+/** Вид урона исчадной стойкости — тот же перечень, что у сопротивлений справочника. */
+export const FIENDISH_RESILIENCE_TYPES = [
+  'acid',
+  'bludgeoning',
+  'cold',
+  'fire',
+  'force',
+  'lightning',
+  'necrotic',
+  'piercing',
+  'poison',
+  'psychic',
+  'radiant',
+  'slashing',
+  'thunder',
+] as const;
+
+/**
+ * Что сделано на отдыхе сверх возврата ресурсов (план волны 8, р. 22–25):
+ * кости хитов короткого отдыха, ячейки «Магического / Природного
+ * восстановления», выбор исчадной стойкости. Без полей — отдых прежний.
+ */
+const restChoices = {
+  /** Сколько костей хитов потратить на коротком отдыхе. */
+  hitDice: z.number().int().min(0).max(20).optional(),
+  /** Ячейки, возвращаемые умением короткого отдыха: круги по одной ячейке. */
+  recoverSlots: z
+    .object({
+      featureCode: z.string().min(1).max(64),
+      levels: z.array(z.number().int().min(1).max(9)).min(1).max(10),
+    })
+    .optional(),
+  fiendishResilienceType: z.enum(FIENDISH_RESILIENCE_TYPES).optional(),
+};
+
+export const restSchema = z.object({ kind: z.enum(['SHORT', 'LONG']), ...restChoices }).strict();
 
 /**
  * Отдых загона от ведущего. Без `characterIds` — все персонажи комнаты;
@@ -198,6 +233,14 @@ export const roomRestSchema = z
   .object({
     kind: z.enum(['SHORT', 'LONG']),
     characterIds: z.array(z.uuid()).min(1).max(50).optional(),
+    /**
+     * Кости хитов каждого на коротком отдыхе: «Песнь отдыха» лучшего барда
+     * комнаты добавляет кость тем, кто потратил хоть одну (р. 22).
+     */
+    hitDice: z
+      .array(z.object({ characterId: z.uuid(), count: z.number().int().min(0).max(20) }))
+      .max(50)
+      .optional(),
   })
   .strict();
 

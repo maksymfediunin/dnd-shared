@@ -229,6 +229,16 @@ export const EFFECT_MECHANICS: Readonly<Record<EffectCode, EffectMechanic>> = {
    * носитель, код действия — `data.code`.
    */
   AURA_IMMUNE: { facets: [], expires: 'COMBAT_END' },
+  /**
+   * Взгляд двух разумов: до конца следующего хода колдуна он воспринимает
+   * чувствами согласного гуманоида — и для своего окружения слеп и глух
+   * (состояния с тем же источником кладёт действие, снимаются с эффектом).
+   */
+  GAZE_OF_TWO_MINDS: {
+    facets: [],
+    expires: 'COMBAT_END',
+    until: { who: 'BEARER', at: 'END' },
+  },
   /** Стихийное сродство: сопротивление виду урона предка на час — переживает бой. */
   ELEMENTAL_AFFINITY: {
     facets: [{ kind: 'defense', resistance: ['SORCERER_ANCESTRY'] }],

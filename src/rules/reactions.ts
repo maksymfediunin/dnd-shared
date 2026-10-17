@@ -19,6 +19,13 @@ import type { MechanicsContext, MechanicsHolder, ReactionFacet } from './mechani
 /** Сколько окно ждёт ответов, пока не закроется само. */
 export const REACTION_WINDOW_MS = 30_000;
 
+/**
+ * Окно выбора ведущего во «Вмешательстве» (р. 24) ждёт дольше: ведущий
+ * выбирает заклинание и цели из всего списка жреца, а тайм-аут — это
+ * «божество промолчало», и спешка отнимала бы у стола удачный к100.
+ */
+export const DIVINE_CHOICE_WINDOW_MS = 5 * 60_000;
+
 /** Заклинания-реакции, которые предлагает окно (остальные — волна 8). */
 export const WINDOW_REACTION_SPELLS = ['shield'] as const;
 

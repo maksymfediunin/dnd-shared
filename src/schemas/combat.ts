@@ -69,6 +69,8 @@ export const CAST_OPTIONS = [
   'SUBTLE',
   'TWINNED',
   'ELEMENTAL_RESISTANCE',
+  /** Ваяние заклинаний воплотителя — даром, выбор союзников в `sculptIds`. */
+  'SCULPT',
 ] as const;
 export type CastOption = (typeof CAST_OPTIONS)[number];
 
@@ -217,6 +219,12 @@ export const castInputSchema = z
     carefulIds: z.array(z.uuid()).max(10).optional(),
     /** Возвышенное заклинание: чей первый спасбросок — с помехой. */
     heightenedId: z.uuid().optional(),
+    /**
+     * Ваяние заклинаний: кто из видимых в области преуспевает без броска
+     * и не получает урона там, где успех дал бы половину. Сколько можно —
+     * 1 + круг заклинания, проверяет служба.
+     */
+    sculptIds: z.array(z.uuid()).max(10).optional(),
     /** Ход властью ведущего — та же дверь, что и у удара. */
     override: z.boolean().optional(),
   })
@@ -291,6 +299,9 @@ export const COMBAT_ABILITIES = [
   'MONSTER_ACTION',
   /** Бросок перезарядки в начале хода монстра — только строка журнала. */
   'RECHARGE',
+  'DIVINE_INTERVENTION',
+  'GAZE_OF_TWO_MINDS',
+  'GAZE_EXTEND',
 ] as const;
 export type CombatAbility = (typeof COMBAT_ABILITIES)[number];
 
@@ -313,6 +324,8 @@ export const WINDOW_EVENTS = [
   'leavesReach',
   /** Конец чужого хода — легендарная вставка ведущему (волна 7а, р. 8). */
   'turnEnded',
+  /** Божественное вмешательство удалось — ведущий выбирает заклинание (план волны 8, р. 24). */
+  'divineIntervention',
 ] as const;
 export type WindowEvent = (typeof WINDOW_EVENTS)[number];
 
@@ -336,6 +349,8 @@ export const REACTION_ABILITIES = [
   'LEGENDARY_RESISTANCE',
   /** «Parry»: +N к КД против попавшей рукопашной атаки. */
   'PARRY',
+  /** Выбор ведущего во вмешательстве: заклинание жреца или домена. */
+  'DIVINE_CHOICE',
 ] as const;
 export type ReactionAbility = (typeof REACTION_ABILITIES)[number];
 
@@ -379,6 +394,8 @@ export const ACTION_UNAVAILABLE_REASONS = [
   'BONUS_ACTION_ALREADY_USED',
   'REACTION_ALREADY_USED',
   'RESOURCE_EXHAUSTED',
+  /** Ресурс заперт на несколько долгих отдыхов («Божественное вмешательство»). */
+  'RESOURCE_LOCKED',
   'ATTACK_ACTION_REQUIRED',
   'PARTICIPANT_CANNOT_ACT',
   'SURPRISED',
@@ -460,7 +477,8 @@ export const availableActionSchema = z.discriminatedUnion('kind', [
     kind: z.literal('CAST_OPTION'),
     option: z.enum(CAST_OPTIONS),
     featureCode: z.string().min(1).max(64),
-    cost: z.union([z.number().int().min(1), z.literal('SPELL_LEVEL')]),
+    // Ноль — ваяние заклинаний: даром, но выбор во вводе сотворения.
+    cost: z.union([z.number().int().min(0), z.literal('SPELL_LEVEL')]),
     exclusive: z.boolean(),
     available: z.boolean(),
     reason: z.enum(ACTION_UNAVAILABLE_REASONS).nullable(),
@@ -511,6 +529,10 @@ export const reactionOptionSchema = z.object({
     .nullable(),
   /** Отражение снарядов: можно ли заранее выбрать «метнуть, если поймаю» (есть ци). */
   canThrowBack: z.boolean().optional(),
+  /** Выбор вмешательства: коды заклинаний жреца и домена, из которых выбирает ведущий. */
+  spells: z.array(z.string().min(1).max(64)).max(200).optional(),
+  /** Отвечает только ведущий — выбор за ним по букве правила (вмешательство). */
+  gameMasterOnly: z.boolean().optional(),
 });
 export type ReactionOption = z.infer<typeof reactionOptionSchema>;
 
@@ -567,6 +589,11 @@ export const reactionAnswerSchema = z.object({
   ability: z.enum(REACTION_ABILITIES).nullable(),
   /** Отражение снарядов: метнуть пойманный снаряд за очко ци. */
   throwBack: z.boolean().optional(),
+  /** Выбор вмешательства — заклинание из `spells` варианта и его цели. */
+  spellCode: z.string().trim().min(1).max(64).optional(),
+  targetIds: z.array(z.uuid()).min(1).max(20).optional(),
+  /** Вариант выбранного заклинания (`SpellMechanic.variants`). */
+  variant: z.string().trim().min(1).max(32).optional(),
 });
 export type ReactionAnswerInput = z.infer<typeof reactionAnswerSchema>;
 
@@ -708,6 +735,14 @@ export const MODIFIER_SOURCES = [
   'aura',
   /** Стихийное сродство чародея — Харизма к одному броску урона. */
   'elementalAffinity',
+  /** Усиленное воплощение волшебника — Интеллект к одному броску урона. */
+  'empoweredEvocation',
+  /** Мучительный взрыв колдуна — Харизма к урону каждого луча. */
+  'agonizingBlast',
+  /** Ученик жизни — 2 + круг к лечению заклинанием. */
+  'discipleOfLife',
+  /** Выдающийся атлет — половина мастерства к проверке без владения. */
+  'remarkableAthlete',
   /**
    * Поправка руками к броску стола («+2 от зелья»): всё, чем присланный
    * модификатор расходится с листом (docs/2026-10-02-roll-modifier-parts-design.md).
@@ -823,6 +858,31 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     legendaryCost: z.number().int().min(1).max(3).optional(),
     /** «Parry» цели обратил попадание в промах: на сколько поднял КД. */
     parried: z.number().int().min(1).max(10).optional(),
+    /** Лишние кости оружия на крите — жестокий крит, свирепые атаки. */
+    critExtraDice: z.number().int().min(1).max(10).optional(),
+    /** Значения костей урона, которые перебрасываются (бой большим оружием). */
+    rerollDamageOn: z.array(z.number().int().min(1).max(20)).max(6).optional(),
+    /**
+     * Кости умений при попадании без цены (божественный удар, губитель
+     * колоссов) — каждая своей строкой урона; раз в ход проверяет урон.
+     */
+    onHitDice: z
+      .array(
+        z.object({
+          featureCode: z.string().min(1).max(64),
+          dice: z.string().regex(/^\d+d\d+$/),
+          type: z.string().min(1).max(40),
+          oncePer: z.enum(['turn', 'ownTurn']),
+          /** Урон оружия (губитель колоссов) — режется сопротивлением оружию. */
+          weapon: z.boolean().optional(),
+        }),
+      )
+      .max(5)
+      .optional(),
+    /** Урон Силой вполовину («Луч слабости» на атакующем). */
+    halvedByStrength: z.boolean().optional(),
+    /** Оружие магическое (Р9): под заклинанием, удар монаха с ци. */
+    magicalWeapon: z.boolean().optional(),
     /** Из чего сложен бонус к попаданию; сумма частей — модификатор броска. */
     attackParts: modifierPartsSchema,
     ...rollShape,
@@ -877,6 +937,8 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
           // Нет у второго вида урона атаки монстра («plus 2к6 огнём»):
           // прибавка его собственная, а не заклинания.
           spellCode: z.string().min(1).max(64).optional(),
+          /** Кость умения при попадании (божественный удар, губитель колоссов). */
+          featureCode: z.string().min(1).max(64).optional(),
           notation: rollShape.notation,
           results: z.array(z.number().int().min(1).max(100)).max(20),
           // Со знаком: «Уменьшение» отнимает 1к4 от удара.
@@ -894,6 +956,12 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
     adjustments: adjustmentsSchema,
     /** Урон не прошёл: иммунитет цели к его виду. */
     immune: z.literal(true).optional(),
+    /** Лишних костей оружия на крите (жестокий крит, свирепые атаки) — уже в `results`. */
+    critExtraDice: z.number().int().min(1).max(10).optional(),
+    /** Сколько костей переброшено (бой большим оружием). */
+    rerolledDice: z.number().int().min(1).max(40).optional(),
+    /** Урон Силой вполовину («Луч слабости»). */
+    halved: z.boolean().optional(),
   }),
   z.object({
     kind: z.literal('CAST'),
@@ -989,6 +1057,21 @@ export const encounterEventPayloadSchema = z.discriminatedUnion('kind', [
      * животными» на зверя с Интеллектом 4 и выше — ячейка потрачена.
      */
     spellFailedIds: z.array(z.uuid()).max(40).optional(),
+    /**
+     * Сотворено в бою, но следствий в бою у заклинания нет («Послание»,
+     * «Обнаружение магии»): ячейка и действие потрачены (план волны 8, р. 4).
+     */
+    outOfCombat: z.boolean().optional(),
+    /** Ваяние: кто преуспел без броска и без урона. */
+    sculptedIds: z.array(z.uuid()).max(10).optional(),
+    /** Возвращённые к жизни («Возрождение») — с одним хитом. */
+    revived: z.array(z.uuid()).max(10).optional(),
+    /** Предметы, созданные заклинанием («Целебные ягоды») — сколько и кому. */
+    items: z.object({ code: z.string().min(1).max(64), count: z.number().int().min(1) }).optional(),
+    /** Дарованное умением: без ячейки или ячейкой договора со счётчиком. */
+    granted: z.string().min(1).max(64).optional(),
+    /** Вмешательство божества: без ячейки и без действия. */
+    divine: z.boolean().optional(),
   }),
   z
     .object({
